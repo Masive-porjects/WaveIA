@@ -845,7 +845,7 @@ export default function Home() {
 
       case "genres":
         return (
-          <div className="max-w-4xl">
+          <div className="w-full">
             <GenreGuide />
           </div>
         );
@@ -857,7 +857,7 @@ export default function Home() {
           );
         }
         return (
-          <div className="max-w-4xl">
+          <div className="w-full">
             <StemSplitter
               state={stemState}
               onChange={setStemState}
@@ -876,7 +876,7 @@ export default function Home() {
           );
         }
         return (
-          <div className="max-w-4xl">
+          <div className="w-full">
             <VocalChain
               sessionId={session.session_id}
               disabled={processing}
@@ -900,7 +900,7 @@ export default function Home() {
 
       case "pipeline":
         return (
-          <div className="max-w-4xl">
+          <div className="w-full">
             <MasteringGuide />
           </div>
         );
