@@ -10,6 +10,7 @@ Pipeline: `Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smooth
 
 ## LEER PRIMERO (obligatorio antes de escribir código)
 
+0. `docs/SETUP.md` — runbook de entorno verificado (venv, bun, Convex, stack local, pitfalls reales). Seguilo literal si el entorno no está levantado.
 1. `docs/hackaton-specs/08_implementacion_llm.md` — prompt de implementación con TODOS los valores exactos (presets, rangos, tokens, endpoints, fases, criterios de éxito, pitfalls). **No inventes valores DSP ni de diseño: extraelos de los fuentes.**
 2. `docs/INTEGRATION_REPORT.md` — estado del bloque de integración.
 3. Según el área: `docs/hackaton-specs/03_*.md` (backend mastering), `04_*.md` (sistema de diseño), `05_*.md` (live engine).
