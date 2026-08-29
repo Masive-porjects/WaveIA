@@ -8,8 +8,30 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
  * Es nativa y gratis: cero creditos de ElevenLabs para la entrada. Los creditos
  * se reservan para la salida, que es donde la calidad de voz se nota.
  *
+ * Funciona por toque, no manteniendo apretado: mantener se corta al mover el
+ * mouse fuera del boton, cansa, y en movil pelea con el scroll. Se toca para
+ * empezar y se corta solo tras un silencio, o se toca de nuevo para enviar.
+ *
  * Anda en Chrome, Edge y Safari. Firefox no la implementa.
  */
+
+/** Silencio tras el cual se corta y se envia solo. */
+const SILENCE_MS = 1800;
+
+/** Mensajes accionables: los codigos crudos de la API no le dicen nada a nadie. */
+function errorMessage(code: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Necesito permiso para usar el micrófono. Habilitalo en el candado de la barra de direcciones.";
+    case "audio-capture":
+      return "No encontré ningún micrófono conectado.";
+    case "network":
+      return "Se cortó la conexión con el servicio de transcripción.";
+    default:
+      return "No pude escucharte. Probá de nuevo.";
+  }
+}
 
 // La Web Speech API no esta en lib.dom, asi que declaramos lo minimo que usamos.
 interface SpeechRecognitionAlternative {
@@ -67,8 +89,14 @@ export interface SpeechInput {
   /** Texto en curso, incluyendo resultados parciales. */
   transcript: string;
   error: string | null;
+  /** Empieza a escuchar. */
   start: () => void;
+  /** Corta y envia lo que haya. */
   stop: () => void;
+  /** Corta y descarta. */
+  cancel: () => void;
+  /** Alterna entre empezar y enviar. Es lo que usa el boton. */
+  toggle: () => void;
 }
 
 export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput {
@@ -89,6 +117,9 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalRef = useRef("");
+  const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Distingue "el usuario corto" de "descarto": onend no sabe por que paso.
+  const discardRef = useRef(false);
   // En un ref para que cambiar el callback no reinicie el reconocimiento.
   // Se asigna en un efecto y no durante el render: escribir un ref mientras se
   // renderiza rompe con StrictMode y con render concurrente.
@@ -103,7 +134,9 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
 
     const recognition = new Ctor();
     recognition.lang = lang;
-    recognition.continuous = false;
+    // continuous: las pausas naturales al hablar no tienen que cortar la toma.
+    // El corte lo decide el temporizador de silencio, no el navegador.
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     recognition.onresult = (event) => {
@@ -118,20 +151,31 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
         }
       }
       setTranscript(finalRef.current + interim);
+
+      // Cada palabra reinicia la cuenta: el corte llega tras el silencio real.
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => {
+        recognitionRef.current?.stop();
+      }, SILENCE_MS);
     };
 
     recognition.onerror = (event) => {
       // "aborted" y "no-speech" son ruido normal al soltar el boton sin hablar.
       if (event.error !== "aborted" && event.error !== "no-speech") {
-        setError(event.error);
+        setError(errorMessage(event.error));
       }
       setListening(false);
     };
 
     recognition.onend = () => {
       setListening(false);
+      if (silenceRef.current) {
+        clearTimeout(silenceRef.current);
+        silenceRef.current = null;
+      }
       const text = finalRef.current.trim();
-      if (text) onFinalRef.current?.(text);
+      if (!discardRef.current && text) onFinalRef.current?.(text);
+      discardRef.current = false;
     };
 
     recognitionRef.current = recognition;
@@ -141,6 +185,7 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
       recognition.onend = null;
       recognition.abort();
       recognitionRef.current = null;
+      if (silenceRef.current) clearTimeout(silenceRef.current);
     };
   }, [lang]);
 
@@ -148,6 +193,7 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
     const recognition = recognitionRef.current;
     if (!recognition || listening) return;
     finalRef.current = "";
+    discardRef.current = false;
     setTranscript("");
     setError(null);
     try {
@@ -158,9 +204,31 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
     }
   }, [listening]);
 
-  const stop = useCallback(() => {
-    recognitionRef.current?.stop();
+  const clearSilence = useCallback(() => {
+    if (silenceRef.current) {
+      clearTimeout(silenceRef.current);
+      silenceRef.current = null;
+    }
   }, []);
 
-  return { supported, listening, transcript, error, start, stop };
+  const stop = useCallback(() => {
+    clearSilence();
+    recognitionRef.current?.stop();
+  }, [clearSilence]);
+
+  const cancel = useCallback(() => {
+    clearSilence();
+    discardRef.current = true;
+    finalRef.current = "";
+    setTranscript("");
+    recognitionRef.current?.abort();
+    setListening(false);
+  }, [clearSilence]);
+
+  const toggle = useCallback(() => {
+    if (listening) stop();
+    else start();
+  }, [listening, start, stop]);
+
+  return { supported, listening, transcript, error, start, stop, cancel, toggle };
 }

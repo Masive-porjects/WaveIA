@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { speak } from "@/lib/voice/speak";
 import { useSpeechInput } from "@/lib/voice/useSpeechInput";
 
-import IntentBars, { AXES } from "./IntentBars";
 import MicButton from "./MicButton";
 import PresetCards, { type Recommendation } from "./PresetCards";
 import TrackBadge from "./TrackBadge";
@@ -29,6 +28,25 @@ interface Turn {
   /** Ejes movidos por este turno, para resaltarlos junto a la respuesta. */
   changed?: string[];
 }
+
+/**
+ * Los nueve ejes del IntentProfile.
+ *
+ * No se muestran en la UI: el usuario elige un preset, no ajusta ejes. Pero el
+ * perfil se sigue enviando y recibiendo porque es el contrato con el mapper de
+ * DSP, que traduce estos numeros a los parametros reales del motor.
+ */
+const AXES = [
+  "warmth",
+  "punch",
+  "clarity",
+  "brightness",
+  "width",
+  "bass_weight",
+  "vocal_focus",
+  "vintage",
+  "loudness",
+] as const;
 
 export const NEUTRAL_PROFILE: Profile = {
   ...Object.fromEntries(AXES.map((a) => [a, 0.5])),
@@ -94,14 +112,22 @@ export default function ChatPanel({
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastChanged = turns.at(-1)?.changed ?? [];
 
-  // "Hay algo que mostrar" = algun eje se movio del neutral.
-  const hasAdjustments = AXES.some((axis) => Math.abs(Number(profile[axis] ?? 0.5) - 0.5) >= 0.01);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, busy]);
+
+  // La bienvenida se dice en voz alta una sola vez. El guard es necesario
+  // porque el texto cambia cuando llega el analisis con el genero, y sin el
+  // se repetiria el saludo.
+  const welcomeSpokenRef = useRef(false);
+  useEffect(() => {
+    if (!voiceOutput || !welcome || welcomeSpokenRef.current) return;
+    welcomeSpokenRef.current = true;
+    setSpeaking(true);
+    void speak(welcome).finally(() => setSpeaking(false));
+  }, [welcome, voiceOutput]);
 
   const send = useCallback(
     async (text: string) => {
@@ -312,30 +338,14 @@ export default function ChatPanel({
       )}
 
       <div className="relative border-t px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
-        {/* Nueve barras identicas en 0.50 son ruido: no hay nada que leer hasta
-            que el agente mueve algo. Aparecen recien entonces. */}
-        <AnimatePresence>
-          {hasAdjustments && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
-              className="overflow-hidden"
-            >
-              <div className="mb-4">
-                <IntentBars profile={profile} changed={lastChanged} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <MicButton
           supported={mic.supported}
           listening={mic.listening}
           disabled={busy}
-          onStart={mic.start}
-          onStop={mic.stop}
+          transcript={mic.transcript}
+          onToggle={mic.toggle}
+          onCancel={mic.cancel}
         />
 
         <form
