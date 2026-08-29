@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AudioMind - uploads and outputs
+uploads/
+outputs/
+*.wav
+*.mp3
+
+# Test files (generated)
+test_track.wav
+test.mp3
+test_api.py
+frontend.log
+backend.log
+backend_err.log
+.playwright-mcp/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Local dev server logs
+dev-server.log

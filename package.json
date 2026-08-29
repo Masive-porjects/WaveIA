@@ -1,0 +1,17 @@
+{
+  "name": "midimastering",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:studio": "npm run dev --workspace=apps/studio",
+    "build:studio": "npm run build --workspace=apps/studio",
+    "lint:studio": "npm run lint --workspace=apps/studio",
+    "dev:audiomind": "cd apps/audiomind && uvicorn audiomind.main:app --reload --port 8000",
+    "test:backend": "cd apps/audiomind && python -m pytest -v",
+    "contracts:gen": "cd packages/contracts/scripts && python gen_types.py"
+  },
+  "devDependencies": {}
+}

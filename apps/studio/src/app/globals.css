@@ -1,0 +1,461 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* ── Legacy tokens (existing components depend on these names) ── */
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #121216;
+  --bg-tertiary: #1a1a20;
+  --bg-elevated: #22222a;
+  --text-primary: #e8e8e8;
+  --text-secondary: #8a8a8a;
+  --text-muted: #555555;
+  --accent-primary: #627e84;
+  --accent-secondary: #829ca1;
+  --accent-warning: #ff9500;
+  --accent-error: #dc2626;
+  --accent-success: #34c759;
+  --border: #2a2a2a;
+  --border-hover: #3a3a3a;
+  --waveform-original: #484855;
+  --waveform-mastered: #00d4aa;
+  --meter-safe: #34c759;
+  --meter-warn: #ff9500;
+  --meter-clip: #ff3b30;
+  --knob-track: rgba(255, 255, 255, 0.06);
+  --knob-fill: linear-gradient(90deg, #627e84, #829ca1);
+
+  /* ── Semantic theme tokens ── (data-theme aware, dark defaults) ── */
+  --bg-app: #0b0b0c;
+  --bg-sidebar: #09090a;
+  --bg-overlay: rgba(11, 11, 12, 0.95);
+  --bg-glass: rgba(18, 18, 22, 0.6);
+  --bg-glass-elevated: rgba(26, 26, 32, 0.55);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-active: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-heavy: 0 25px 60px rgba(0, 0, 0, 0.5);
+  --shadow-knob-inset: inset 0 2px 4px rgba(0, 0, 0, 0.7);
+  --knob-face-top: #3a3a45;
+  --knob-face-bottom: #1a1a22;
+  --knob-gradient-1: #5a5a68;
+  --knob-gradient-2: #2a2a35;
+  --knob-gradient-3: #181820;
+  --knob-gradient-4: #333340;
+  --knob-gradient-5: #6a6a7a;
+  --knob-gradient-6: #3a3a48;
+  --knob-gradient-7: #20202a;
+  --knob-gradient-8: #12121a;
+  --knob-highlight: rgba(255, 255, 255, 0.12);
+  --text-knockout: linear-gradient(135deg, #ffffff, #888888, #ffffff);
+
+  /* ── Canonical design tokens (Mindloop monochrome, HSL values) ──
+     Additive only: do NOT remove or rename the legacy tokens above.
+     Use with hsl(var(--token)) or the .hsl-* helpers below. */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 85%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 170 15% 45%;
+  --accent-foreground: 0 0% 100%;
+  --input: 0 0% 18%;
+  --ring: 0 0% 40%;
+  --hero-subtitle: 210 17% 95%;
+  /* --border role is covered by the legacy --border token above */
+}
+
+/* ── Light theme ──────────────────────────────────────
+   Set via html[data-theme="light"]. The toggle + anti-FOUC
+   script write the attribute before hydration. */
+
+html[data-theme="light"] {
+  /* Legacy token overrides */
+  --bg-primary: #f4f4f2;
+  --bg-secondary: #ececea;
+  --bg-tertiary: #e2e2df;
+  --bg-elevated: #ffffff;
+  --text-primary: #1a1b1b;
+  --text-secondary: #5a5f63;
+  --text-muted: #8a8f93;
+  --accent-primary: #4c6a72;
+  --accent-secondary: #6b8a93;
+  --border: #d6d6d2;
+  --border-hover: #c4c4bf;
+
+  /* Semantic token overrides */
+  --bg-app: #f4f4f2;
+  --bg-sidebar: #ececea;
+  --bg-overlay: rgba(255, 255, 255, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-glass-elevated: rgba(255, 255, 255, 0.85);
+  --surface-hover: rgba(0, 0, 0, 0.05);
+  --surface-active: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --shadow-heavy: 0 25px 60px rgba(0, 0, 0, 0.14);
+  --shadow-knob-inset: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+  --knob-face-top: #cfcfd6;
+  --knob-face-bottom: #9e9ea8;
+  --knob-gradient-1: #d5d5dc;
+  --knob-gradient-2: #b5b5bf;
+  --knob-gradient-3: #a0a0aa;
+  --knob-gradient-4: #c0c0ca;
+  --knob-gradient-5: #dcdce4;
+  --knob-gradient-6: #bdbdc8;
+  --knob-gradient-7: #a8a8b2;
+  --knob-gradient-8: #9898a2;
+  --knob-highlight: rgba(255, 255, 255, 0.6);
+  --text-knockout: linear-gradient(135deg, #1a1b1b, #666666, #1a1b1b);
+}
+
+body {
+  background: var(--bg-primary);
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(98, 126, 132, 0.04),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 10%,
+      rgba(130, 156, 161, 0.03),
+      transparent
+    );
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Animations ─────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(98, 126, 132, 0.25); }
+  50%      { box-shadow: 0 0 20px 6px rgba(98, 126, 132, 0.12); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes knobGlow {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(98, 126, 132, 0.15); }
+  50%      { box-shadow: 0 0 10px 3px rgba(98, 126, 132, 0.25); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Utility classes ────────────────────────────────── */
+
+/* Serif italic accent — Mindloop style ("Inspired", "changed.")
+   Use for a single emphasized word inside headings. */
+.serif-accent {
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* HSL canonical token helpers — shadcn-compatible usage */
+.hsl-background { background-color: hsl(var(--background)); }
+.hsl-foreground { color: hsl(var(--foreground)); }
+.hsl-card { background-color: hsl(var(--card)); }
+.hsl-muted { color: hsl(var(--muted-foreground)); }
+.hsl-hero-subtitle { color: hsl(var(--hero-subtitle)); }
+
+/* Subtle monochrome accent usage — reserved for Iteration 3+ */
+.hsl-accent { color: hsl(var(--accent)); }
+
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-elevated {
+  background: var(--bg-glass-elevated);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-strong);
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.4s ease-out both;
+}
+
+/* stagger children */
+.stagger-children > :nth-child(1) { animation-delay: 0ms; }
+.stagger-children > :nth-child(2) { animation-delay: 60ms; }
+.stagger-children > :nth-child(3) { animation-delay: 120ms; }
+.stagger-children > :nth-child(4) { animation-delay: 180ms; }
+.stagger-children > :nth-child(5) { animation-delay: 240ms; }
+.stagger-children > :nth-child(6) { animation-delay: 300ms; }
+.stagger-children > :nth-child(7) { animation-delay: 360ms; }
+.stagger-children > :nth-child(8) { animation-delay: 420ms; }
+
+/* ── Hero gradient ──────────────────────────────────── */
+
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(98, 126, 132, 0.05) 0%,
+    rgba(130, 156, 161, 0.04) 35%,
+    rgba(10, 10, 10, 0) 60%,
+    rgba(130, 156, 161, 0.03) 100%
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease-in-out infinite;
+}
+
+/* ── Scrollbar (thin, dark) ─────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ── Hide scrollbar (mobile horizontal strips) ──────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Mobile safety utilities ─────────────────────── */
+/* Dynamic viewport height — fixes iOS Safari "100vh includes URL bar" */
+.h-dvh {
+  height: 100dvh; /* modern browsers */
+}
+@supports not (height: 100dvh) {
+  .h-dvh {
+    height: 100vh; /* fallback */
+    height: calc(var(--vh, 1vh) * 100); /* JS fallback via --vh */
+  }
+}
+
+/* Safe area padding for notch / home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Range inputs (legacy) ──────────────────────────── */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--knob-track);
+  border-radius: 2px;
+  outline: none;
+  transition: background 200ms;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="range"]:hover {
+  background: var(--surface-active);
+}
+
+/* Track fill via background-size trick */
+input[type="range"].knob-fill {
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary) var(--fill, 0%),
+    var(--knob-track) var(--fill, 0%)
+  );
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--knob-face-top),
+    var(--knob-face-bottom)
+  );
+  border: 2px solid var(--accent-primary);
+  cursor: pointer;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.4),
+    0 0 8px rgba(98, 126, 132, 0.25),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15);
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+  position: relative;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 3px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(98, 126, 132, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+  border-color: #829ca1;
+  box-shadow:
+    0 0 0 3px rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(130, 156, 161, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--knob-face-top),
+    var(--knob-face-bottom)
+  );
+  border: 2px solid var(--accent-primary);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(98, 126, 132, 0.25);
+}
+
+/* ── Waveform bars ──────────────────────────────────── */
+
+.waveform-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 48px;
+  padding: 0 4px;
+}
+
+.waveform-bar {
+  width: 3px;
+  border-radius: 2px;
+  transform-origin: bottom;
+}
+
+/* ── Selection indicator pulse ──────────────────────── */
+
+.selected-pulse {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ── Card hover glow ────────────────────────────────── */
+
+.card-glow {
+  transition: transform 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
+}
+.card-glow:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
+/* ── Liquid Glass ────────────────────────────────────── */
+
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.01);
+  background-blend-mode: luminosity;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  border: none;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── Blur Fade Up ────────────────────────────────────── */
+
+@keyframes blurFadeUp {
+  from { opacity: 0; filter: blur(20px); transform: translateY(40px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.animate-blur-fade-up {
+  animation: blurFadeUp 1s ease-out forwards;
+  opacity: 0;
+}
+
+/* ── Knockout text utility ──────────────────────────── */
+
+.text-knockout {
+  background: var(--text-knockout);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

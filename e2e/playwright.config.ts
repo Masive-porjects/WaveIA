@@ -1,0 +1,40 @@
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  timeout: 30_000,
+  expect: { timeout: 7_000 },
+  fullyParallel: false,        // mock bridge usa puerto fijo 8765
+  workers: 1,
+  retries: process.env.CI ? 2 : 0,
+  reporter: [['html', { open: 'never' }], ['list']],
+
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'retain-on-failure',
+    video: 'retain-on-failure',
+    permissions: ['camera'],
+    launchOptions: {
+      args: [
+        '--autoplay-policy=no-user-gesture-required',
+        '--use-fake-ui-for-media-stream',
+        '--use-fake-device-for-media-stream',
+        '--allow-file-access-from-files',
+        '--mute-audio',
+      ],
+    },
+  },
+
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+  ],
+
+  webServer: [
+    {
+      command: 'npm run dev --workspace=apps/studio',
+      url: 'http://localhost:3000',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
+});
