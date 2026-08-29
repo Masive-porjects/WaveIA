@@ -32,6 +32,7 @@ import OverMasterWarning from "@/components/OverMasterWarning";
 import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
+import AuthGuard from "@/components/auth/AuthGuard";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
@@ -886,6 +887,7 @@ export default function Home() {
   };
 
   return (
+    <AuthGuard>
     <LicenseGuard>
     <main className="h-dvh w-screen overflow-hidden overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col antialiased">
       {/* ═══════════════════════════════════════════════
@@ -1577,5 +1579,6 @@ export default function Home() {
       )}
     </main>
     </LicenseGuard>
+    </AuthGuard>
   );
 }
