@@ -10,6 +10,7 @@ import { useSpeechInput } from "@/lib/voice/useSpeechInput";
 import IntentBars, { AXES } from "./IntentBars";
 import MicButton from "./MicButton";
 import PresetCards, { type Recommendation } from "./PresetCards";
+import TrackBadge from "./TrackBadge";
 
 /**
  * Panel de conversación con el agente de mastering.
@@ -48,6 +49,7 @@ export interface TrackAnalysis {
   integrated_lufs?: number;
   dynamic_range_db?: number;
   tempo_bpm?: number;
+  duration_seconds?: number;
   detected_genre?: string;
   is_already_mastered?: boolean;
 }
@@ -93,6 +95,9 @@ export default function ChatPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastChanged = turns.at(-1)?.changed ?? [];
+
+  // "Hay algo que mostrar" = algun eje se movio del neutral.
+  const hasAdjustments = AXES.some((axis) => Math.abs(Number(profile[axis] ?? 0.5) - 0.5) >= 0.01);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -168,18 +173,12 @@ export default function ChatPanel({
         style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.07), transparent)" }}
       />
 
-      <header className="relative flex items-center justify-between px-5 pt-5 pb-3">
-        <div>
-          <h2
-            className="text-base font-medium tracking-tight"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Contame cómo querés que suene
-          </h2>
-          <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            Hablá o escribí. Yo traduzco.
-          </p>
-        </div>
+      <header className="relative flex items-center justify-between px-6 pt-5 pb-2">
+        <TrackBadge
+          genre={analysis?.detected_genre}
+          tempoBpm={analysis?.tempo_bpm}
+          durationSeconds={analysis?.duration_seconds}
+        />
         {speaking && (
           <motion.span
             initial={{ opacity: 0 }}
@@ -193,21 +192,33 @@ export default function ChatPanel({
         )}
       </header>
 
-      <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-5">
-        {welcome && turns.length === 0 && (
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-6">
+        {turns.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
-            className="py-2 text-sm leading-relaxed"
-            style={{ color: "var(--text-primary)" }}
+            transition={{ duration: 0.55, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex flex-col items-center py-6 text-center"
           >
-            {welcome}
-          </motion.p>
+            <h2
+              className="text-2xl font-medium tracking-tight"
+              style={{ color: "var(--text-primary)", letterSpacing: "-0.03em" }}
+            >
+              ¿Cómo querés que <span className="serif-accent">suene</span>?
+            </h2>
+            {welcome && (
+              <p
+                className="mt-2 max-w-sm text-sm leading-relaxed"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {welcome}
+              </p>
+            )}
+          </motion.div>
         )}
 
         {turns.length === 0 && (
-          <div className="flex flex-wrap gap-2 py-2">
+          <div className="flex flex-wrap justify-center gap-2 pb-2">
             {SUGERENCIAS.map((s) => (
               <button
                 key={s}
@@ -300,10 +311,24 @@ export default function ChatPanel({
         </p>
       )}
 
-      <div className="relative border-t px-5 py-4" style={{ borderColor: "var(--border-subtle)" }}>
-        <div className="mb-3">
-          <IntentBars profile={profile} changed={lastChanged} />
-        </div>
+      <div className="relative border-t px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
+        {/* Nueve barras identicas en 0.50 son ruido: no hay nada que leer hasta
+            que el agente mueve algo. Aparecen recien entonces. */}
+        <AnimatePresence>
+          {hasAdjustments && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mb-4">
+                <IntentBars profile={profile} changed={lastChanged} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <MicButton
           supported={mic.supported}

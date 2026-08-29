@@ -261,6 +261,29 @@ function useProcessingProgress(
 /* ── Note burst colors (reused for the upload animation) ── */
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
 
+/* ── Saludo del agente ───────────────────────────────── */
+
+const GENRE_LABELS: Record<string, string> = {
+  reggaeton: "reggaetón",
+  hip_hop: "hip hop",
+  electronic: "electrónica",
+  acoustic: "acústico",
+  classical: "clásica",
+  metal: "metal",
+  jazz: "jazz",
+  pop: "pop",
+  rock: "rock",
+};
+
+/** Nombra lo que el analisis detecto: demuestra que ya escucho el track. */
+function buildWelcome(genre?: string | null): string {
+  const label = genre ? GENRE_LABELS[genre] : undefined;
+  if (label) {
+    return `Escuché tu track y suena a ${label}. Decime qué querés cambiar y lo traduzco a las perillas.`;
+  }
+  return "Ya escuché tu track. Decime qué querés cambiar y lo traduzco a las perillas.";
+}
+
 /* ── Hydration-safe client detector ──────────────────── */
 
 function useIsClient(): boolean {
@@ -1322,14 +1345,12 @@ export default function Home() {
                 exit={VIEW_TRANSITION.exit}
                 transition={VIEW_TRANSITION.transition}
               >
-                <div className="h-[32rem] min-h-0">
+                <div className="flex max-h-[min(34rem,72vh)] min-h-[26rem] flex-col">
                   <ChatPanel
                     profile={intentProfile}
                     onProfileChange={setIntentProfile}
                     analysis={session?.analysis ?? undefined}
-                    welcome={
-                      "Ya tengo tu track. Contame cómo querés que suene: ¿más cálida, con más pegada, la voz al frente? Decilo con tus palabras, yo lo traduzco."
-                    }
+                    welcome={buildWelcome(session?.analysis?.detected_genre)}
                     onPresetSelect={(presetId) => {
                       // El preset elegido pinta las perillas y procesa, igual
                       // que si lo hubiera tocado en el dashboard. Los params

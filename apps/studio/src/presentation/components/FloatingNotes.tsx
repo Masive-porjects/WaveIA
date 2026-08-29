@@ -32,13 +32,23 @@ function seeded(index: number): number {
   return x - Math.floor(x);
 }
 
+/**
+ * Redondea a 3 decimales.
+ *
+ * Los valores seeded son deterministas, pero React serializa un number en el
+ * HTML del servidor con distinta precision que la que aplica en el cliente, y
+ * eso dispara un hydration mismatch. Con valores ya redondeados los dos lados
+ * escriben exactamente lo mismo.
+ */
+const r3 = (n: number): number => Math.round(n * 1000) / 1000;
+
 const NOTE_SPECS: NoteSpec[] = Array.from({ length: NOTE_COUNT }, (_, i) => ({
-  left: 2 + seeded(i * 2 + 1) * 96,
-  top: 3 + seeded(i * 2 + 2) * 93,
-  size: 14 + seeded(i * 3 + 3) * 20,
-  opacity: 0.25 + seeded(i * 3 + 4) * 0.4,
+  left: r3(2 + seeded(i * 2 + 1) * 96),
+  top: r3(3 + seeded(i * 2 + 2) * 93),
+  size: r3(14 + seeded(i * 3 + 3) * 20),
+  opacity: r3(0.25 + seeded(i * 3 + 4) * 0.4),
   blurred: seeded(i * 3 + 5) > 0.5,
-  rotation: -45 + seeded(i * 3 + 6) * 90,
+  rotation: r3(-45 + seeded(i * 3 + 6) * 90),
   color: NOTE_COLORS[Math.floor(seeded(i * 5 + 7) * NOTE_COLORS.length)],
   driftX: -20 + seeded(i * 5 + 8) * 40,
   driftY: -30 + seeded(i * 5 + 9) * 60,
@@ -111,8 +121,8 @@ export default function FloatingNotes({
           style={{
             left: `${spec.left}%`,
             top: `${spec.top}%`,
-            width: spec.size,
-            height: spec.size,
+            width: `${spec.size}px`,
+            height: `${spec.size}px`,
             opacity: spec.opacity,
             transform: `rotate(${spec.rotation}deg)`,
             filter: spec.blurred ? "blur(1.5px)" : "none",
