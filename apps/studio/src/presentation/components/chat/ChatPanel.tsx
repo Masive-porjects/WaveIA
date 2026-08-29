@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { speak, stopSpeaking } from "@/lib/voice/speak";
 import { useVoiceInput } from "@/lib/voice/useVoiceInput";
+import { decodeAgentText } from "@/lib/voice/decodeAgentText";
 
 import MicButton from "./MicButton";
 import PresetCards, { type Recommendation } from "./PresetCards";
@@ -156,8 +157,16 @@ export default function ChatPanel({
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
         const changed: string[] = (data.changes ?? []).map((c: { axis: string }) => c.axis);
-        setTurns([...history, { role: "assistant", content: data.reply, changed }]);
-        setRecommendations(data.recommendations ?? []);
+        const reply = decodeAgentText(data.reply);
+        const decodedRecommendations = (data.recommendations ?? []).map(
+          (recommendation: Recommendation) => ({
+            ...recommendation,
+            does: decodeAgentText(recommendation.does),
+            gets: decodeAgentText(recommendation.gets),
+          }),
+        );
+        setTurns([...history, { role: "assistant", content: reply, changed }]);
+        setRecommendations(decodedRecommendations);
         setTrackType(data.trackType ?? "unknown");
 
         if (controlledProfile === undefined) setInternalProfile(data.profile);
@@ -165,7 +174,7 @@ export default function ChatPanel({
 
         if (voiceOutput) {
           setSpeaking(true);
-          await speak(data.reply);
+          await speak(reply);
           setSpeaking(false);
         }
       } catch (err) {
