@@ -10,7 +10,7 @@ interface ProcessingOverlayProps {
 
 function getSubtext(progress: number): string {
   if (progress < 30) return "Analizando espectro y aplicando Gain Staging...";
-  if (progress < 70) return "Aplicando algoritmos DSP de Brikman Paul Morales...";
+  if (progress < 70) return "Aplicando algoritmos DSP de Waveman Paul Morales...";
   if (progress < 99) return "Modelando True Peak y Noise Shaping...";
   return "Cargado";
 }
@@ -219,7 +219,7 @@ export default function ProcessingOverlay({
             {/* Subtle branding */}
             {!showCheck && (
               <p className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase">
-                BrikEngine
+                WaveEngine
               </p>
             )}
           </div>

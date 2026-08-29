@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const THEME_KEY = "brikmaster-theme";
+const THEME_KEY = "waveai-theme";
 
 type Theme = "dark" | "light";
 

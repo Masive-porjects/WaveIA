@@ -1,4 +1,4 @@
-# 04 — Idea 2 · BrikMaster: Sistema de Diseño del Studio (Parte II de la spec)
+# 04 — Idea 2 · WaveAI: Sistema de Diseño del Studio (Parte II de la spec)
 
 > Fuente: `MASTERING_ECOSYSTEM_SPEC.md` — Parte II (design spec). Frontend: Next.js.
 
@@ -8,7 +8,7 @@ El studio se lee como un **panel de instrumento hardware oscuro**: superficies c
 
 Tipografía: **Inter** (UI) + **Instrument Serif italic** para acentos de una sola palabra ("Masterizá Tu *Música*", "Macro-*Carácter*") — el acento serif estilo Mindloop.
 
-**Light theme** soportado vía overrides `html[data-theme="light"]`; script inline `beforeInteractive` en `layout.tsx` restaura el tema persistido (`localStorage` `brikmaster-theme`) antes de la hidratación (sin flash).
+**Light theme** soportado vía overrides `html[data-theme="light"]`; script inline `beforeInteractive` en `layout.tsx` restaura el tema persistido (`localStorage` `waveai-theme`) antes de la hidratación (sin flash).
 
 ## 2. Sistema visual (`globals.css`)
 
@@ -55,7 +55,7 @@ Tres componentes, todos deterministas/seeded para ser hydration-safe (sin `Math.
 | `FloatingNotes.tsx` | 16 notas (paleta 5 colores) | 14–34 px, loops 8–16 s |
 | `BigGhostWithNotes.tsx` | Un fantasma hero (80 px) + hasta 7 notas orbitando (radio 96) | Bob y −12 px + rotate 3°, 4.2 s `sine.inOut`; soporta composición "recostado" |
 
-Colocación: campos ambientales detrás de toda la app (z 1–2); el fantasma grande detrás de la card de upload. El canvas de mastering añade el watermark `/brand/BrikMasters.png` a `var(--brand-bg-opacity)`. La pantalla de licencia compone las mismas piezas en su ilustración de estado bloqueado.
+Colocación: campos ambientales detrás de toda la app (z 1–2); el fantasma grande detrás de la card de upload. El canvas de mastering añade el watermark `/brand/WaveAI.png` a `var(--brand-bg-opacity)`. La pantalla de licencia compone las mismas piezas en su ilustración de estado bloqueado.
 
 ## 4. Sistema de movimiento
 
@@ -72,7 +72,7 @@ Librerías: **GSAP** (+ `@gsap/react` `useGSAP`) para entradas coreografiadas; *
 | Upload card float | page.tsx | y ±6 px, 2.6 s `sine.inOut` yoyo |
 | Count-up métricas | `AnalysisPanel.tsx` | GSAP tween 1.1 s `power2.out` escribiendo `textContent` directo |
 | Unlock fade | `LicenseGuard.tsx` | Gate fade out (opacity 0, y −12, 0.6 s `power2.inOut`) al activar |
-| Processing overlay | `ProcessingOverlay.tsx` | Anillo SVG (radio 72, stroke 6); subtextos por umbral: <30% "Analizando espectro y aplicando Gain Staging...", <70% "Aplicando algoritmos DSP de Brikman Paul Morales...", <99% "Modelando True Peak y Noise Shaping...", else "Cargado"; check al 100% (+300 ms); exit scale 1.04 en 0.5 s |
+| Processing overlay | `ProcessingOverlay.tsx` | Anillo SVG (radio 72, stroke 6); subtextos por umbral: <30% "Analizando espectro y aplicando Gain Staging...", <70% "Aplicando algoritmos DSP de Waveman Paul Morales...", <99% "Modelando True Peak y Noise Shaping...", else "Cargado"; check al 100% (+300 ms); exit scale 1.04 en 0.5 s |
 
 **Contrato de accesibilidad:** todo efecto coreografiado protege `prefers-reduced-motion` (revealWave, PaintedModule, ModuleSheet, CountUp); componentes ambientales `aria-hidden`/pointer-events-none.
 

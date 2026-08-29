@@ -1,6 +1,6 @@
 # 07 — Estrategia de Equipo: 5 Desarrolladores para midiMastering
 
-> Plan de arquitectura, roles, contratos y UX/UI para construir el ecosistema completo (BrikMaster + Live Engine + HumanMidi) con **5 desarrolladores** en el marco del hackaton (7 días), aplicando **SOLID** en el código y en la organización misma.
+> Plan de arquitectura, roles, contratos y UX/UI para construir el ecosistema completo (WaveAI + Live Engine + HumanMidi) con **5 desarrolladores** en el marco del hackaton (7 días), aplicando **SOLID** en el código y en la organización misma.
 
 ## 1. Principio rector: dividir por DOMINIO, no por capa
 
@@ -469,7 +469,7 @@ Si una dependencia se atrasa, el **simulador de LiveParams** (Dev 5) desbloquea 
 | Masterización "lenta" (44 s) en demo | Presets con prebuilt lookup (~1.5 s) para la demo; el render full queda como feature |
 | Gestos compiten entre "tocar" y "controlar" | Modo dedicado `--mode studio` + gesto modificador (puño = control); decisión UX del Dev 5 |
 | Scope creep en 7 días | Freeze de features el día 7; cada feature nueva entra por backlog y la aprueba Dev 5 |
-| Sesiones en memoria de BrikMaster (se pierden al reiniciar) | Para la demo: mantener el backend vivo; Redis queda post-hackaton |
+| Sesiones en memoria de WaveAI (se pierden al reiniciar) | Para la demo: mantener el backend vivo; Redis queda post-hackaton |
 | Escalado del filtro percibido como "saltos" | Escalado **logarítmico** CC→Hz (200–12000 Hz son ~6 octavas) — implementado en `gesture_to_params.py`, testeado por Dev 4 |
 
 ## 9. Métricas de éxito del equipo

@@ -223,7 +223,7 @@ export function getReferenceAudioUrl(sessionId: string, presetId: string): strin
 export function getStoredLicenseKey(): string | null {
   if (typeof window === "undefined") return null;
   // sessionStorage se borra al cerrar la pestaña — así cada sesión pide la clave
-  return sessionStorage.getItem("brikmaster_license_key");
+  return sessionStorage.getItem("waveai_license_key");
 }
 
 function licenseHeaders(): Record<string, string> {

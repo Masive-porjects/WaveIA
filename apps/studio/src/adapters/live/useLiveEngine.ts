@@ -12,7 +12,7 @@ import { applyPreset, getPresetByNote, FX_PRESETS, FxPresetName } from './fxPres
 import { LIVE_PARAM_DEFAULTS, NEUTRAL_AFTER_MS, NEUTRAL_CHECK_MS } from '@/lib/live/liveDefaults';
 
 export interface UseLiveEngineOptions {
-  /** Master audio buffer (from BrikMaster mastering) */
+  /** Master audio buffer (from WaveAI mastering) */
   masterAudioBuffer: AudioBuffer | null;
   /** AudioContext (shared or created internally) */
   audioContext?: AudioContext;

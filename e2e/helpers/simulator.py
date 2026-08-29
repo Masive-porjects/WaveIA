@@ -45,7 +45,7 @@ class SimulatorProcess:
         self.rate = rate
         self.extra_args = extra_args or []
         self.process: Optional[subprocess.Popen] = None
-        self._project_root = Path(__file__).parent.parent.parent  # BrikMaster root
+        self._project_root = Path(__file__).parent.parent.parent  # WaveAI root
 
     def start(self) -> None:
         """Inicia el proceso simulador en background."""

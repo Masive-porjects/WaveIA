@@ -491,7 +491,7 @@ export default function SongStarter({ sessionId, disabled }: SongStarterProps) {
           <div className="flex items-center gap-3">
             <Music2 size={16} className="text-[#f59e0b]" />
             <span className="text-[10px] font-semibold text-[var(--text-muted)] tracking-[0.2em] uppercase">
-              SongStarter — BrikEngine
+              SongStarter — WaveEngine
             </span>
             <Music2 size={16} className="text-[#f59e0b]" />
           </div>

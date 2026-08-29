@@ -1,10 +1,10 @@
-# 03 — Idea 2 · BrikMaster: Backend de Mastering (Parte I de la spec)
+# 03 — Idea 2 · WaveAI: Backend de Mastering (Parte I de la spec)
 
 > Fuente: `MASTERING_ECOSYSTEM_SPEC.md` — Parte I (ecosistema de mastering). Todo claim numérico es trazable al código citado.
 
 ## 1. Qué es
 
-BrikMaster es un estudio de mastering asistido por IA. El usuario sube WAV/MP3, el backend analiza (loudness, dinámica, espectro, tempo, género), mapea el resultado a parámetros de mastering por módulos, corre una **cadena DSP proporcional** y devuelve un master comparable en A/B, descargable en WAV o MP3.
+WaveAI es un estudio de mastering asistido por IA. El usuario sube WAV/MP3, el backend analiza (loudness, dinámica, espectro, tempo, género), mapea el resultado a parámetros de mastering por módulos, corre una **cadena DSP proporcional** y devuelve un master comparable en A/B, descargable en WAV o MP3.
 
 **Decisión de diseño clave: el motor es proporcional, no preset-driven.** Los presets definen carácter y targets de loudness; los valores DSP reales (gains de EQ, thresholds de compresor, gain LUFS) se calculan por track según lo que el análisis dice que el input necesita. Implementado en `backend/src/audiomind/processing/engine.py` (`process_audio`).
 
@@ -159,7 +159,7 @@ Si `/process` recibe `preset_id` y existe `backend/prebuilt/{stem}_{preset_id}.w
 - `GET /api/session/{id}/raw`, `/raw-mastered` → JSON interleaved Float32 para visualizaciones Web Audio.
 - **A/B player:** dos WaveSurfer apilados (bars 2/1/1, height 120, normalized). Colores original `#484855/#666677`; master del `PRESET_COLORS[presetId]`. Toggle segmentado con pill deslizante; minimizar colapsa 120↔24 px con `resize()` al expandir. Glow neón radial tras el waveform master (`rgba(wave,0.06)`). Note bursts: 12 notas al cargar ambos tracks o al completar master; durante playback una nota cada ~1.2 s (x aleatoria 5–90%, máx 24 concurrentes, removidas tras 1.5 s).
 - **AnalysisPanel:** meters LED (LUFS −40…0 target −14; True Peak −12…+3 target −1; Crest 0…24 target 12), grid de métricas (DR, tempo con count-up GSAP 1.1 s, género, duración, sample rate, confianza de mastering), banner verde "ya masterizado", card "Preset Objetivo".
-- **Export:** WAV directo (`{session_id}_mastered.wav`, download `brikmaster_{session_id}.wav`); MP3 vía `ffmpeg libmp3lame -b:a 320k` timeout 60 s, resolución del binario PATH → fallbacks Windows. Ambos con `X-License-Key`. Formatos fuera de `wav|mp3` → 400.
+- **Export:** WAV directo (`{session_id}_mastered.wav`, download `waveai_{session_id}.wav`); MP3 vía `ffmpeg libmp3lame -b:a 320k` timeout 60 s, resolución del binario PATH → fallbacks Windows. Ambos con `X-License-Key`. Formatos fuera de `wav|mp3` → 400.
 
 ## 11. API Reference (ecosistema mastering)
 
@@ -181,4 +181,4 @@ Base: `NEXT_PUBLIC_API_URL` o `http://localhost:8000/api`.
 
 ## 12. Fuera de alcance de la spec
 
-SongStarter/BrikEngine (beat gen), StemSplitter (Demucs), VocalChain, GenreGuide, roadmap de negocio/ML Fase 2 (CNN género, XGBoost recommender), deployment/CI/Docker/monitoring, internals del backend de licencias.
+SongStarter/WaveEngine (beat gen), StemSplitter (Demucs), VocalChain, GenreGuide, roadmap de negocio/ML Fase 2 (CNN género, XGBoost recommender), deployment/CI/Docker/monitoring, internals del backend de licencias.

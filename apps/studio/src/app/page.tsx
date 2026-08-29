@@ -32,6 +32,8 @@ import OverMasterWarning from "@/components/OverMasterWarning";
 import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
+import AuthGuard from "@/components/auth/AuthGuard";
+import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
@@ -51,7 +53,6 @@ import {
 } from "@/lib/api";
 import {
   Search,
-  User,
   Menu,
   X,
   AudioWaveform,
@@ -395,6 +396,25 @@ export default function Home() {
     wasProcessingRef.current = processing;
   }, [processing, session?.mastered_path]);
 
+  // Persist the active session so reload doesn't lose the uploaded song.
+  useEffect(() => {
+    if (session?.session_id) {
+      localStorage.setItem("waveai-session", session.session_id);
+    }
+  }, [session?.session_id]);
+
+  // Restore the saved session on mount.
+  useEffect(() => {
+    const savedId = localStorage.getItem("waveai-session");
+    if (!savedId || session) return;
+    getSession(savedId)
+      .then((s) => {
+        setSession(s);
+        setCurrentView(s.mastered_path ? "mastering" : "upload");
+      })
+      .catch(() => localStorage.removeItem("waveai-session"));
+  }, []);
+
   // Ambient float for the upload card — keeps the first screen alive.
   // Re-runs when the view toggles so the tween always targets the
   // currently mounted card.
@@ -665,7 +685,7 @@ export default function Home() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `brikmaster_${session.session_id}.${format}`;
+        a.download = `waveai_${session.session_id}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -886,6 +906,7 @@ export default function Home() {
   };
 
   return (
+    <AuthGuard>
     <LicenseGuard>
     <main className="h-dvh w-screen overflow-hidden overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col antialiased">
       {/* ═══════════════════════════════════════════════
@@ -913,7 +934,7 @@ export default function Home() {
       <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
         <div className="rounded-full px-4 py-2 glass">
           <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-            Brik<span className="text-[var(--accent-primary)]">Master</span>
+            Wave<span className="text-[var(--accent-primary)]">AI</span>
           </span>
         </div>
 
@@ -933,9 +954,7 @@ export default function Home() {
           <button className="rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all">
             <Search size={18} />
           </button>
-          <button className="rounded-full w-9 h-9 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all hidden sm:flex">
-            <User size={18} />
-          </button>
+          <UserMenu />
           <button
             className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -995,7 +1014,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          BrikMaster Studio
+                          WaveAI Studio
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>
@@ -1577,5 +1596,6 @@ export default function Home() {
       )}
     </main>
     </LicenseGuard>
+    </AuthGuard>
   );
 }

@@ -97,12 +97,12 @@ class AudioEngineManager {
 }
 
 declare global {
-  var __brikAudioEngine: AudioEngineManager | undefined;
+  var __waveAudioEngine: AudioEngineManager | undefined;
 }
 
 // HMR guard (Prisma-client pattern): keep exactly one instance across hot
 // reloads so the cached start promise and master bus are never recreated.
 const globalWithEngine = globalThis as typeof globalThis;
 export const audioEngine: AudioEngineManager =
-  globalWithEngine.__brikAudioEngine ?? new AudioEngineManager();
-globalWithEngine.__brikAudioEngine = audioEngine;
+  globalWithEngine.__waveAudioEngine ?? new AudioEngineManager();
+globalWithEngine.__waveAudioEngine = audioEngine;

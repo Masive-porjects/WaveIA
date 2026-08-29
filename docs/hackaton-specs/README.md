@@ -1,13 +1,13 @@
 # 🎵 Hackaton midiMastering — Arquitectura del Ecosistema Unificado
 
-> **Dos ideas, un solo flujo:** BrikMaster **masteriza** la canción primero, y el resultado se **toca en vivo** con efectos (reverb, delay, echo, filtro, drive) controlados por los gestos de HumanMidi — todo en una misma interface.
+> **Dos ideas, un solo flujo:** WaveAI **masteriza** la canción primero, y el resultado se **toca en vivo** con efectos (reverb, delay, echo, filtro, drive) controlados por los gestos de HumanMidi — todo en una misma interface.
 
 Este índice reúne la documentación de arquitectura que une las dos ideas del proyecto:
 
 | Idea | Documento fuente | Qué es |
 |------|-----------------|--------|
 | **1. HumanMidi** | `README.md`, `ARCHITECTURE.md` | Gestos de la mano → MIDI en tiempo real (MediaPipe + RtMidi) |
-| **2. BrikMaster** | `MASTERING_ECOSYSTEM_SPEC.md` | Estudio de mastering IA: análisis → DSP → export (FastAPI + Next.js) |
+| **2. WaveAI** | `MASTERING_ECOSYSTEM_SPEC.md` | Estudio de mastering IA: análisis → DSP → export (FastAPI + Next.js) |
 | **Unión** | (docs 01, 05, 06) | Master offline primero + Live Engine de FX controlado por gestos |
 
 ---
@@ -18,8 +18,8 @@ Este índice reúne la documentación de arquitectura que une las dos ideas del 
 |-----|-----------|
 | [01_vision_unificada.md](01_vision_unificada.md) | La visión: masterizar primero, tocar el resultado en vivo |
 | [02_humanmidi_capa_performance.md](02_humanmidi_capa_performance.md) | Idea 1 — Capa de performance: HumanMidi (gestos → MIDI) |
-| [03_brikmaster_backend_mastering.md](03_brikmaster_backend_mastering.md) | Idea 2 — Capa de producción: backend de mastering (FastAPI) |
-| [04_brikmaster_sistema_diseno.md](04_brikmaster_sistema_diseno.md) | Idea 2 — Sistema de diseño del studio (Next.js) |
+| [03_waveai_backend_mastering.md](03_waveai_backend_mastering.md) | Idea 2 — Capa de producción: backend de mastering (FastAPI) |
+| [04_waveai_sistema_diseno.md](04_waveai_sistema_diseno.md) | Idea 2 — Sistema de diseño del studio (Next.js) |
 | [05_live_engine_gestos_a_master.md](05_live_engine_gestos_a_master.md) | ⭐ El puente: Live Engine — master + FX en tiempo real con gestos |
 | [06_roadmap_unificado.md](06_roadmap_unificado.md) | Roadmap conjunto de ambas ideas |
 | [07_estrategia_equipo_5devs.md](07_estrategia_equipo_5devs.md) | ⭐ Estrategia para 5 devs: roles, contratos, SOLID, UX/UI, plan 7 días |
@@ -30,21 +30,21 @@ Este índice reúne la documentación de arquitectura que une las dos ideas del 
 ## 🏗️ Mapa del ecosistema en una línea
 
 ```
-[Track original] ──► [BrikMaster: master offline (~44 s)] ──► [Master WAV]
+[Track original] ──► [WaveAI: master offline (~44 s)] ──► [Master WAV]
                                                                   │
                     [Cámara] ──► [HumanMidi: gestos → CC] ──► [Live Engine: Filtro → Drive → Delay/Echo → Reverb]
                                                                   │
                                                           [Salida en vivo: master + FX en una sola interface]
 ```
 
-**BrikMaster** es la *fase offline*: convierte el mix en un master listo para plataformas (target LUFS por plataforma).
+**WaveAI** es la *fase offline*: convierte el mix en un master listo para plataformas (target LUFS por plataforma).
 **HumanMidi + Live Engine** son la *fase en vivo*: el master se reproduce y los gestos mueven las perillas de reverb, delay, echo, filtro y drive en tiempo real.
 
 ---
 
 ## ⚡ Resumen rápido
 
-### Fase offline — BrikMaster (Next.js + FastAPI)
+### Fase offline — WaveAI (Next.js + FastAPI)
 - **Pipeline:** `Upload (WAV/MP3 ≤50MB) → Análisis librosa → DSP chain proporcional → Master WAV/MP3`
 - **Filosofía:** motor **proporcional, no preset-driven** — los presets definen carácter; los valores DSP se calculan por track
 - **Detalle:** 13 etapas DSP (gain staging, match EQ, comp, multiband, dyn EQ, exciter, tape, spatial, clipper 16×, truepeak 8×, dither), sesiones en memoria, `ThreadPoolExecutor(4)`
@@ -68,7 +68,7 @@ Este índice reúne la documentación de arquitectura que une las dos ideas del 
 
 - `README.md` (HumanMidi) — raíz del repo
 - `ARCHITECTURE.md` (HumanMidi) — patrones y SOLID
-- `MASTERING_ECOSYSTEM_SPEC.md` (BrikMaster) — spec completa verificada contra código
+- `MASTERING_ECOSYSTEM_SPEC.md` (WaveAI) — spec completa verificada contra código
 - `PROJECT_SUMMARY.md` (HumanMidi) — resumen del MVP
 
 *Fecha: 2026-08-20 · Documento generado para el hackaton midiMastering.*

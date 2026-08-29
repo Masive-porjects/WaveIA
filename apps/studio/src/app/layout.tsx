@@ -4,7 +4,7 @@ import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BrikMaster — AI Mastering Studio",
+  title: "WaveAI — AI Mastering Studio",
   description: "Professional audio mastering powered by AI",
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen">
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <Script id="theme-init" strategy="beforeInteractive">
-          {`(function(){try{var t=localStorage.getItem("brikmaster-theme");if(t==="light"){document.documentElement.dataset.theme="light";}}catch(e){}})();`}
+          {`(function(){try{var t=localStorage.getItem("waveai-theme");if(t==="light"){document.documentElement.dataset.theme="light";}}catch(e){}})();`}
         </Script>
         <Script id="vh-fix" strategy="beforeInteractive">
           {`(function(){function setVH(){var vh=window.innerHeight*0.01;document.documentElement.style.setProperty('--vh',vh+'px');}setVH();window.addEventListener('resize',setVH);})();`}
