@@ -1,5 +1,5 @@
 /**
- * FX Presets â€” Pre-defined parameter sets for instant vibe switching.
+ * FX Presets ÔÇö Pre-defined parameter sets for instant vibe switching.
  * Each preset maps to a specific IR type and parameter values.
  */
 
@@ -18,18 +18,18 @@ export interface FxPresetDef {
 
 /**
  * Preset definitions matching the Bridge's note-to-preset mapping:
- * Note 36 (Kick) â†’ clean
- * Note 38 (Snare) â†’ dub
- * Note 42 (Closed HH) â†’ big_room
- * Note 49 (Open HH) â†’ radio
+ * Note 36 (Kick) ÔåÆ clean
+ * Note 38 (Snare) ÔåÆ dub
+ * Note 42 (Closed HH) ÔåÆ big_room
+ * Note 49 (Open HH) ÔåÆ radio
  */
 export const FX_PRESETS: Record<FxPresetName, FxPresetDef> = {
   clean: {
     name: 'clean',
     label: 'Clean',
-    description: 'Transparent bypass â€” no coloration',
+    description: 'Transparent bypass ÔÇö no coloration',
     irType: 'room',
-    icon: 'âœ¨',
+    icon: 'Ô£¿',
     params: {
       filter_cutoff: 12000,
       filter_res: 0.7,
@@ -43,9 +43,9 @@ export const FX_PRESETS: Record<FxPresetName, FxPresetDef> = {
   dub: {
     name: 'dub',
     label: 'Dub',
-    description: 'Deep echo with heavy feedback â€” classic dub style',
+    description: 'Deep echo with heavy feedback ÔÇö classic dub style',
     irType: 'plate',
-    icon: 'ğŸ›ï¸',
+    icon: '­ƒÄø´©Å',
     params: {
       filter_cutoff: 4000,
       filter_res: 2.5,
@@ -59,9 +59,9 @@ export const FX_PRESETS: Record<FxPresetName, FxPresetDef> = {
   big_room: {
     name: 'big_room',
     label: 'Big Room',
-    description: 'Massive hall reverb â€” festival mainstage energy',
+    description: 'Massive hall reverb ÔÇö festival mainstage energy',
     irType: 'hall',
-    icon: 'ğŸŸï¸',
+    icon: '­ƒÅƒ´©Å',
     params: {
       filter_cutoff: 8000,
       filter_res: 0.7,
@@ -75,9 +75,9 @@ export const FX_PRESETS: Record<FxPresetName, FxPresetDef> = {
   radio: {
     name: 'radio',
     label: 'Radio',
-    description: 'Lo-fi bandpass + spring reverb â€” vintage broadcast',
+    description: 'Lo-fi bandpass + spring reverb ÔÇö vintage broadcast',
     irType: 'spring',
-    icon: 'ğŸ“»',
+    icon: '­ƒô+',
     params: {
       filter_cutoff: 3500,
       filter_res: 8.0,       // Sharp bandpass
