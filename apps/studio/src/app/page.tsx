@@ -750,9 +750,10 @@ export default function Home() {
 
   /* ── Module selection (dock) ────────────────────────
      The dock is THE module navigator: selecting paints the
-     module onto the canvas via PaintedModule (key remount). */
+     module onto the canvas via PaintedModule (key remount).
+     Clicking the already-active tab closes it. */
   const handleModuleClick = useCallback((tab: MasteringTab) => {
-    setCurrentTab(tab);
+    setCurrentTab((prev) => (prev === tab ? null : tab));
     setSheetTab(null);
   }, []);
 

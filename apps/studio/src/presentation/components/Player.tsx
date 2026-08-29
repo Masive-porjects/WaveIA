@@ -33,8 +33,8 @@ function createWS(
     container,
     waveColor,
     progressColor,
-    cursorColor: "var(--text-primary)",
-    cursorWidth: 1,
+    cursorColor: "transparent",
+    cursorWidth: 0,
     interact: true,
     barWidth: 2,
     barGap: 1,
@@ -166,6 +166,7 @@ export default function Player({
   const overlayMastRef = useRef<HTMLDivElement>(null);
   const overlayRefPtr = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const seekOverlayRef = useRef<HTMLDivElement>(null);
   const wsOrigRef = useRef<WaveSurfer | null>(null);
   const wsMastRef = useRef<WaveSurfer | null>(null);
   const wsRefPtr = useRef<WaveSurfer | null>(null);
@@ -178,6 +179,7 @@ export default function Player({
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [noteBurst, setNoteBurst] = useState(0);
   const [minimized, setMinimized] = useState(false);
   const [playingNotes, setPlayingNotes] = useState<
@@ -201,6 +203,26 @@ export default function Player({
   useEffect(() => {
     sourceRef.current = source;
   }, [source]);
+
+  /* ── GSAP life on the active waveform while playing ── */
+  useEffect(() => {
+    const activeEl =
+      source === "mastered"
+        ? overlayMastRef.current
+        : source === "reference"
+          ? overlayRefPtr.current
+          : overlayOrigRef.current;
+    if (!activeEl || !isPlaying) return;
+    const tl = gsap.timeline({ repeat: -1 });
+    tl.to(activeEl, { scaleY: 1.04, filter: "drop-shadow(0 0 10px var(--accent-primary))", duration: 0.4, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 0.97, filter: "drop-shadow(0 0 4px var(--accent-primary))", duration: 0.35, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 1.05, filter: "drop-shadow(0 0 14px var(--accent-primary))", duration: 0.45, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 1.01, filter: "drop-shadow(0 0 6px var(--accent-primary))", duration: 0.25, ease: "sine.inOut" });
+    return () => {
+      tl.kill();
+      gsap.set(activeEl, { scaleY: 1, filter: "none" });
+    };
+  }, [isPlaying, source]);
 
   const hasBoth = !!(originalUrl && masteredUrl);
 
@@ -543,6 +565,51 @@ export default function Player({
     setCurrentTime(0);
   }, []);
 
+  /* Click or drag anywhere on the waveform to move the playhead. */
+  const applySeek = useCallback(
+    (clientX: number) => {
+      const rect = seekOverlayRef.current?.getBoundingClientRect();
+      if (!rect || duration <= 0) return;
+      const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const time = percent * duration;
+      wsOrigRef.current?.setTime(time);
+      wsMastRef.current?.setTime(time);
+      wsRefPtr.current?.setTime(time);
+      setCurrentTime(time);
+    },
+    [duration],
+  );
+
+  const handleSeekClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      applySeek(e.clientX);
+    },
+    [applySeek],
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (duration <= 0) return;
+      setIsDragging(true);
+      (e.target as Element).setPointerCapture(e.pointerId);
+      applySeek(e.clientX);
+    },
+    [applySeek, duration],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+      applySeek(e.clientX);
+    },
+    [applySeek, isDragging],
+  );
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    (e.target as Element).releasePointerCapture(e.pointerId);
+  }, []);
+
   const formatTime = (t: number) => {
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
@@ -666,7 +733,10 @@ export default function Player({
           <div
             ref={overlayOrigRef}
             className="absolute inset-0 transition-opacity duration-200"
-            style={{ opacity: source === "original" ? 1 : 0 }}
+            style={{
+              opacity: source === "original" ? 1 : 0,
+              filter: isPlaying && source === "original" ? "drop-shadow(0 0 6px var(--accent-primary))" : "none",
+            }}
           />
 
           {/* Mastered waveform */}
@@ -674,7 +744,10 @@ export default function Player({
             <div
               ref={overlayMastRef}
               className="absolute inset-0 transition-opacity duration-200"
-              style={{ opacity: source === "mastered" ? 1 : 0 }}
+              style={{
+                opacity: source === "mastered" ? 1 : 0,
+                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 6px var(--accent-primary))" : "none",
+              }}
             />
           )}
 
@@ -682,7 +755,72 @@ export default function Player({
           <div
             ref={overlayRefPtr}
             className="absolute inset-0 transition-opacity duration-200"
-            style={{ opacity: source === "reference" ? 1 : 0 }}
+            style={{
+              opacity: source === "reference" ? 1 : 0,
+              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 5px rgba(255,255,255,0.35))" : "none",
+            }}
+          />
+
+          {/* Animated playhead with glow */}
+          {duration > 0 && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 z-[40] pointer-events-none"
+              style={{
+                left: `${(currentTime / duration) * 100}%`,
+                transform: "translateX(-50%)",
+                background: "var(--accent-primary)",
+                boxShadow: "0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary)",
+                transition: "left 60ms linear",
+              }}
+            />
+          )}
+
+          {/* Subtle pulse when the track is playing */}
+          {isPlaying && (
+            <motion.div
+              className="absolute inset-0 z-10 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(circle at center, rgba(98,126,132,0.15) 0%, transparent 70%)",
+              }}
+              initial={{ opacity: 0.2 }}
+              animate={{ opacity: [0.2, 0.45, 0.2] }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          )}
+
+          {/* Shimmer sweep over the active wave */}
+          {isPlaying && (
+            <motion.div
+              className="absolute inset-0 z-20 pointer-events-none"
+              initial={{ x: "-150%" }}
+              animate={{ x: "250%" }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              style={{
+                width: "40%",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+              }}
+            />
+          )}
+
+          {/* Click-to-seek overlay */}
+          <div
+            ref={seekOverlayRef}
+            className={`absolute inset-0 z-30 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            onClick={handleSeekClick}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
           />
 
           {/* Music note burst on load / on external signal */}
@@ -693,7 +831,7 @@ export default function Player({
             {playingNotes.map((note) => (
               <motion.span
                 key={note.id}
-                className="absolute"
+                className="absolute pointer-events-none"
                 style={{ left: `${note.left}%`, bottom: 12 }}
                 initial={{ y: 0, opacity: 0, scale: 0.3, rotate: -15 }}
                 animate={{ y: -120, opacity: [0, 1, 0], scale: 1.2, rotate: 20 }}
