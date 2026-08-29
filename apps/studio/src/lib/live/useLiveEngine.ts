@@ -9,6 +9,7 @@ import { createAudioGraph, AudioGraph } from './audioGraph';
 import { createLiveSocket, ConnectionState } from './liveSocket';
 import { createRecorder, RecorderState } from './recorder';
 import { applyPreset, getPresetByNote, FX_PRESETS, FxPresetName } from './fxPresets';
+import { LIVE_PARAM_DEFAULTS, NEUTRAL_AFTER_MS, NEUTRAL_CHECK_MS } from './liveDefaults';
 
 export interface UseLiveEngineOptions {
   /** Master audio buffer (from BrikMaster mastering) */
@@ -75,15 +76,8 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
 
   // ── React State ──────────────────────────────────────────────────
   const [params, setParamsState] = useState<LiveParams>(() => ({
+    ...LIVE_PARAM_DEFAULTS,
     ts: Date.now(),
-    filter_cutoff: 12000,
-    filter_res: 0.7,
-    drive: 0,
-    delay_time: 250,
-    echo_feedback: 0,
-    reverb_mix: 0,
-    output_level: 0.9,
-    fx_preset: null,
     ...initialParams,
   }));
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
@@ -100,6 +94,14 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     extension: null,
   });
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Latest-value ref: lets the audio graph effect read current params
+  // WITHOUT re-running (and recreating the graph) on every param change.
+  // Synced via effect (React 19 forbids writing refs during render).
+  const paramsRef = useRef(params);
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   // ── Initialize AudioContext ──────────────────────────────────────
   useEffect(() => {
@@ -119,7 +121,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       ctx.resume();
     }
 
-    const graph = createAudioGraph(ctx, masterAudioBuffer, params);
+    const graph = createAudioGraph(ctx, masterAudioBuffer, paramsRef.current);
     audioGraphRef.current = graph;
 
     // Connect recorder to master output
@@ -142,7 +144,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
         recorderRef.current = null;
       }
     };
-  }, [masterAudioBuffer, params]);
+  }, [masterAudioBuffer]);
 
   // ── Initialize WebSocket ─────────────────────────────────────────
   useEffect(() => {
@@ -151,6 +153,13 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       onStateChange: (state) => {
         setConnectionState(state);
         onConnectionStateChange?.(state);
+        // Política de neutral: anotar el momento de la caída; se resetea
+        // a defaults si sigue caído > NEUTRAL_AFTER_MS (spec AGENTS.md).
+        if (state === 'connected' || state === 'connecting') {
+          disconnectSinceRef.current = null;
+        } else if (disconnectSinceRef.current === null) {
+          disconnectSinceRef.current = Date.now();
+        }
       },
       onParams: (newParams) => {
         // Apply incoming params from Bridge
@@ -197,6 +206,28 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       }
     };
   }, []);
+
+  // ── Neutral policy: socket caído > 2 s → volver a defaults (spec) ──
+  const disconnectSinceRef = useRef<number | null>(null);
+
+  const resetToNeutral = useCallback(() => {
+    const defaults: LiveParams = { ...LIVE_PARAM_DEFAULTS, ts: Date.now() };
+    setParamsState(defaults);
+    audioGraphRef.current?.setParams(defaults);
+    onParamsChange?.(defaults);
+  }, [onParamsChange]);
+
+  useEffect(() => {
+    const check = () => {
+      const since = disconnectSinceRef.current;
+      if (since !== null && Date.now() - since > NEUTRAL_AFTER_MS) {
+        disconnectSinceRef.current = null; // reset una sola vez por caída
+        resetToNeutral();
+      }
+    };
+    const id = setInterval(check, NEUTRAL_CHECK_MS);
+    return () => clearInterval(id);
+  }, [resetToNeutral]);
 
   // ── Parameter Setters ────────────────────────────────────────────
   const setParams = useCallback((newParams: Partial<LiveParams>) => {

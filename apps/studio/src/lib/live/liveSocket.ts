@@ -5,13 +5,14 @@
 
 import type { LiveParams } from './liveParams.gen';
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error' | 'stale';
 
 export interface LiveSocketConfig {
   url?: string;                    // Default: ws://localhost:8765
   reconnectInterval?: number;      // Base reconnect interval (ms)
   maxReconnectInterval?: number;   // Max reconnect interval (ms)
-  pingInterval?: number;           // Ping interval (ms)
+  pingInterval?: number;           // Heartbeat interval (ms) — spec: 5000
+  pongTimeout?: number;            // Max ms without PONG before marking socket stale (default: 2 × heartbeat)
   onStateChange?: (state: ConnectionState) => void;
   onParams?: (params: LiveParams) => void;
   onHello?: (data: HelloData) => void;
@@ -63,7 +64,8 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
     url = 'ws://localhost:8765',
     reconnectInterval = 1000,
     maxReconnectInterval = 5000,
-    pingInterval = 2000,
+    pingInterval = 5000,           // spec: heartbeat cada 5 s
+    pongTimeout = 10000,           // 2 × heartbeat
     onStateChange,
     onParams,
     onHello,
@@ -74,7 +76,8 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
   let ws: WebSocket | null = null;
   let state: ConnectionState = 'disconnected';
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  let pingTimer: ReturnType<typeof setTimeout> | null = null;
+  let pingTimer: ReturnType<typeof setInterval> | null = null;
+  let pongWatchdog: ReturnType<typeof setTimeout> | null = null;
   let currentReconnectDelay = reconnectInterval;
   let pingTimestamp = 0;
 
@@ -143,6 +146,7 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         pingTimestamp = performance.now();
         ws.send(JSON.stringify({ type: 'PING', t: pingTimestamp }));
+        armWatchdog();
       }
     }, pingInterval);
   }
@@ -151,6 +155,29 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
     if (pingTimer) {
       clearInterval(pingTimer);
       pingTimer = null;
+    }
+    clearWatchdog();
+  }
+
+  // Watchdog: si no llega PONG dentro de pongTimeout, el socket está
+  // "stale" (conectado a nivel TCP pero muerto a nivel protocolo).
+  // El deadline se fija con el PRIMER PING sin respuesta: no se rearma
+  // con cada heartbeat, o nunca vencería.
+  function armWatchdog() {
+    if (pongWatchdog) return;
+    pongWatchdog = setTimeout(() => {
+      pongWatchdog = null;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        setState('stale');
+        onError?.(new Error('LiveSocket: no PONG within ' + pongTimeout + 'ms — socket stale'));
+      }
+    }, pongTimeout);
+  }
+
+  function clearWatchdog() {
+    if (pongWatchdog) {
+      clearTimeout(pongWatchdog);
+      pongWatchdog = null;
     }
   }
 
@@ -174,6 +201,7 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
         break;
 
       case 'PONG':
+        clearWatchdog();
         const rtt = performance.now() - msg.t;
         onPong?.(rtt);
         break;
