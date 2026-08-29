@@ -82,7 +82,7 @@ export const AGENT_RESPONSE_SCHEMA: Schema = {
   properties: {
     reply: {
       type: Type.STRING,
-      description: "Respuesta para el chat, en voseo rioplatense.",
+      description: "Respuesta para el chat, en espanol neutro, corta y natural.",
     },
     needs_clarification: {
       type: Type.BOOLEAN,
@@ -101,9 +101,11 @@ export const AGENT_RESPONSE_SCHEMA: Schema = {
     },
     recommendations: {
       type: Type.ARRAY,
-      description: "Exactamente 3 presets, del mas al menos recomendado, sin repetir.",
+      description:
+        "3 presets del mas al menos recomendado, sin repetir. Lista VACIA si el " +
+        "usuario todavia no dijo nada sobre como quiere que suene.",
       items: recommendationSchema,
-      minItems: "3",
+      minItems: "0",
       maxItems: "3",
     },
     profile: intentProfileSchema,

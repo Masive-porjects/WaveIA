@@ -54,8 +54,13 @@ const AgentResponseSchema = z.object({
   needs_clarification: z.boolean(),
   clarifying_question: z.string(),
   track_type: z.enum(TRACK_TYPES),
-  // Exactamente 3: el schema de Gemini lo pide pero no lo garantiza.
-  recommendations: z.array(RecommendationSchema).length(3),
+  // 0 o 3, nunca 1 ni 2: o hay una recomendacion fundada o no hay ninguna.
+  // Mostrar una sola opcion presiona al usuario a aceptarla.
+  recommendations: z
+    .array(RecommendationSchema)
+    .refine((r) => r.length === 0 || r.length === 3, {
+      message: "recommendations debe tener 0 o 3 elementos",
+    }),
   profile: IntentProfileSchema,
 });
 
