@@ -6,6 +6,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import type { ConnectionState } from '../../lib/live/liveSocket';
 
 interface LiveMetersProps {
   /** Analyser data from audio graph */
@@ -15,7 +16,7 @@ interface LiveMetersProps {
   /** Latency in ms */
   latency?: number;
   /** Connection state */
-  connectionState?: 'disconnected' | 'connecting' | 'connected' | 'error';
+  connectionState?: ConnectionState;
   /** Width in px */
   width?: number;
   /** Height in px */
@@ -312,7 +313,8 @@ export function LiveMeters({
                 height: 8,
                 borderRadius: '50%',
                 background: connectionState === 'connected' ? METER_COLORS.safe :
-                          connectionState === 'connecting' ? METER_COLORS.warn : METER_COLORS.clip,
+                            connectionState === 'connecting' ? METER_COLORS.warn :
+                            connectionState === 'stale' ? METER_COLORS.clip : '#8a8a8a',
                 animation: connectionState === 'connecting' ? 'pulse 1s infinite' : 'none',
               }}
             />
@@ -321,7 +323,8 @@ export function LiveMeters({
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 color: connectionState === 'connected' ? METER_COLORS.safe :
-                       connectionState === 'connecting' ? METER_COLORS.warn : '#8a8a8a',
+                       connectionState === 'connecting' ? METER_COLORS.warn :
+                       connectionState === 'stale' ? METER_COLORS.clip : '#8a8a8a',
               }}
             >
               {connectionState}
