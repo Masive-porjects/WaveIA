@@ -265,26 +265,16 @@ const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
 
 /* ── Saludo del agente ───────────────────────────────── */
 
-const GENRE_LABELS: Record<string, string> = {
-  reggaeton: "reggaetón",
-  hip_hop: "hip hop",
-  electronic: "electrónica",
-  acoustic: "acústico",
-  classical: "clásica",
-  metal: "metal",
-  jazz: "jazz",
-  pop: "pop",
-  rock: "rock",
-};
-
-/** Nombra lo que el analisis detecto: demuestra que ya escucho el track. */
-function buildWelcome(genre?: string | null): string {
-  const label = genre ? GENRE_LABELS[genre] : undefined;
-  if (label) {
-    return `Escuché tu track y suena a ${label}. Dime qué quieres cambiar y lo traduzco a las perillas.`;
-  }
-  return "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
-}
+/**
+ * El saludo NO nombra el genero detectado.
+ *
+ * El clasificador se equivoca seguido, y abrir la conversacion afirmando algo
+ * falso sobre la musica del usuario destruye la confianza en todo lo que venga
+ * despues. El genero se sigue mandando al agente para calibrar cuanto mover
+ * cada eje; simplemente no se anuncia.
+ */
+const WELCOME =
+  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
 
 /* ── Hydration-safe client detector ──────────────────── */
 
@@ -1278,7 +1268,7 @@ export default function Home() {
                     profile={intentProfile}
                     onProfileChange={setIntentProfile}
                     analysis={session?.analysis ?? undefined}
-                    welcome={buildWelcome(session?.analysis?.detected_genre)}
+                    welcome={WELCOME}
                     voiceOutput={masteringMode === "ai"}
                     onPresetSelect={(presetId) => {
                       const preset = PRESETS.find((x) => x.id === presetId);

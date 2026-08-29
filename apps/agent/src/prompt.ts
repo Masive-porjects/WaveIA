@@ -151,7 +151,8 @@ export function buildContextBlock(
     lines.push("</analisis_del_track>");
     lines.push(
       "",
-      "Usa el analisis solo para calibrar cuanto mover cada eje. No se lo cites al usuario en numeros.",
+      "Usa el analisis solo para calibrar cuanto mover cada eje. No se lo cites al usuario.",
+      "NO le anuncies el genero detectado ni le digas a que suena su musica. El clasificador se equivoca seguido, y afirmar algo falso sobre su propia cancion te hace perder credibilidad para todo lo que venga despues. Si el usuario menciona el genero, ahi si podes usar sus palabras.",
     );
   }
 
