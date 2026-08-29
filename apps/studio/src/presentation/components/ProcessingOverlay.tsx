@@ -210,20 +210,6 @@ export default function ProcessingOverlay({
               </motion.p>
             </AnimatePresence>
 
-            {/* Linear progress bar */}
-            <div className="w-64 overflow-hidden rounded-full bg-[var(--border-subtle)] h-1.5">
-              <motion.div
-                className="h-full rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(90deg, #627e84, #829ca1, #627e84)",
-                }}
-                initial={false}
-                animate={{ width: `${clamped}%` }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              />
-            </div>
-
             {/* Subtle branding */}
             {!showCheck && (
               <p className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase">

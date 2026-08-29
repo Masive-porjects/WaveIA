@@ -1036,26 +1036,6 @@ export default function Home() {
                       disabled={loading}
                     />
 
-                    {loading && (
-                      <div className="mt-4 space-y-2">
-                        <div className="relative w-full h-1.5 overflow-hidden rounded-full bg-[var(--border-subtle)]">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{
-                              background:
-                                "linear-gradient(90deg, #627e84, #829ca1, #627e84)",
-                            }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${uploadProgress}%` }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                          />
-                        </div>
-                        <p className="text-xs text-[var(--text-muted)]">
-                          Subiendo{uploadProgress > 0 ? ` — ${uploadProgress}%` : ""}...
-                        </p>
-                      </div>
-                    )}
-
                     {/* Musical note burst fires when the upload completes */}
                     {uploadBurst > 0 && (
                       <div className="pointer-events-none absolute inset-0 overflow-hidden">
