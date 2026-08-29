@@ -557,22 +557,21 @@ export default function Player({
         ? referenceUrl
         : originalUrl;
 
-  const canRenderReference = !!sessionId && !!presetId;
   const sourceIndex: Record<SourceKind, number> = {
     original: 0,
-    reference: 1,
-    mastered: 2,
+    mastered: 1,
+    reference: 0,
   };
 
   return (
     <div className="rounded-2xl py-2 px-3 overflow-hidden bg-transparent border-none">
       {/* A/B/C Toggle */}
       <div className="flex items-center mb-1">
-        <div className="relative grid grid-cols-3 bg-[var(--surface-hover)] rounded-lg p-0.5 w-full max-w-[320px] sm:min-w-[280px]">
+        <div className="relative grid grid-cols-2 bg-[var(--surface-hover)] rounded-lg p-0.5 w-full max-w-[220px] sm:min-w-[200px]">
           <div
             className="absolute top-0.5 bottom-0.5 left-0 rounded-md transition-all duration-200 ease-out"
             style={{
-              width: "calc((100% - 4px) / 3)",
+              width: "calc((100% - 4px) / 2)",
               background: "var(--accent-primary)",
               opacity: 0.2,
               transform: `translateX(calc(${sourceIndex[source] * 100}% + 2px))`,
@@ -595,44 +594,6 @@ export default function Player({
                   Raw
                 </span>
               </span>
-            )}
-          </button>
-          <button
-            onClick={handleToggleReference}
-            disabled={disabled || (!canRenderReference && !referenceUrl)}
-            title={
-              canRenderReference
-                ? undefined
-                : "Elegí un perfil para generar la referencia"
-            }
-            className={`relative z-10 px-2 py-1 rounded-md text-xs font-medium text-center transition-colors duration-200 ${
-              source === "reference"
-                ? "text-[var(--accent-primary)]"
-                : "text-[var(--text-muted)]"
-            } disabled:opacity-30 disabled:cursor-not-allowed`}
-          >
-            Referencia
-            {renderingReference ? (
-              <svg
-                className="animate-spin inline-block ml-1 align-[-1px]"
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              source === "reference" && (
-                <span className="inline-flex items-center gap-1 ml-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-success)] shadow-[0_0_5px_var(--accent-success)]" />
-                  <span className="text-[9px] font-medium tracking-tight">
-                    Crudo
-                  </span>
-                </span>
-              )
             )}
           </button>
           <button

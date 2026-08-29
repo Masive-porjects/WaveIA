@@ -33,6 +33,7 @@ import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import AuthGuard from "@/components/auth/AuthGuard";
+import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
@@ -52,7 +53,6 @@ import {
 } from "@/lib/api";
 import {
   Search,
-  User,
   Menu,
   X,
   AudioWaveform,
@@ -395,6 +395,25 @@ export default function Home() {
     }
     wasProcessingRef.current = processing;
   }, [processing, session?.mastered_path]);
+
+  // Persist the active session so reload doesn't lose the uploaded song.
+  useEffect(() => {
+    if (session?.session_id) {
+      localStorage.setItem("waveai-session", session.session_id);
+    }
+  }, [session?.session_id]);
+
+  // Restore the saved session on mount.
+  useEffect(() => {
+    const savedId = localStorage.getItem("waveai-session");
+    if (!savedId || session) return;
+    getSession(savedId)
+      .then((s) => {
+        setSession(s);
+        setCurrentView(s.mastered_path ? "mastering" : "upload");
+      })
+      .catch(() => localStorage.removeItem("waveai-session"));
+  }, []);
 
   // Ambient float for the upload card — keeps the first screen alive.
   // Re-runs when the view toggles so the tween always targets the
@@ -935,9 +954,7 @@ export default function Home() {
           <button className="rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all">
             <Search size={18} />
           </button>
-          <button className="rounded-full w-9 h-9 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all hidden sm:flex">
-            <User size={18} />
-          </button>
+          <UserMenu />
           <button
             className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
