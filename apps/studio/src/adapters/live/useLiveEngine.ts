@@ -1,5 +1,5 @@
 /**
- * useLiveEngine โ€” React hook orchestrating the complete live engine.
+ * useLiveEngine ิว๖ React hook orchestrating the complete live engine.
  * Manages: AudioContext, AudioGraph, WebSocket, Recorder, and UI state.
  */
 
@@ -9,6 +9,7 @@ import { createAudioGraph, AudioGraph } from './audioGraph';
 import { createLiveSocket, ConnectionState } from './liveSocket';
 import { createRecorder, RecorderState } from './recorder';
 import { applyPreset, getPresetByNote, FX_PRESETS, FxPresetName } from './fxPresets';
+import { LIVE_PARAM_DEFAULTS, NEUTRAL_AFTER_MS, NEUTRAL_CHECK_MS } from './liveDefaults';
 
 export interface UseLiveEngineOptions {
   /** Master audio buffer (from BrikMaster mastering) */
@@ -52,7 +53,7 @@ export interface UseLiveEngineReturn {
 
 /**
  * Main hook for the Live Engine.
- * Handles the complete pipeline: WebSocket โ’ Params โ’ AudioGraph โ’ Recorder.
+ * Handles the complete pipeline: WebSocket ิๅฦ Params ิๅฦ AudioGraph ิๅฦ Recorder.
  */
 export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineReturn {
   const {
@@ -66,24 +67,17 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     onError,
   } = options;
 
-  // โ”€โ”€ Refs for persistent objects โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Refs for persistent objects ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioGraphRef = useRef<AudioGraph | null>(null);
   const socketRef = useRef<ReturnType<typeof createLiveSocket> | null>(null);
   const recorderRef = useRef<ReturnType<typeof createRecorder> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // โ”€โ”€ React State โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว React State ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const [params, setParamsState] = useState<LiveParams>(() => ({
+    ...LIVE_PARAM_DEFAULTS,
     ts: Date.now(),
-    filter_cutoff: 12000,
-    filter_res: 0.7,
-    drive: 0,
-    delay_time: 250,
-    echo_feedback: 0,
-    reverb_mix: 0,
-    output_level: 0.9,
-    fx_preset: null,
     ...initialParams,
   }));
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
@@ -101,7 +95,15 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   });
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // โ”€โ”€ Initialize AudioContext โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // Latest-value ref: lets the audio graph effect read current params
+  // WITHOUT re-running (and recreating the graph) on every param change.
+  // Synced via effect (React 19 forbids writing refs during render).
+  const paramsRef = useRef(params);
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
+
+  // ิ๖วิ๖ว Initialize AudioContext ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   useEffect(() => {
     if (!audioContextRef.current) {
       const ctx = providedContext || new AudioContext({ latencyHint: 'interactive' });
@@ -109,7 +111,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     }
   }, [providedContext]);
 
-  // โ”€โ”€ Initialize AudioGraph when buffer is ready โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Initialize AudioGraph when buffer is ready ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   useEffect(() => {
     const ctx = audioContextRef.current;
     if (!ctx || !masterAudioBuffer || audioGraphRef.current) return;
@@ -119,7 +121,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       ctx.resume();
     }
 
-    const graph = createAudioGraph(ctx, masterAudioBuffer, params);
+    const graph = createAudioGraph(ctx, masterAudioBuffer, paramsRef.current);
     audioGraphRef.current = graph;
 
     // Connect recorder to master output
@@ -142,15 +144,22 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
         recorderRef.current = null;
       }
     };
-  }, [masterAudioBuffer, params]);
+  }, [masterAudioBuffer]);
 
-  // โ”€โ”€ Initialize WebSocket โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Initialize WebSocket ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   useEffect(() => {
     const socket = createLiveSocket({
       url: wsUrl,
       onStateChange: (state) => {
         setConnectionState(state);
         onConnectionStateChange?.(state);
+        // Pol+กtica de neutral: anotar el momento de la ca+กda; se resetea
+        // a defaults si sigue ca+กdo > NEUTRAL_AFTER_MS (spec AGENTS.md).
+        if (state === 'connected' || state === 'connecting') {
+          disconnectSinceRef.current = null;
+        } else if (disconnectSinceRef.current === null) {
+          disconnectSinceRef.current = Date.now();
+        }
       },
       onParams: (newParams) => {
         // Apply incoming params from Bridge
@@ -177,7 +186,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, [wsUrl]);
 
-  // โ”€โ”€ Analyser / Output Level Loop โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Analyser / Output Level Loop ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   useEffect(() => {
     const graph = audioGraphRef.current;
     if (!graph) return;
@@ -198,7 +207,29 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, []);
 
-  // โ”€โ”€ Parameter Setters โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Neutral policy: socket ca+กdo > 2 s ิๅฦ volver a defaults (spec) ิ๖วิ๖ว
+  const disconnectSinceRef = useRef<number | null>(null);
+
+  const resetToNeutral = useCallback(() => {
+    const defaults: LiveParams = { ...LIVE_PARAM_DEFAULTS, ts: Date.now() };
+    setParamsState(defaults);
+    audioGraphRef.current?.setParams(defaults);
+    onParamsChange?.(defaults);
+  }, [onParamsChange]);
+
+  useEffect(() => {
+    const check = () => {
+      const since = disconnectSinceRef.current;
+      if (since !== null && Date.now() - since > NEUTRAL_AFTER_MS) {
+        disconnectSinceRef.current = null; // reset una sola vez por ca+กda
+        resetToNeutral();
+      }
+    };
+    const id = setInterval(check, NEUTRAL_CHECK_MS);
+    return () => clearInterval(id);
+  }, [resetToNeutral]);
+
+  // ิ๖วิ๖ว Parameter Setters ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const setParams = useCallback((newParams: Partial<LiveParams>) => {
     setParamsState(prev => {
       const merged = { ...prev, ...newParams, ts: Date.now() };
@@ -217,7 +248,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     });
   }, [onParamsChange]);
 
-  // โ”€โ”€ Transport Controls โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Transport Controls ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const play = useCallback(() => {
     audioGraphRef.current?.start(true);
     setIsPlaying(true);
@@ -233,7 +264,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     setIsPlaying(false);
   }, []);
 
-  // โ”€โ”€ Recorder Controls โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Recorder Controls ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const startRecording = useCallback(() => {
     recorderRef.current?.start();
     setRecorderState(prev => ({ ...prev, recording: true, paused: false, duration: 0 }));
@@ -248,7 +279,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     recorderRef.current?.download(filename);
   }, []);
 
-  // โ”€โ”€ Cleanup โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // ิ๖วิ๖ว Cleanup ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
   const destroy = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
