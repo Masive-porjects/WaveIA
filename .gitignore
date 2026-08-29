@@ -56,3 +56,9 @@ dev-server.log
 
 # cache de audio de TTS (no versionar: son binarios regenerables)
 .tts-cache/
+
+# Dev orchestration
+scripts/.pids
+
+# TypeScript build info
+*.tsbuildinfo
