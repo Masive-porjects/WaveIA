@@ -27,7 +27,9 @@ function errorMessage(code: string): string {
     case "audio-capture":
       return "No encontré ningún micrófono conectado.";
     case "network":
-      return "Se cortó la conexión con el servicio de transcripción.";
+      // Chrome no transcribe local: manda el audio a servidores de Google.
+      // Si esa peticion falla, no hay nada que reintentar del lado nuestro.
+      return "Chrome no pudo contactar el servicio de transcripción de Google. Escribí tu pedido mientras tanto — funciona igual.";
     default:
       return "No pude escucharte. Probá de nuevo.";
   }
@@ -128,6 +130,8 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
    * se interpretaba como "el usuario termino" y el microfono se apagaba solo.
    */
   const wantListeningRef = useRef(false);
+  /** Un solo reintento por toma ante un corte de red. */
+  const networkRetriedRef = useRef(false);
   // En un ref para que cambiar el callback no reinicie el reconocimiento.
   // Se asigna en un efecto y no durante el render: escribir un ref mientras se
   // renderiza rompe con StrictMode y con render concurrente.
@@ -215,6 +219,7 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
     finalRef.current = "";
     discardRef.current = false;
     wantListeningRef.current = true;
+    networkRetriedRef.current = false;
     setTranscript("");
     setError(null);
     try {
