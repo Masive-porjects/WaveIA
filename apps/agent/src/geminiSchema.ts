@@ -62,14 +62,19 @@ const recommendationSchema: Schema = {
       enum: [...PRESET_IDS],
       description: "Id exacto del preset. Solo uno de la lista.",
     },
-    why: {
+    does: {
       type: Type.STRING,
       description:
-        "Una frase corta explicando por que le sirve a ESTE track. Sin terminos tecnicos.",
+        "Que le hace al track, en una frase corta. La accion. Sin terminos tecnicos.",
+    },
+    gets: {
+      type: Type.STRING,
+      description:
+        "Que va a escuchar el usuario si lo elige, en una frase corta. El resultado.",
     },
   },
-  required: ["preset_id", "why"],
-  propertyOrdering: ["preset_id", "why"],
+  required: ["preset_id", "does", "gets"],
+  propertyOrdering: ["preset_id", "does", "gets"],
 };
 
 export const AGENT_RESPONSE_SCHEMA: Schema = {

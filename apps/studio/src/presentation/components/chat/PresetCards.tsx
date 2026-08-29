@@ -15,7 +15,10 @@ import { PRESET_INFO } from "@/core/presets";
 
 export interface Recommendation {
   presetId: string;
-  why: string;
+  /** Que le hace al track. La accion. */
+  does: string;
+  /** Que va a escuchar si lo elige. El resultado. */
+  gets: string;
 }
 
 export interface PresetCardsProps {
@@ -91,11 +94,22 @@ export default function PresetCards({
                     </span>
                   )}
                 </span>
-                <span
-                  className="mt-1 block text-xs leading-relaxed"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  {rec.why}
+                <span className="mt-1.5 flex flex-col gap-1">
+                  <span
+                    className="block text-xs leading-relaxed"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {rec.does}
+                  </span>
+                  <span
+                    className="flex gap-1.5 text-xs leading-relaxed"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <span aria-hidden style={{ color: info.color }}>
+                      →
+                    </span>
+                    {rec.gets}
+                  </span>
                 </span>
               </span>
 

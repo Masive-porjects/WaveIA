@@ -45,7 +45,8 @@ function isTransient(error: unknown): boolean {
  */
 const RecommendationSchema = z.object({
   preset_id: z.enum(PRESET_IDS),
-  why: z.string(),
+  does: z.string(),
+  gets: z.string(),
 });
 
 const AgentResponseSchema = z.object({
@@ -60,7 +61,10 @@ const AgentResponseSchema = z.object({
 
 export interface Recommendation {
   presetId: PresetId;
-  why: string;
+  /** Que le hace al track. La accion. */
+  does: string;
+  /** Que va a escuchar si lo elige. El resultado. */
+  gets: string;
 }
 
 export interface ChatTurn {
@@ -234,7 +238,11 @@ export async function interpretIntent(options: InterpretOptions): Promise<Interp
     clarifyingQuestion: parsed.clarifying_question,
     profile,
     changes: diffProfiles(currentProfile, profile),
-    recommendations: parsed.recommendations.map((r) => ({ presetId: r.preset_id, why: r.why })),
+    recommendations: parsed.recommendations.map((r) => ({
+      presetId: r.preset_id,
+      does: r.does,
+      gets: r.gets,
+    })),
     trackType: parsed.track_type,
     usage: { inputTokens, outputTokens },
     servedBy,

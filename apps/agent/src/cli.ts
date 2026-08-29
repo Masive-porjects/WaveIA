@@ -143,9 +143,9 @@ async function main(): Promise<void> {
       result.recommendations.forEach((r, i) => {
         const preset = PRESETS[r.presetId];
         const star = i === 0 ? "*" : " ";
-        console.log(
-          `  ${star} ${i + 1}. ${preset.title.padEnd(11)} ${preset.genre.padEnd(18)} ${r.why}`,
-        );
+        console.log(`  ${star} ${i + 1}. ${preset.title.padEnd(11)} ${preset.genre}`);
+        console.log(`        hace:     ${r.does}`);
+        console.log(`        obtenes:  ${r.gets}`);
       });
 
       console.log(
