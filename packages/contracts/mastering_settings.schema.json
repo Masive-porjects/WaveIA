@@ -1,0 +1,533 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MasteringSettings",
+  "description": "Mastering DSP parameters shared by frontend and backend. Generated from the MasteringParameters Pydantic model — do not edit by hand; run gen_mastering_schema.py instead.",
+  "type": "object",
+  "properties": {
+    "clarity_wet": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1.0,
+      "default": 0.15,
+      "description": "Reverb wet/dry mix for M/S spatial processing. 0 = dry, 1 = full reverb."
+    },
+    "clarity_brightness_db": {
+      "type": "number",
+      "minimum": -6,
+      "maximum": 6,
+      "default": 1.0,
+      "description": "High-frequency boost/cut at 8 kHz. Positive = brighter air."
+    },
+    "compression_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 2.0,
+      "description": "Compression ratio. 1:1 = no compression, 10:1 = brickwall."
+    },
+    "limiter_ceiling_db": {
+      "type": "number",
+      "minimum": -3.0,
+      "maximum": 0.0,
+      "default": -1.0,
+      "description": "True-peak limiter ceiling in dBFS. -0.3 = loud, -3.0 = safe."
+    },
+    "transient_boost_db": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 6.0,
+      "default": 0.0,
+      "description": "Transient emphasis via wet compression mix. 0 = off, 6 = max punch."
+    },
+    "saturation_drive_db": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10.0,
+      "default": 0.0,
+      "description": "Harmonic saturation drive (THD level). 0 = clean, 10 = heavy tape."
+    },
+    "saturation_warmth_db": {
+      "type": "number",
+      "minimum": -6.0,
+      "maximum": 6.0,
+      "default": 0.0,
+      "description": "Warmth — gentle high-frequency roll-off (negative) or air boost (positive)."
+    },
+    "stereo_width": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 2.0,
+      "default": 1.0,
+      "description": "Mid/Side stereo width multiplier. 1.0 = original, 2.0 = double width."
+    },
+    "haas_delay_ms": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 40.0,
+      "default": 0.0,
+      "description": "Haas (precedence) effect delay on Side signal in ms. 0 = off."
+    },
+    "stereo_imaging_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the per-band stereo imaging stage. False = bit-exact bypass."
+    },
+    "stereo_imaging_low_width": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "default": 1.0,
+      "description": "Low-band (below crossover_low) stereo width multiplier."
+    },
+    "stereo_imaging_mid_width": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "default": 1.0,
+      "description": "Mid-band stereo width multiplier."
+    },
+    "stereo_imaging_high_width": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "default": 1.0,
+      "description": "High-band (above crossover_high) stereo width multiplier."
+    },
+    "stereo_imaging_mono_below_hz": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 400.0,
+      "default": 0.0,
+      "description": "Force low frequencies below this to mono center. 0 = off."
+    },
+    "output_bit_depth": {
+      "type": "integer",
+      "minimum": 16,
+      "maximum": 32,
+      "default": 24,
+      "description": "Output bit depth. 16 applies noise-shaped dithering; 24+ is transparent."
+    },
+    "target_lufs_db": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": -24.0,
+      "maximum": 0.0,
+      "default": null,
+      "description": "Explicit loudness target in LUFS (e.g. -14 Spotify, -16 Apple). None = derive automatically from limiter ceiling."
+    },
+    "multiband_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the LR4 multiband compressor stage. False = bit-exact bypass."
+    },
+    "multiband_crossover_low_hz": {
+      "type": "number",
+      "minimum": 40.0,
+      "maximum": 1000.0,
+      "default": 150.0,
+      "description": "Low/mid Linkwitz-Riley crossover frequency in Hz."
+    },
+    "multiband_crossover_high_hz": {
+      "type": "number",
+      "minimum": 500.0,
+      "maximum": 15000.0,
+      "default": 3000.0,
+      "description": "Mid/high Linkwitz-Riley crossover frequency in Hz."
+    },
+    "multiband_low_threshold_db": {
+      "type": "number",
+      "minimum": -60.0,
+      "maximum": 0.0,
+      "default": -20.0,
+      "description": "Low-band compressor threshold in dBFS."
+    },
+    "multiband_mid_threshold_db": {
+      "type": "number",
+      "minimum": -60.0,
+      "maximum": 0.0,
+      "default": -20.0,
+      "description": "Mid-band compressor threshold in dBFS."
+    },
+    "multiband_high_threshold_db": {
+      "type": "number",
+      "minimum": -60.0,
+      "maximum": 0.0,
+      "default": -20.0,
+      "description": "High-band compressor threshold in dBFS."
+    },
+    "multiband_low_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Low-band compression ratio. 1.0 = no compression (neutral)."
+    },
+    "multiband_mid_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Mid-band compression ratio. 1.0 = no compression (neutral)."
+    },
+    "multiband_high_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "High-band compression ratio. 1.0 = no compression (neutral)."
+    },
+    "dyn_eq_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the dynamic EQ stage. False = bit-exact bypass."
+    },
+    "dyn_eq_band1_freq_hz": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 16000,
+      "default": 400.0,
+      "description": "Dynamic EQ band 1 center frequency (roadmap resonance case)."
+    },
+    "dyn_eq_band1_q": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 20.0,
+      "default": 4.0,
+      "description": "Dynamic EQ band 1 bell width (Q)."
+    },
+    "dyn_eq_band1_threshold_db": {
+      "type": "number",
+      "minimum": -60,
+      "maximum": 0,
+      "default": -20.0,
+      "description": "Dynamic EQ band 1 threshold in dBFS."
+    },
+    "dyn_eq_band1_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Dynamic EQ band 1 ratio. 1.0 = no cut (neutral)."
+    },
+    "dyn_eq_band2_freq_hz": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 16000,
+      "default": 2500.0,
+      "description": "Dynamic EQ band 2 center frequency in Hz."
+    },
+    "dyn_eq_band2_q": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 20.0,
+      "default": 4.0,
+      "description": "Dynamic EQ band 2 bell width (Q)."
+    },
+    "dyn_eq_band2_threshold_db": {
+      "type": "number",
+      "minimum": -60,
+      "maximum": 0,
+      "default": -20.0,
+      "description": "Dynamic EQ band 2 threshold in dBFS."
+    },
+    "dyn_eq_band2_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Dynamic EQ band 2 ratio. 1.0 = no cut (neutral)."
+    },
+    "dyn_eq_band3_freq_hz": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 16000,
+      "default": 8000.0,
+      "description": "Dynamic EQ band 3 center frequency in Hz."
+    },
+    "dyn_eq_band3_q": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 20.0,
+      "default": 4.0,
+      "description": "Dynamic EQ band 3 bell width (Q)."
+    },
+    "dyn_eq_band3_threshold_db": {
+      "type": "number",
+      "minimum": -60,
+      "maximum": 0,
+      "default": -20.0,
+      "description": "Dynamic EQ band 3 threshold in dBFS."
+    },
+    "dyn_eq_band3_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Dynamic EQ band 3 ratio. 1.0 = no cut (neutral)."
+    },
+    "exciter_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the harmonic exciter stage. False = bit-exact bypass."
+    },
+    "exciter_band1_mode": {
+      "type": "string",
+      "default": "even",
+      "description": "Exciter band 1 (bass) harmonic curve: even, odd, or mix."
+    },
+    "exciter_band1_amount": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Exciter band 1 (bass) dry/wet mix of the excited content. 0.0 = neutral."
+    },
+    "exciter_band1_drive_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 24.0,
+      "default": 0.0,
+      "description": "Exciter band 1 (bass) drive in dB for the odd/tanh path."
+    },
+    "exciter_band1_low_cut_hz": {
+      "type": "number",
+      "minimum": 20.0,
+      "maximum": 20000.0,
+      "default": 100.0,
+      "description": "Exciter band 1 (bass) high-pass on the excited content in Hz."
+    },
+    "exciter_band2_mode": {
+      "type": "string",
+      "default": "even",
+      "description": "Exciter band 2 (tube) harmonic curve: even, odd, or mix."
+    },
+    "exciter_band2_amount": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Exciter band 2 (tube) dry/wet mix of the excited content. 0.0 = neutral."
+    },
+    "exciter_band2_drive_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 24.0,
+      "default": 0.0,
+      "description": "Exciter band 2 (tube) drive in dB for the odd/tanh path."
+    },
+    "exciter_band2_low_cut_hz": {
+      "type": "number",
+      "minimum": 20.0,
+      "maximum": 20000.0,
+      "default": 200.0,
+      "description": "Exciter band 2 (tube) high-pass on the excited content in Hz."
+    },
+    "exciter_band3_mode": {
+      "type": "string",
+      "default": "odd",
+      "description": "Exciter band 3 (tape) harmonic curve: even, odd, or mix."
+    },
+    "exciter_band3_amount": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Exciter band 3 (tape) dry/wet mix of the excited content. 0.0 = neutral."
+    },
+    "exciter_band3_drive_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 24.0,
+      "default": 0.0,
+      "description": "Exciter band 3 (tape) drive in dB for the odd/tanh path."
+    },
+    "exciter_band3_low_cut_hz": {
+      "type": "number",
+      "minimum": 20.0,
+      "maximum": 20000.0,
+      "default": 200.0,
+      "description": "Exciter band 3 (tape) high-pass on the excited content in Hz."
+    },
+    "exciter_band4_mode": {
+      "type": "string",
+      "default": "odd",
+      "description": "Exciter band 4 (air) harmonic curve: even, odd, or mix."
+    },
+    "exciter_band4_amount": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Exciter band 4 (air) dry/wet mix of the excited content. 0.0 = neutral."
+    },
+    "exciter_band4_drive_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 24.0,
+      "default": 0.0,
+      "description": "Exciter band 4 (air) drive in dB for the odd/tanh path."
+    },
+    "exciter_band4_low_cut_hz": {
+      "type": "number",
+      "minimum": 20.0,
+      "maximum": 20000.0,
+      "default": 800.0,
+      "description": "Exciter band 4 (air) high-pass on the excited content in Hz."
+    },
+    "tape_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the real tape saturation model. False = legacy tanh path."
+    },
+    "tape_drive_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 24.0,
+      "default": 0.0,
+      "description": "Tape drive in dB. 0 = neutral (bit-exact bypass)."
+    },
+    "tape_hysteresis": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Magnetic memory strength (k, hysteresis recursion). 0 = neutral."
+    },
+    "tape_bias": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 0.2,
+      "default": 0.0,
+      "description": "Gentle asymmetry (DC offset) — mixes in even harmonics."
+    },
+    "tape_rolloff_amount": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0,
+      "description": "Level-dependent HF roll-off strength. 0 = neutral."
+    },
+    "tape_hf_shelf_hz": {
+      "type": "number",
+      "minimum": 1000.0,
+      "maximum": 20000.0,
+      "default": 8000.0,
+      "description": "HF roll-off corner above which high levels are attenuated."
+    },
+    "adaptive_comp_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the adaptive (program-dependent) compressor. False = fixed −16 dB stage."
+    },
+    "adaptive_comp_ratio": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 12.0,
+      "default": 1.0,
+      "description": "Compression ratio. 1.0 = neutral (bit-exact bypass)."
+    },
+    "adaptive_comp_threshold_offset_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 16.0,
+      "default": 6.0,
+      "description": "Margin (dB) below the program RMS at which the adaptive threshold sits. Larger = gentler compression."
+    },
+    "adaptive_comp_attack_ms": {
+      "type": "number",
+      "minimum": 1.0,
+      "maximum": 50.0,
+      "default": 10.0,
+      "description": "Base attack time used at high program crest (percussion). Scaled down for lower crest."
+    },
+    "adaptive_comp_release_ms": {
+      "type": "number",
+      "minimum": 50.0,
+      "maximum": 800.0,
+      "default": 200.0,
+      "description": "Base release time used at low program crest (tails, pads). Scaled down for higher crest."
+    },
+    "adaptive_comp_makeup_db": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 12.0,
+      "default": 0.0,
+      "description": "Makeup gain applied after compression. 0 = none."
+    },
+    "delay_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the delay stage. False = bit-exact bypass."
+    },
+    "delay_time_ms": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 2000,
+      "default": 250.0,
+      "description": "Delay time in ms. 0 = neutral"
+    },
+    "delay_mix": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.0,
+      "description": "Dry/wet mix of the delayed signal. 0.0 = no effect (neutral)"
+    },
+    "delay_feedback": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 0.8,
+      "default": 0.0,
+      "description": "Feedback amount for repeated echoes. 0.0 = single repeat (neutral)"
+    },
+    "echo_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the echo stage. False = bit-exact bypass."
+    },
+    "echo_time_ms": {
+      "type": "number",
+      "minimum": 50,
+      "maximum": 2000,
+      "default": 400.0,
+      "description": "Echo time in ms. 0 = neutral"
+    },
+    "echo_mix": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.0,
+      "description": "Dry/wet mix of the echo. 0.0 = no effect (neutral)"
+    },
+    "echo_feedback": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 0.9,
+      "default": 0.0,
+      "description": "Echo feedback — cascading repeats. 0.0 = single repeat (neutral)"
+    },
+    "reverb_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the reverb stage. False = bit-exact bypass."
+    },
+    "reverb_mix": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.0,
+      "description": "Dry/wet mix of the reverb. 0.0 = no effect (neutral)"
+    },
+    "reverb_size": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 1.0,
+      "default": 0.5,
+      "description": "Reverb room size / decay. 0.1 = small room, 1.0 = huge hall"
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

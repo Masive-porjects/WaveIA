@@ -2,10 +2,14 @@
 from pathlib import Path
 import asyncio
 import shutil
+import uuid
+import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 import numpy as np
 import soundfile as sf
 
@@ -36,6 +40,13 @@ _dsp_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dsp")
 # ``process_audio`` signature). The Layer 2 auto-retry scales it down once.
 _BASE_INTENSITY_MULTIPLIER = 1.8
 _RETRY_INTENSITY_SCALE = 0.8
+
+
+class StatelessMasterRequest(BaseModel):
+    """Body for the stateless mastering endpoint (no session)."""
+
+    audio_url: str
+    settings: MasteringParameters
 
 
 def _master_result_from_engine(result: dict) -> MasterResultMetrics:
@@ -578,3 +589,88 @@ async def create_session():
     session = SessionData(session_id=session_id)
     sessions[session_id] = session
     return session
+
+
+@router.post("/master")
+async def master_stateless(
+    req: StatelessMasterRequest,
+    _=Depends(require_license),
+):
+    """Stateless one-shot mastering from a signed audio URL.
+
+    Downloads ``audio_url`` (no session, no upload), analyzes it and runs
+    the DSP pipeline with the given settings in one synchronous-per-
+    request flow. Returns the mastered output path and the measured
+    metrics of the final master.
+
+    This endpoint is deliberately parallel to the session-based flow: it
+    shares the same engine, analysis and metrics mapping but keeps zero
+    in-memory state on the server.
+    """
+    # Guard the URL scheme before touching the network.
+    parsed = urllib.parse.urlparse(req.audio_url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400, detail="audio_url must be an http(s) URL"
+        )
+
+    # Download to a fresh upload-dir file. The suffix follows the URL when
+    # recognizable (same pair as /api/upload); otherwise assume WAV.
+    suffix = Path(parsed.path).suffix.lower()
+    if suffix not in (".wav", ".mp3"):
+        suffix = ".wav"
+    input_path = (
+        settings.upload_dir / f"stateless_{uuid.uuid4().hex}{suffix}"
+    ).resolve()
+    max_bytes = settings.max_file_size_mb * 1024 * 1024
+    try:
+        with urllib.request.urlopen(req.audio_url, timeout=60) as resp, open(
+            input_path, "wb"
+        ) as out:
+            total = 0
+            while True:
+                chunk = resp.read(256 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    input_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Audio too large (>{settings.max_file_size_mb}MB)",
+                    )
+                out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        input_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400, detail=f"Failed to download audio_url: {e}"
+        )
+
+    output_path = (
+        settings.output_dir / f"stateless_{uuid.uuid4().hex}_mastered.wav"
+    ).resolve()
+
+    def _run_pipeline():
+        """Analyze + process on the DSP executor; the event loop stays free."""
+        analysis = analyze_audio(input_path)
+        return process_audio(
+            input_path=input_path,
+            output_path=output_path,
+            params=req.settings,
+            analysis_result=analysis,
+        )
+
+    try:
+        result = await asyncio.get_running_loop().run_in_executor(
+            _dsp_executor, _run_pipeline
+        )
+    except Exception as e:
+        input_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Mastering failed: {e}")
+
+    return {
+        "audio": result.get("output_path", str(output_path)),
+        "metrics": _master_result_from_engine(result),
+    }

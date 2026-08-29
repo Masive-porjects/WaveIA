@@ -8,16 +8,32 @@ from pedalboard import Pedalboard, HighpassFilter, LowpassFilter, PeakFilter, Re
 
 
 def mid_side_encode(audio: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Encode stereo L/R to Mid/Side matrix.
+    """Encode L/R to Mid/Side matrix.
+
+    Mono input (1, samples) is upmixed to stereo by duplicating the single
+    channel (left = right = audio[0]) before encoding, so a mono track yields
+    mid = the original signal and side = 0 (correct — mono has no side content).
 
     Args:
-        audio: Stereo audio array of shape (2, samples).
+        audio: Audio array of shape (channels, samples). Accepts mono (1, ...)
+            and stereo (2, ...).
 
     Returns:
         Tuple of (mid, side) arrays, each of shape (samples,).
     """
-    left = audio[0]
-    right = audio[1]
+    if audio.shape[0] == 1:
+        # Mono: duplicate the channel so side is identically zero.
+        left = audio[0]
+        right = audio[0]
+    elif audio.shape[0] == 2:
+        left = audio[0]
+        right = audio[1]
+    else:
+        # Unexpected channel count — fall back to the first channel on both
+        # sides rather than crashing downstream.
+        mono = audio[0]
+        left = mono
+        right = mono
     mid = (left + right) / np.sqrt(2)
     side = (left - right) / np.sqrt(2)
     return mid, side

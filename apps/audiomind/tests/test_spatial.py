@@ -50,6 +50,23 @@ class TestMidSideEncodeDecode:
         mid, side = mid_side_encode(audio)
         np.testing.assert_allclose(mid, 0.0, atol=1e-10)
 
+    def test_mono_upmixes_to_zero_side(self):
+        """Mono (1, samples) must not crash — upmixes so side is identically 0."""
+        t = np.linspace(0, DURATION, SAMPLES, endpoint=False)
+        mono = 0.5 * np.sin(2 * np.pi * 440 * t)
+        mid, side = mid_side_encode(mono.reshape(1, -1))
+        np.testing.assert_allclose(mid, mono * np.sqrt(2), atol=1e-10)
+        np.testing.assert_allclose(side, 0.0, atol=1e-12)
+
+    def test_mono_mid_side_roundtrip_preserves_signal(self):
+        """Encode→decode a mono track should reproduce the original mono signal."""
+        t = np.linspace(0, DURATION, SAMPLES, endpoint=False)
+        mono = 0.5 * np.sin(2 * np.pi * 440 * t)
+        mid, side = mid_side_encode(mono.reshape(1, -1))
+        decoded = mid_side_decode(mid, side)
+        np.testing.assert_allclose(decoded[0], mono, atol=1e-10)
+        np.testing.assert_allclose(decoded[0], decoded[1], atol=1e-10)
+
 
 class TestPhaseCorrelation:
     def test_identical_signal_correlation_one(self):

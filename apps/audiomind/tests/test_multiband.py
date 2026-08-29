@@ -268,8 +268,15 @@ def test_engine_neutral_flag_toggle_is_bit_exact(tmp_path):
     out_on = tmp_path / "out_on.wav"
     sf.write(str(in_path), x.T, SR, subtype="FLOAT")
 
-    process_audio(in_path, out_off, MasteringParameters())
-    process_audio(in_path, out_on, MasteringParameters(multiband_enabled=True))
+    # Neutral = bypass contract: MasteringParameters() is a bit-exact bypass, so
+    # the global fast-path makes a full-default run return the input untouched
+    # while the multiband-flag run processes the whole chain. To validate that
+    # toggling ONLY the neutral multiband flag is bit-exact, both runs share a
+    # minimally non-default baseline that engages the same processing chain, and
+    # the "on" side adds only the flag with all-neutral (ratio 1.0) module params.
+    base = MasteringParameters(target_lufs_db=-14.0)
+    process_audio(in_path, out_off, base)
+    process_audio(in_path, out_on, base.model_copy(update={"multiband_enabled": True}))
 
     a, _ = sf.read(str(out_off), always_2d=True)
     b, _ = sf.read(str(out_on), always_2d=True)
@@ -284,15 +291,21 @@ def test_engine_multiband_engaged_changes_output(tmp_path):
     out_on = tmp_path / "out_on.wav"
     sf.write(str(in_path), x.T, SR, subtype="FLOAT")
 
-    off = MasteringParameters()
-    on = MasteringParameters(
-        multiband_enabled=True,
-        multiband_low_ratio=3.0,
-        multiband_mid_ratio=2.0,
-        multiband_high_ratio=2.5,
-        multiband_low_threshold_db=-20.0,
-        multiband_mid_threshold_db=-20.0,
-        multiband_high_threshold_db=-20.0,
+    # Neutral = bypass contract: MasteringParameters() would bypass the whole
+    # chain. Use a shared minimally non-default baseline so both runs process
+    # the same chain; they differ ONLY by the aggressive multiband stage.
+    base = MasteringParameters(target_lufs_db=-14.0)
+    off = base
+    on = base.model_copy(
+        update={
+            "multiband_enabled": True,
+            "multiband_low_ratio": 3.0,
+            "multiband_mid_ratio": 2.0,
+            "multiband_high_ratio": 2.5,
+            "multiband_low_threshold_db": -20.0,
+            "multiband_mid_threshold_db": -20.0,
+            "multiband_high_threshold_db": -20.0,
+        }
     )
     m_off = process_audio(in_path, out_off, off)
     m_on = process_audio(in_path, out_on, on)
@@ -302,6 +315,9 @@ def test_engine_multiband_engaged_changes_output(tmp_path):
     assert not np.array_equal(a, b)  # engaged stage actually does something
     assert np.isfinite(m_on["integrated_lufs"])
     assert np.isfinite(m_on["true_peak_db"])
+    # Both runs target the same loudness (-14 LUFS) and differ only in the
+    # multiband stage, whose auto-makeup preserves loudness, so the master
+    # LUFS must stay within ±3 dB between off/on.
     assert abs(m_on["integrated_lufs"] - m_off["integrated_lufs"]) < 3.0
 
 

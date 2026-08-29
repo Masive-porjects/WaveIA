@@ -160,7 +160,13 @@ def test_engine_clipper_before_limiter(tmp_path):
     out_path = tmp_path / "out.wav"
     sf.write(str(in_path), x.T, SR, subtype="FLOAT")
 
-    metrics = process_audio(in_path, out_path, MasteringParameters())
+    # Neutral = bypass contract: MasteringParameters() now returns the input
+    # untouched (bit-exact), which would bypass the clipper/limiter. Use a
+    # minimally non-default baseline (target_lufs_db=-14.0, matching the auto
+    # default ceiling) to engage the processing chain so the clipper/limiter act.
+    metrics = process_audio(
+        in_path, out_path, MasteringParameters(target_lufs_db=-14.0)
+    )
     out, sr_out = sf.read(str(out_path), always_2d=True)
     out = out.T  # (channels, samples)
 
