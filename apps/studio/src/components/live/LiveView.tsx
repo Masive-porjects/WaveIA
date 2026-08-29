@@ -12,8 +12,6 @@ import { FxSlotPanel } from './FxSlotPanel';
 import { CameraOverlay } from './CameraOverlay';
 import { LiveMeters } from './LiveMeters';
 import { LiveRecorderBar } from './LiveRecorderBar';
-import type { LiveParams } from '@/lib/live/liveParams.gen';
-import type { RecorderState } from '@/lib/live/recorder';
 
 interface LiveViewProps {
   /** Master audio buffer URL or blob */
@@ -28,18 +26,7 @@ interface LiveViewProps {
   bridgeLatency?: number;
 }
 
-/** Parámetros iniciales (neutrales) del Live Engine — estáticos, no recrear en render. */
-const INITIAL_LIVE_PARAMS: LiveParams = {
-  ts: 0,
-  filter_cutoff: 12000,
-  filter_res: 0.7,
-  drive: 0,
-  delay_time: 250,
-  echo_feedback: 0,
-  reverb_mix: 0,
-  output_level: 0.9,
-  fx_preset: null,
-};
+/** Parámetros iniciales (neutrales) del Live Engine — el hook ya inicializa con defaults del schema. */
 
 export function LiveView({
   masterAudioUrl,
@@ -280,9 +267,9 @@ export function LiveView({
 
         {/* FX Slot Panel */}
         <FxSlotPanel
-          params={INITIAL_LIVE_PARAMS}
-          onParamsChange={() => {}} // Handled by hook
-          onPresetChange={() => {}}
+          params={params}
+          onParamsChange={setParams}
+          onPresetChange={setFxPreset}
         />
       </motion.div>
 
@@ -300,8 +287,8 @@ export function LiveView({
         }}
       >
         <LiveMeters
-          analyserData={null}
-          outputLevel={0}
+          analyserData={analyserData}
+          outputLevel={outputLevel}
           latency={latency}
           connectionState={connectionState}
           width={280}
@@ -309,22 +296,14 @@ export function LiveView({
         />
 
         <LiveRecorderBar
-          recorderState={{
-            recording: false,
-            paused: false,
-            duration: 0,
-            blob: null,
-            url: null,
-            mimeType: null,
-            extension: null,
-          }}
-          isPlaying={false}
-          onPlay={() => {}}
-          onPause={() => {}}
-          onStop={() => {}}
-          onStartRecording={() => {}}
-          onStopRecording={() => {}}
-          onDownload={() => {}}
+          recorderState={recorderState}
+          isPlaying={isPlaying}
+          onPlay={play}
+          onPause={pause}
+          onStop={stop}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          onDownload={downloadRecording}
         />
       </motion.div>
 
@@ -338,14 +317,14 @@ export function LiveView({
         }}
       >
         <LiveRecorderBar
-          recorderState={{ recording: false, paused: false, duration: 0, blob: null, url: null, mimeType: null, extension: null }}
-          isPlaying={false}
-          onPlay={() => {}}
-          onPause={() => {}}
-          onStop={() => {}}
-          onStartRecording={() => {}}
-          onStopRecording={() => {}}
-          onDownload={() => {}}
+          recorderState={recorderState}
+          isPlaying={isPlaying}
+          onPlay={play}
+          onPause={pause}
+          onStop={stop}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          onDownload={downloadRecording}
         />
       </motion.div>
 

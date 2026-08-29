@@ -344,7 +344,7 @@ export function LiveRecorderBar({
                 Nombre del archivo
               </h3>
               <p style={{ margin: '0 0 16px', fontSize: 12, color: '#8a8a8a' }}>
-                Se guardará como .wav
+                Se guardará como .{(recorderState.extension || 'webm').replace('.', '')} (formato del navegador)
               </p>
               <input
                 type="text"
