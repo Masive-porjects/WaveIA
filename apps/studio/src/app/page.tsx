@@ -65,6 +65,8 @@ import {
   Home as HomeIcon,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
@@ -386,9 +388,8 @@ export default function Home() {
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<
-    "upload" | "selection" | "chat" | "mastering"
-  >("upload");
+  const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
+  const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
   const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
 
   // Stem splitter state
@@ -461,7 +462,8 @@ export default function Home() {
     getSession(savedId)
       .then((s) => {
         setSession(s);
-        setCurrentView(s.mastered_path ? "mastering" : "selection");
+        setCurrentView("mastering");
+        setCurrentTab("modules");
       })
       .catch(() => localStorage.removeItem("waveai-session"));
   }, []);
@@ -524,9 +526,11 @@ export default function Home() {
         const mapped = genreToParams(genre);
         setParams(mapped);
 
-        // After analysis, let the user choose manual or AI mastering
+        // Analysis only prepares the shared controls. Processing remains an
+        // explicit action from a preset or the process button.
         setLoading(false);
-        setCurrentView("selection");
+        setCurrentView("mastering");
+        setCurrentTab("modules");
 
         // Check if audio is already mastered → warn before processing
         if (analyzed.analysis.is_already_mastered) {
@@ -711,22 +715,12 @@ export default function Home() {
     [session],
   );
 
-  /* ── Selection: manual mastering opens the dashboard */
-  const handleManualMaster = useCallback(() => {
-    setCurrentView("mastering");
-    setCurrentTab("modules");
-  }, []);
-
-  /* ── Selection: AI mastering — abre el agente de intención ── */
-  const handleAiMaster = useCallback(() => {
-    setCurrentView("chat");
-  }, []);
-
   /* ── Back to upload ──────────────────────────────── */
   const handleBackToUpload = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setCurrentView("upload");
+    setMasteringMode("manual");
     setIntentProfile(NEUTRAL_PROFILE);
     setSession(null);
     setProcessing(false);
@@ -972,6 +966,40 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
+          {currentView === "mastering" && (
+            <div
+              className="glass flex items-center rounded-full p-1"
+              role="group"
+              aria-label="Modo de mastering"
+            >
+              {([
+                { id: "manual", label: "Manual", icon: SlidersHorizontal },
+                { id: "ai", label: "IA", icon: Sparkles },
+              ] as const).map(({ id, label, icon: Icon }) => {
+                const active = masteringMode === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setMasteringMode(id);
+                      if (id === "ai") setSheetTab(null);
+                    }}
+                    className="relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300"
+                    style={{
+                      background: active ? "var(--surface-active)" : "transparent",
+                      color: active ? "var(--text-primary)" : "var(--text-muted)",
+                      boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                    }}
+                  >
+                    <Icon size={13} strokeWidth={1.75} aria-hidden="true" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Theme toggle — moved here when the icon sidebar was replaced by the dock */}
           <ThemeToggle />
           {currentView === "mastering" && (
@@ -1138,76 +1166,40 @@ export default function Home() {
                 </motion.div>
               </AnimatePresence>
             </div>
-          ) : currentView === "selection" ? (
-            /* ── SELECTION VIEW ───────────────────── */
-            <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-y-auto relative">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="relative w-full max-w-xl rounded-3xl p-6 md:p-8 text-center glass-elevated"
-                style={{ boxShadow: "var(--shadow-heavy)" }}
+          ) : (
+            <>
+              {/* Both workspaces stay mounted so switching modes preserves
+                  the agent conversation and every manual module state. */}
+              <div
+                className={`${masteringMode === "ai" ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
+                aria-hidden={masteringMode !== "ai"}
               >
-                <div className="mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-knockout" style={{ letterSpacing: "-0.03em" }}>
-                    ¿Cómo querés masterizar?
-                  </h2>
-                  <p className="text-sm text-[var(--text-muted)] mt-2">
-                    Elegí el modo que se adapte a tu flujo.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button
-                    onClick={handleManualMaster}
-                    className="group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300
-                      border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]
-                      bg-[var(--bg-elevated)] hover:bg-[var(--surface-hover)]"
-                  >
-                    <div className="relative z-10">
-                      <span className="text-xs font-medium tracking-widest uppercase text-[var(--accent-primary)]">
-                        Manual
-                      </span>
-                      <h3 className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
-                        Remasterización manual
-                      </h3>
-                      <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
-                        Controlá el preset, la cadena DSP y los parámetros del master.
-                      </p>
-                    </div>
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 bg-[var(--accent-primary)]" />
-                  </button>
-
-                  <button
-                    onClick={handleAiMaster}
-                    className="group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300
-                      border border-[var(--border-subtle)] hover:border-[var(--accent-secondary)]
-                      bg-[var(--bg-elevated)] hover:bg-[var(--surface-hover)]"
-                  >
-                    <div className="relative z-10">
-                      <span className="text-xs font-medium tracking-widest uppercase text-[var(--accent-secondary)]">
-                        IA
-                      </span>
-                      <h3 className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
-                        Masterización por IA
-                      </h3>
-                      <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
-                        Dejá que el modelo analice y aplique el mejor master.
-                      </p>
-                    </div>
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 bg-[var(--accent-secondary)]" />
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleBackToUpload}
-                  className="mt-6 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                <motion.div
+                  className="flex h-full max-h-[min(42rem,100%)] min-h-[28rem] w-full max-w-2xl flex-col"
+                  initial={VIEW_TRANSITION.initial}
+                  animate={VIEW_TRANSITION.animate}
+                  transition={VIEW_TRANSITION.transition}
                 >
-                  ← Subir otro track
-                </button>
-              </motion.div>
-            </div>
-          ) : isMobile ? (
+                  <ChatPanel
+                    profile={intentProfile}
+                    onProfileChange={setIntentProfile}
+                    analysis={session?.analysis ?? undefined}
+                    welcome={buildWelcome(session?.analysis?.detected_genre)}
+                    voiceOutput={masteringMode === "ai"}
+                    onPresetSelect={(presetId) => {
+                      const preset = PRESETS.find((x) => x.id === presetId);
+                      if (!preset) return;
+                      void handlePresetSelect(preset.params, presetId);
+                    }}
+                  />
+                </motion.div>
+              </div>
+
+              <div
+                className={`${masteringMode === "manual" ? "flex" : "hidden"} flex-1 min-h-0 flex-col`}
+                aria-hidden={masteringMode !== "manual"}
+              >
+              {isMobile ? (
             /* ── MOBILE MASTERING VIEW ──────────────── */
             <>
               {/* Player at top — always visible */}
@@ -1381,55 +1373,6 @@ export default function Home() {
                 </button>
               )}
             </>
-          ) : currentView === "chat" ? (
-            /* ── CHAT VIEW — el agente de intención ─────────────── */
-            <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-y-auto">
-              <motion.div
-                key="chat"
-                className="w-full max-w-xl flex flex-col gap-3"
-                initial={VIEW_TRANSITION.initial}
-                animate={VIEW_TRANSITION.animate}
-                exit={VIEW_TRANSITION.exit}
-                transition={VIEW_TRANSITION.transition}
-              >
-                <div className="flex max-h-[min(34rem,72vh)] min-h-[26rem] flex-col">
-                  <ChatPanel
-                    profile={intentProfile}
-                    onProfileChange={setIntentProfile}
-                    analysis={session?.analysis ?? undefined}
-                    welcome={buildWelcome(session?.analysis?.detected_genre)}
-                    onPresetSelect={(presetId) => {
-                      // El preset elegido pinta las perillas y procesa, igual
-                      // que si lo hubiera tocado en el dashboard. Los params
-                      // salen de PRESETS, la misma tabla que usa ModulePanel.
-                      const preset = PRESETS.find((x) => x.id === presetId);
-                      if (!preset) return;
-                      void handlePresetSelect(preset.params, presetId);
-                      setCurrentView("mastering");
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("selection")}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    ← Cambiar de modo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView("mastering")}
-                    className="rounded-full border px-4 py-2 text-xs transition-colors duration-300
-                      border-[var(--border-subtle)] bg-[var(--surface-hover)]
-                      text-[var(--text-secondary)] hover:border-[var(--border-hover)]"
-                  >
-                    Ir a las perillas →
-                  </button>
-                </div>
-              </motion.div>
-            </div>
           ) : (
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>
@@ -1551,12 +1494,15 @@ export default function Home() {
               )}
             </>
           )}
+              </div>
+            </>
+          )}
 
           </div>
           </div>
 
           {/* Expand button — visible when a tab that needs the right panel is selected and the panel is collapsed */}
-          {currentView === "mastering" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
+          {currentView === "mastering" && masteringMode === "manual" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
             <button
               onClick={() => setRightPanelOpen(true)}
               className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hover)] flex items-center justify-center hover:bg-[var(--bg-tertiary)] transition-all shadow-lg cursor-pointer"
@@ -1569,7 +1515,7 @@ export default function Home() {
         {/* ═══════════════════════════════════════════════
              COLUMN 3 — Right Panel (Análisis Colapsable)
              Hidden on mobile — analysis shown inline in mobile flow. */}
-        {currentView === "mastering" && !isMobile && (
+        {currentView === "mastering" && masteringMode === "manual" && !isMobile && (
         <aside
           className={`shrink-0 border-l border-[var(--border-subtle)] bg-[var(--bg-app)]/80 backdrop-blur-md transition-all duration-300 ease-out overflow-hidden ${
             rightPanelOpen ? "w-80 lg:w-96" : "w-0"
