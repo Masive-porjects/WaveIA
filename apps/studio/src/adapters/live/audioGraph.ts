@@ -1,6 +1,6 @@
 /**
- * Live Audio Graph ิว๖ Web Audio API signal chain for real-time FX.
- * Chain: Source ิๅฦ Filter ิๅฦ Drive ิๅฦ Delay+Feedback ิๅฦ Reverb (Convolver) ิๅฦ Master ิๅฦ Analyser ิๅฦ Destination
+ * Live Audio Graph โ€” Web Audio API signal chain for real-time FX.
+ * Chain: Source โ’ Filter โ’ Drive โ’ Delay+Feedback โ’ Reverb (Convolver) โ’ Master โ’ Analyser โ’ Destination
  */
 
 import type { LiveParams } from '@/lib/live/liveParams.gen';
@@ -51,7 +51,7 @@ export function createAudioGraph(
     fx_preset: null,
   }
 ): AudioGraph {
-  // ิ๖วิ๖ว Create Nodes ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+  // โ”€โ”€ Create Nodes โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
   const source = audioContext.createBufferSource();
   source.buffer = audioBuffer;
   source.loop = true;
@@ -84,15 +84,15 @@ export function createAudioGraph(
   analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0.3;
 
-  // ิ๖วิ๖ว Connect Graph ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
-  // Source ิๅฦ Filter ิๅฦ Drive ิๅฦ [Delay Loop] ิๅฦ Dry/Wet Split ิๅฦ Convolver ิๅฦ Master ิๅฦ Analyser ิๅฦ Destination
+  // โ”€โ”€ Connect Graph โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  // Source โ’ Filter โ’ Drive โ’ [Delay Loop] โ’ Dry/Wet Split โ’ Convolver โ’ Master โ’ Analyser โ’ Destination
   
   source.connect(filter);
   filter.connect(drive);
 
-  // Drive ิๅฦ Delay Input
+  // Drive โ’ Delay Input
   drive.connect(delay);
-  // Delay ิๅฦ Feedback ิๅฦ Delay (loop)
+  // Delay โ’ Feedback โ’ Delay (loop)
   delay.connect(delayFeedback);
   delayFeedback.connect(delay);
 
@@ -102,16 +102,16 @@ export function createAudioGraph(
   // Delay output goes to wet path
   delay.connect(wetGain);
 
-  // Dry + Wet ิๅฦ Convolver (reverb)
+  // Dry + Wet โ’ Convolver (reverb)
   dryGain.connect(convolver);
   wetGain.connect(convolver);
 
-  // Convolver ิๅฦ Master ิๅฦ Analyser ิๅฦ Destination
+  // Convolver โ’ Master โ’ Analyser โ’ Destination
   convolver.connect(masterGain);
   masterGain.connect(analyser);
   analyser.connect(audioContext.destination);
 
-  // ิ๖วิ๖ว Initial Parameter Values ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+  // โ”€โ”€ Initial Parameter Values โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
   const now = audioContext.currentTime;
   const SMOOTH_TIME = 0.02; // 20ms ramp for click-free changes
 
@@ -158,7 +158,7 @@ export function createAudioGraph(
     loadIR('hall'); // Default
   }
 
-  // ิ๖วิ๖ว Public API ิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖วิ๖ว
+  // โ”€โ”€ Public API โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
   return {
     nodes: {
       source,

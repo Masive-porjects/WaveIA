@@ -1,6 +1,6 @@
 /**
  * Impulse Response Generator for ConvolverNode Reverb
- * Generates synthetic IRs algorithmically ÔÇö no external WAV files needed.
+ * Generates synthetic IRs algorithmically â€” no external WAV files needed.
  */
 
 export type IRType = 'plate' | 'hall' | 'room' | 'chamber' | 'spring';
