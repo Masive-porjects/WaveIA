@@ -19,6 +19,30 @@ import { useSpeechInput } from "./useSpeechInput";
 
 export type VoiceEngine = "browser" | "gemini";
 
+/**
+ * Si el reconocimiento del navegador ya fallo en este equipo, se recuerda.
+ *
+ * En redes donde Google no responde falla SIEMPRE, y reintentarlo en cada
+ * sesion solo agrega una demora y un error visible antes de caer a Gemini.
+ */
+const FALLBACK_KEY = "waveai-voice-fallback";
+
+function browserFailedBefore(): boolean {
+  try {
+    return localStorage.getItem(FALLBACK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberBrowserFailure(): void {
+  try {
+    localStorage.setItem(FALLBACK_KEY, "1");
+  } catch {
+    // Storage bloqueado: se reintenta el navegador la proxima vez. No es grave.
+  }
+}
+
 export interface UseVoiceInputOptions {
   lang?: string;
   onFinal?: (text: string) => void;
@@ -53,12 +77,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
 
   // El motor inicial se calcula una sola vez, sin efecto: si el navegador ni
   // siquiera implementa la API, se arranca directo en Gemini.
-  const [engine, setEngine] = useState<VoiceEngine>(() =>
-    typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
-      ? "browser"
-      : "gemini",
-  );
+  const [engine, setEngine] = useState<VoiceEngine>(() => {
+    if (typeof window === "undefined") return "gemini";
+    const hasApi =
+      "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+    if (!hasApi || browserFailedBefore()) return "gemini";
+    return "browser";
+  });
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +97,30 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
     onFinalRef.current = onFinal;
   }, [onFinal]);
 
-  const browser = useSpeechInput({ lang, onFinal });
+  // startRecording se define mas abajo, asi que se llama por ref para no
+  // reordenar el archivo ni crear una dependencia circular entre callbacks.
+  const startRecordingRef = useRef<() => void>(() => {});
+
+  const browser = useSpeechInput({
+    lang,
+    onFinal,
+    onFatalError: useCallback((code: string) => {
+      // Permiso denegado o micro ausente fallan igual con cualquier motor:
+      // ahi si se le muestra al usuario.
+      if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
+        setError(
+          "Necesito permiso para usar el micrófono. Habilitalo en el candado de la barra de direcciones.",
+        );
+        return;
+      }
+      // Lo demas (tipicamente "network") lo resuelve Gemini. Se cambia de motor
+      // y se sigue grabando en el acto: el usuario no tiene que volver a tocar.
+      rememberBrowserFailure();
+      setEngine("gemini");
+      setError(null);
+      startRecordingRef.current();
+    }, []),
+  });
 
   const stopTracks = useCallback(() => {
     recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
@@ -133,6 +181,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
     recorder.start();
     setRecording(true);
   }, [stopTracks]);
+
+  useEffect(() => {
+    startRecordingRef.current = () => void startRecording();
+  }, [startRecording]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();

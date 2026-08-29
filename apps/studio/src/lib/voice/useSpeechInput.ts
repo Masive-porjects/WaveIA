@@ -80,8 +80,15 @@ function getConstructor(): SpeechRecognitionConstructor | null {
 export interface UseSpeechInputOptions {
   /** Variante regional. "es-CO", "es-MX", "es-AR" tambien son validas. */
   lang?: string;
-  /** Se dispara con la transcripcion final cuando el usuario suelta el boton. */
+  /** Se dispara con la transcripcion final. */
   onFinal?: (text: string) => void;
+  /**
+   * Se dispara ante un fallo del que no se vuelve reintentando.
+   *
+   * Existe para que quien orquesta pueda cambiar de motor en el acto. Se llama
+   * desde el handler del evento del navegador, no desde un efecto de React.
+   */
+  onFatalError?: (code: string) => void;
 }
 
 export interface SpeechInput {
@@ -102,7 +109,7 @@ export interface SpeechInput {
 }
 
 export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput {
-  const { lang = "es-ES", onFinal } = options;
+  const { lang = "es-ES", onFinal, onFatalError } = options;
 
   // useSyncExternalStore en vez de estado + efecto: el soporte del navegador no
   // cambia en runtime, y setState dentro de un efecto dispara render en cascada.
@@ -139,6 +146,11 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
   useEffect(() => {
     onFinalRef.current = onFinal;
   }, [onFinal]);
+
+  const onFatalErrorRef = useRef(onFatalError);
+  useEffect(() => {
+    onFatalErrorRef.current = onFatalError;
+  }, [onFatalError]);
 
   useEffect(() => {
     const Ctor = getConstructor();
