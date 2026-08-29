@@ -14,7 +14,17 @@ import { useEffect, useRef } from "react";
  * React el navegador se pasa el frame entero reconciliando.
  */
 
-const BAR_COUNT = 48;
+/**
+ * Muchas barras y finas.
+ *
+ * Con pocas barras anchas el espectro se lee como bloques encima de la onda y
+ * la tapa. La onda ya es la visualizacion principal: esto la acompania desde
+ * abajo, como un piso de energia.
+ */
+const BAR_COUNT = 110;
+
+/** Fraccion de la altura que puede ocupar. El resto queda para la onda. */
+const MAX_HEIGHT = 0.42;
 /** Cuánto conserva cada barra de su valor anterior. Sin esto tiembla. */
 const SMOOTHING = 0.62;
 /** Las frecuencias altas casi no tienen energía: se compensa para que se vean. */
@@ -116,6 +126,7 @@ export default function AudioSpectrum({
 
       const barWidth = width / BAR_COUNT;
       const usable = Math.floor(bins.length * 0.7); // arriba de eso no hay nada
+      const ceiling = height * MAX_HEIGHT;
 
       for (let i = 0; i < BAR_COUNT; i++) {
         // Reparto logarítmico: los graves ocupan pocos bins pero mucha energía.
@@ -129,14 +140,18 @@ export default function AudioSpectrum({
         const tilted = Math.min(1, avg * (1 + (i / BAR_COUNT) * TILT));
         levels[i] = levels[i] * SMOOTHING + tilted * (1 - SMOOTHING);
 
-        const barHeight = Math.max(2, levels[i] * height);
-        const x = i * barWidth;
-        const y = (height - barHeight) / 2;
-
-        // Del teal del sistema al secundario según la intensidad.
         const intensity = levels[i];
-        ctx.fillStyle = `rgba(${98 + intensity * 32}, ${126 + intensity * 30}, ${132 + intensity * 25}, ${0.35 + intensity * 0.65})`;
-        ctx.fillRect(x + barWidth * 0.15, y, barWidth * 0.7, barHeight);
+        const barHeight = intensity * ceiling;
+        if (barHeight < 0.6) continue; // en silencio no se dibuja nada
+
+        // Ancladas abajo, no centradas: asi no cruzan la onda.
+        const x = i * barWidth + barWidth * 0.25;
+        const y = height - barHeight;
+
+        // Teal del sistema, translucido. Techo bajo a proposito: si compite con
+        // la onda, las dos se leen peor.
+        ctx.fillStyle = `rgba(130, 156, 161, ${0.12 + intensity * 0.3})`;
+        ctx.fillRect(x, y, Math.max(1, barWidth * 0.5), barHeight);
       }
     };
 

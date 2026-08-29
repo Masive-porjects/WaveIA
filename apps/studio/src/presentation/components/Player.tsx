@@ -859,7 +859,7 @@ export default function Player({
           )}
 
           {/* Espectro real del audio, detras de la onda. */}
-          <div className="absolute inset-0 z-[5] pointer-events-none opacity-70">
+          <div className="absolute inset-0 z-[1] pointer-events-none opacity-60">
             <AudioSpectrum mediaElement={mediaEl} playing={isPlaying} />
           </div>
 
