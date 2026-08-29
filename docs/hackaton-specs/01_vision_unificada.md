@@ -2,13 +2,13 @@
 
 ## 1. Por qué unir estas dos ideas
 
-El proyecto **HumanMidi** resuelve la *entrada*: convertir gestos de la mano en MIDI en tiempo real, sin tocar un instrumento físico. El proyecto **BrikMaster** resuelve la *producción*: convertir una mezcla en un master profesional listo para plataformas, con análisis IA y DSP proporcional.
+El proyecto **HumanMidi** resuelve la *entrada*: convertir gestos de la mano en MIDI en tiempo real, sin tocar un instrumento físico. El proyecto **WaveAI** resuelve la *producción*: convertir una mezcla en un master profesional listo para plataformas, con análisis IA y DSP proporcional.
 
-**La unión rediseñada:** BrikMaster masteriza la canción primero (offline, una sola vez) y el resultado se reproduce en un **Live Engine** — una cadena de efectos en tiempo real (reverb, delay, echo, filtro, drive) que HumanMidi controla con las manos, todo en una misma interface.
+**La unión rediseñada:** WaveAI masteriza la canción primero (offline, una sola vez) y el resultado se reproduce en un **Live Engine** — una cadena de efectos en tiempo real (reverb, delay, echo, filtro, drive) que HumanMidi controla con las manos, todo en una misma interface.
 
 ```
 ┌────────────────────────── FASE OFFLINE ──────────────────────────┐
-│  BrikMaster: Track → Análisis IA → DSP proporcional → Master WAV │
+│  WaveAI: Track → Análisis IA → DSP proporcional → Master WAV │
 └──────────────────────────────────────────────────────────────────┘
                               │  (una sola vez, ~44 s por track)
                               ▼
@@ -23,7 +23,7 @@ El proyecto **HumanMidi** resuelve la *entrada*: convertir gestos de la mano en 
 
 ## 2. Principios compartidos de diseño
 
-| Principio | HumanMidi | BrikMaster | Live Engine |
+| Principio | HumanMidi | WaveAI | Live Engine |
 |-----------|-----------|------------|-------------|
 | **Modularidad** | SOLID, Strategy (BaseGesture) | Módulos DSP separados | Slots de FX intercambiables (filtro/drive/delay/reverb) |
 | **Neutral = sin efecto** | Gesto no detectado = sin evento | Parámetro neutral = bypass bit-exacto | Mix 0 = audio intacto |
@@ -35,7 +35,7 @@ El proyecto **HumanMidi** resuelve la *entrada*: convertir gestos de la mano en 
 ## 3. Flujo creativo completo (visión de producto)
 
 1. **Grabar:** el músico toca (con HumanMidi o cualquier instrumento) y exporta un mix WAV/MP3.
-2. **Masterizar (offline):** el mix entra a BrikMaster → análisis IA → DSP proporcional → master WAV con target LUFS por plataforma.
+2. **Masterizar (offline):** el mix entra a WaveAI → análisis IA → DSP proporcional → master WAV con target LUFS por plataforma.
 3. **Tocar el master en vivo:** el master se carga en el Live Engine (loop o one-shot).
 4. **Perform con las manos:** los gestos abren el filtro (pulgar derecho), mandan reverb (pulgar izquierdo), ajustan delay (altura de mano), echo (apertura) y drive (posición X).
 5. **Grabar la performance:** la salida en vivo se graba tal cual suena.
@@ -59,6 +59,6 @@ El círculo se cierra: **crear → masterizar → reinterpretar en vivo**, todo 
 
 1. **El motor de mastering es proporcional, no preset-driven** — los presets definen carácter y targets; los valores reales se calculan por track.
 2. **Masterizar y tocar son fases separadas** — el master se produce una vez (offline); los efectos se tocan siempre (tiempo real). Nunca mezclar los dos presupuestos.
-3. **Cada capa es independiente** — HumanMidi funciona sin BrikMaster (MIDI a cualquier DAW); BrikMaster funciona sin HumanMidi (sube un archivo y masteriza); el Live Engine funciona sin gestos (knobs con mouse). La integración es un añadido, no un acoplamiento.
+3. **Cada capa es independiente** — HumanMidi funciona sin WaveAI (MIDI a cualquier DAW); WaveAI funciona sin HumanMidi (sube un archivo y masteriza); el Live Engine funciona sin gestos (knobs con mouse). La integración es un añadido, no un acoplamiento.
 4. **El audio no viaja por el socket** — solo parámetros y estado; el sonido es local en el navegador (cero latencia de red para el audio).
-5. **Evidencia verificable** — toda afirmación numérica de la spec de BrikMaster es trazable a código; los claims no verificados se omiten.
+5. **Evidencia verificable** — toda afirmación numérica de la spec de WaveAI es trazable a código; los claims no verificados se omiten.

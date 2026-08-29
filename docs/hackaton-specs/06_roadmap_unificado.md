@@ -13,7 +13,7 @@
 - [x] 26 tests pasando
 - [ ] Validación con músicos — en fase de testing
 
-### BrikMaster ✅
+### WaveAI ✅
 - [x] Pipeline completo: upload → análisis IA → DSP proporcional → A/B → export
 - [x] Motor proporcional (no preset-driven)
 - [x] 8 presets macro (backend `PRESET_CHAINS` + frontend cards)
@@ -32,12 +32,12 @@
 
 ### Fase 0 — Preparación (día 0)
 - [ ] Verificar HumanMidi corre: `python run.py --mode cc-thumbs` (entry: **run.py**, no `src/main.py`)
-- [ ] Verificar BrikMaster corre: `POST /health` en `localhost:8000`
+- [ ] Verificar WaveAI corre: `POST /health` en `localhost:8000`
 - [ ] Setup MIDI virtual: IAC Driver (macOS) / loopMIDI (Windows) con nombre en `config.yaml → midi.virtual_port_name`
 - [ ] Preparar track demo (WAV ~30 s) + clave de licencia de dev
 
 ### Fase 1 — Master primero (días 1–2)
-- [ ] Subir el track a BrikMaster y masterizarlo (presets + prebuilt lookup ~1.5 s)
+- [ ] Subir el track a WaveAI y masterizarlo (presets + prebuilt lookup ~1.5 s)
 - [ ] Confirmar el master WAV se sirve por `GET /audio/mastered` y `/download/wav`
 - [ ] El master entra al Live Engine en loop (AudioBufferSourceNode)
 - [ ] **Entregable:** canción masterizada sonando en el navegador
@@ -64,7 +64,7 @@
 
 ## 3. Roadmap medio plazo (post-hackaton)
 
-| Trimestre | HumanMidi | BrikMaster | Live Engine / Integración |
+| Trimestre | HumanMidi | WaveAI | Live Engine / Integración |
 |---|---|---|---|
 | Q1 | Validación con músicos; presets de gestos; grabación/reproducción de gestos | Redis para sesiones; corrección "4x vs 8x oversampling" en MasteringGuide | Bridge Vía B (modo `--mode studio` en run.py); 9 perillas mapeadas |
 | Q2 | Plugin JUCE/C++ (VST3/AU/AAX); GUI profesional | ML Fase 2: CNN género + XGBoost recommender | Los gestos disparan presets recomendados por IA para el master |
@@ -74,8 +74,8 @@
 ## 4. Métricas de éxito del hackaton
 
 1. **Demo en vivo funcional:** track → master (~1.5 s con prebuilt o ~44 s full) → FX controlados por gestos con latencia perceptible < 50 ms.
-2. **Cero regresiones:** 26 tests de HumanMidi siguen pasando; endpoints de BrikMaster intactos.
-3. **Desacoplamiento probado:** HumanMidi sigue funcionando sin BrikMaster y viceversa; el Live Engine funciona con mouse sin gestos.
+2. **Cero regresiones:** 26 tests de HumanMidi siguen pasando; endpoints de WaveAI intactos.
+3. **Desacoplamiento probado:** HumanMidi sigue funcionando sin WaveAI y viceversa; el Live Engine funciona con mouse sin gestos.
 4. **Audio nunca por la red:** solo parámetros viajan por WebSocket; el sonido es 100% local.
 5. **Evidencia:** grabación de pantalla del flujo completo master → performance en vivo.
 
@@ -83,7 +83,7 @@
 
 - **MediaPipe:** fijar `0.10.14`; 0.10.9 no tiene wheels Python 3.12+; 0.10.21+ depreca `mp.solutions.hands` (eliminado en 0.10.35).
 - **Entry point HumanMidi:** siempre `run.py` (añade raíz al sys.path).
-- **BrikMaster:** sesiones en memoria (process-local) — se pierden al reiniciar el backend.
+- **WaveAI:** sesiones en memoria (process-local) — se pierden al reiniciar el backend.
 - **Divergencia frontend/backend presets:** `PRESET_INFO` difiere de `PRESET_CHAINS` (solo afecta UI, no audio).
 - **Limiter:** implementación 8× oversampling; guía educativa dice 4× — corregir texto.
 - **Mastering ≠ FX en vivo:** los knobs del Live Engine NO son `MasteringParameters` — no reprocesar el track; son nodos Web Audio en tiempo real.

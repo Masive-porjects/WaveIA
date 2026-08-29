@@ -78,7 +78,7 @@ Componentes deterministas/seeded, hydration-safe:
 - `FloatingNotes`: 16 notas de 5 colores, 14–34px, loops 8–16s.
 - `BigGhostWithNotes`: fantasma hero 80px + notas orbitando.
 
-Colocación: campos detrás de toda la app (z 1–2), el hero detrás de la card de upload, watermark `/brand/BrikMasters.png` con `var(--brand-bg-opacity)` en el canvas.
+Colocación: campos detrás de toda la app (z 1–2), el hero detrás de la card de upload, watermark `/brand/WaveAI.png` con `var(--brand-bg-opacity)` en el canvas.
 
 ## Layout y navegación
 

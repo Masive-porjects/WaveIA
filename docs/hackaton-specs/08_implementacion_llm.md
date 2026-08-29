@@ -1,6 +1,6 @@
 # 08 — Prompt de Implementación para LLM: crear midiMastering completo
 
-> **Qué es este documento:** un prompt de implementación autocontenido para que un agente de código (Claude Code, Codex, OpenCode, etc.) genere el proyecto **midiMastering** completo: mastering offline (BrikMaster) + Live Engine Web Audio + bridge de gestos (HumanMidi → FX en vivo).
+> **Qué es este documento:** un prompt de implementación autocontenido para que un agente de código (Claude Code, Codex, OpenCode, etc.) genere el proyecto **midiMastering** completo: mastering offline (WaveAI) + Live Engine Web Audio + bridge de gestos (HumanMidi → FX en vivo).
 >
 > **Cómo usarlo:** copia este archivo como prompt inicial del agente, junto con la ruta al repo donde trabajar. El agente DEBE leer los documentos fuente antes de escribir código (sección 0).
 
@@ -9,7 +9,7 @@
 ## 0. PRIMERO: lee estos documentos (obligatorio antes de escribir código)
 
 ```
-MASTERING_ECOSYSTEM_SPEC.md        # La spec verificada de BrikMaster: DSP, presets, API, diseño
+MASTERING_ECOSYSTEM_SPEC.md        # La spec verificada de WaveAI: DSP, presets, API, diseño
 README.md                          # HumanMidi: modos, config, pitfalls
 ARCHITECTURE.md                    # HumanMidi: SOLID y estructura
 Hackaton-midiMastering/01_vision_unificada.md
@@ -27,10 +27,10 @@ Todos los valores numéricos de este prompt (presets, rangos, tokens, endpoints)
 
 **midiMastering** une dos ideas:
 
-1. **BrikMaster** — estudio de mastering asistido por IA (Next.js + FastAPI). El usuario sube WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP **proporcional** (no preset-driven) para producir un master WAV/MP3 con A/B player.
+1. **WaveAI** — estudio de mastering asistido por IA (Next.js + FastAPI). El usuario sube WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP **proporcional** (no preset-driven) para producir un master WAV/MP3 con A/B player.
 2. **HumanMidi** — app Python que convierte gestos de la mano (MediaPipe) en MIDI en tiempo real.
 
-**La unión:** BrikMaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con cadena de FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python escucha el puerto MIDI virtual de HumanMidi y traduce los gestos (CC) a `LiveParams` que envía por WebSocket al navegador. Todo en una misma interface (pestaña "Live" del studio).
+**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con cadena de FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python escucha el puerto MIDI virtual de HumanMidi y traduce los gestos (CC) a `LiveParams` que envía por WebSocket al navegador. Todo en una misma interface (pestaña "Live" del studio).
 
 **Filosofía de diseño (no negociable):**
 - Motor de mastering proporcional, NO preset-driven (los presets definen carácter; los valores DSP se calculan por track).
@@ -322,7 +322,7 @@ pytest tests/ -q
 
 ## 8. FASE 5 — Studio Next.js + Live Engine
 
-### 8.1 Base del studio (BrikMaster frontend)
+### 8.1 Base del studio (WaveAI frontend)
 
 **Lee `MASTERING_ECOSYSTEM_SPEC.md` Parte II y `Hackaton-midiMastering/04_*.md`** y respeta el sistema de diseño. Resumen:
 
@@ -444,7 +444,7 @@ Puedes paralelizar FASE 2, 3 y 4 después de FASE 1 (no dependen entre sí). FAS
 
 - `mediapipe==0.10.14` pin. 0.10.21+ depreca `mp.solutions.hands` (eliminado en 0.10.35); 0.10.9 no tiene wheels Python 3.12+.
 - Entry point HumanMidi SIEMPRE `run.py` (sys.path).
-- Sesiones de BrikMaster en memoria — se pierden al reiniciar el backend.
+- Sesiones de WaveAI en memoria — se pierden al reiniciar el backend.
 - `PRESET_INFO` del frontend puede diferir del backend (solo UI, no audio) — no "arreglar" el backend para que coincida.
 - El limiter es 8× oversampling (la guía educativa dice 4× — si creas MasteringGuide, escribe 8×).
 - Los knobs del Live Engine NO son `MasteringParameters` — no reprocesar el track; son nodos Web Audio.

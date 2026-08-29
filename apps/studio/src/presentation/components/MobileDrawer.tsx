@@ -77,7 +77,7 @@ export default function MobileDrawer({
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-                    BrikMaster
+                    WaveAI
                   </h2>
                   <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
                     Studio
@@ -154,7 +154,7 @@ export default function MobileDrawer({
             {/* Footer */}
             <div className="mt-auto px-5 py-4 border-t border-[var(--border-subtle)]">
               <p className="text-[9px] text-[var(--text-muted)] text-center">
-                BrikMaster v0.1 — Mastering Profesional
+                WaveAI v0.1 — Mastering Profesional
               </p>
             </div>
           </motion.div>

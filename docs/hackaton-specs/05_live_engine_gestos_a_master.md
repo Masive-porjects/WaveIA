@@ -1,6 +1,6 @@
 # 05 — Live Engine: Primero el Master, Después los Efectos en Vivo
 
-> El punto de unión de las dos ideas, rediseñado: **BrikMaster masteriza la canción primero (offline) y el resultado se toca en vivo con efectos controlados por gestos de HumanMidi, todo en una misma interface.**
+> El punto de unión de las dos ideas, rediseñado: **WaveAI masteriza la canción primero (offline) y el resultado se toca en vivo con efectos controlados por gestos de HumanMidi, todo en una misma interface.**
 
 ## 1. El nuevo flujo (invertido respecto a la v1)
 
@@ -8,7 +8,7 @@
 [Track original WAV/MP3]
         │
         ▼
-┌─────────────────────────── BrikMaster (FASE OFFLINE, una sola vez) ───────────────────────────┐
+┌─────────────────────────── WaveAI (FASE OFFLINE, una sola vez) ───────────────────────────┐
 │  Análisis IA → DSP proporcional (44 s por track de 3 min) → [Master WAV]                     │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
         │
@@ -24,7 +24,7 @@
 
 ## 2. Dos motores, dos presupuestos
 
-| | Motor de mastering (BrikMaster) | Live Engine |
+| | Motor de mastering (WaveAI) | Live Engine |
 |---|---|---|
 | Momento | Offline, una sola vez por track | Online, cada frame |
 | Presupuesto | Minutos (44 s / track 3 min) | < 10 ms de latencia de audio |
@@ -38,7 +38,7 @@
 Dos implementaciones posibles:
 
 ### Opción A — Web Audio API en el navegador (recomendada)
-La interface unificada ES el studio BrikMaster (Next.js). Una pestaña/modo **"Live"** carga el master WAV y monta una cadena de nodos Web Audio:
+La interface unificada ES el studio WaveAI (Next.js). Una pestaña/modo **"Live"** carga el master WAV y monta una cadena de nodos Web Audio:
 
 ```
 AudioBufferSourceNode (master WAV, loop) 
@@ -58,7 +58,7 @@ El Live Engine corre en la misma máquina que HumanMidi (callback de audio en ti
 - **Ventajas:** sin navegador; más control DSP; misma pila que HumanMidi.
 - **Desventajas:** la "misma interface" hay que construirla (el visualizer de HumanMidi + knobs), o exponer un mini-servidor HTTP/WebSocket para la UI.
 
-**Recomendación hackaton:** Opción A — es la que cumple "una misma interface" con el menor esfuerzo: el studio BrikMaster ya tiene el diseño de knobs, el player y los meters; solo hay que añadir la cadena de FX y el socket.
+**Recomendación hackaton:** Opción A — es la que cumple "una misma interface" con el menor esfuerzo: el studio WaveAI ya tiene el diseño de knobs, el player y los meters; solo hay que añadir la cadena de FX y el socket.
 
 ## 4. Cadena de efectos en vivo (propuesta)
 
@@ -88,7 +88,7 @@ Orden pensado para performance: el filtro modela el "color" (como el CC 74 que H
 ## 6. Bridge de control (gestos → navegador)
 
 ```
-HumanMidi (Python)                          BrikMaster Live (Navegador)
+HumanMidi (Python)                          WaveAI Live (Navegador)
 ┌──────────────────────┐   WebSocket/JSON   ┌─────────────────────────────┐
 │ run.py --mode studio │ ──────────────────► │ /live/ws (socket.io/ws)     │
 │  CC Thumbs / Piano   │   LiveParams        │  → setTargetAtTime en nodos │

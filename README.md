@@ -3,10 +3,10 @@
 **Mastering asistido por IA + Live Engine controlado por gestos.**
 
 Unión de dos proyectos:
-1. **BrikMaster** — estudio de mastering IA (Next.js + FastAPI): subís WAV/MP3 → el backend analiza (loudness, espectro, tempo, género) → corre una cadena DSP proporcional → master WAV/MP3 con player A/B.
+1. **WaveAI** — estudio de mastering IA (Next.js + FastAPI): subís WAV/MP3 → el backend analiza (loudness, espectro, tempo, género) → corre una cadena DSP proporcional → master WAV/MP3 con player A/B.
 2. **HumanMidi** — app Python que convierte gestos de la mano (MediaPipe) en MIDI en tiempo real.
 
-**La unión:** BrikMaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con cadena de FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python escucha el puerto MIDI virtual de HumanMidi y traduce los gestos (CC) a `LiveParams` que envía por WebSocket al navegador. Todo en una misma interfaz (pestaña "Live" del studio).
+**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con cadena de FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python escucha el puerto MIDI virtual de HumanMidi y traduce los gestos (CC) a `LiveParams` que envía por WebSocket al navegador. Todo en una misma interfaz (pestaña "Live" del studio).
 
 ```
 Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio) → Knobs / Meters / Audio
@@ -88,6 +88,6 @@ npm run e2e                                   # playwright (desde apps/studio)
 
 - `docs/hackaton-specs/08_implementacion_llm.md` — el prompt de implementación completo (fases, valores DSP exactos, criterios de éxito, pitfalls). **LEERLO ANTES DE TOCAR CÓDIGO.**
 - `docs/hackaton-specs/01..07` — visión unificada, HumanMidi, backend mastering, sistema de diseño, live engine, roadmap, estrategia de equipo.
-- `docs/INTEGRATION_REPORT.md` — estado del bloque de integración (BrikMaster × midiMastering).
+- `docs/INTEGRATION_REPORT.md` — estado del bloque de integración (WaveAI × midiMastering).
 
 > AGENTS.md en la raíz tiene las reglas no negociables para agentes de código. Respetalas.

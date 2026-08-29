@@ -1,4 +1,4 @@
-# 04 — Idea 2 · BrikMaster: Sistema de Diseño del Studio (Parte II de la spec)
+# 04 — Idea 2 · WaveAI: Sistema de Diseño del Studio (Parte II de la spec)
 
 > Fuente: `MASTERING_ECOSYSTEM_SPEC.md` — Parte II (design spec). Frontend: Next.js.
 
@@ -55,7 +55,7 @@ Tres componentes, todos deterministas/seeded para ser hydration-safe (sin `Math.
 | `FloatingNotes.tsx` | 16 notas (paleta 5 colores) | 14–34 px, loops 8–16 s |
 | `BigGhostWithNotes.tsx` | Un fantasma hero (80 px) + hasta 7 notas orbitando (radio 96) | Bob y −12 px + rotate 3°, 4.2 s `sine.inOut`; soporta composición "recostado" |
 
-Colocación: campos ambientales detrás de toda la app (z 1–2); el fantasma grande detrás de la card de upload. El canvas de mastering añade el watermark `/brand/BrikMasters.png` a `var(--brand-bg-opacity)`. La pantalla de licencia compone las mismas piezas en su ilustración de estado bloqueado.
+Colocación: campos ambientales detrás de toda la app (z 1–2); el fantasma grande detrás de la card de upload. El canvas de mastering añade el watermark `/brand/WaveAI.png` a `var(--brand-bg-opacity)`. La pantalla de licencia compone las mismas piezas en su ilustración de estado bloqueado.
 
 ## 4. Sistema de movimiento
 

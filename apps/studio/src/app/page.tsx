@@ -997,7 +997,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          BrikMaster Studio
+                          WaveAI Studio
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>

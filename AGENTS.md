@@ -4,7 +4,7 @@ Este repo es **IA-first**: está diseñado para que agentes (Claude Code, Codex,
 
 ## Qué es esto
 
-**midiMastering** = BrikMaster (mastering IA, Next.js + FastAPI) + HumanMidi (gestos de mano → MIDI vía MediaPipe) unidos por un **Live Engine** Web Audio controlado en tiempo real.
+**midiMastering** = WaveAI (mastering IA, Next.js + FastAPI) + HumanMidi (gestos de mano → MIDI vía MediaPipe) unidos por un **Live Engine** Web Audio controlado en tiempo real.
 
 Pipeline: `Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio) → Knobs/Meters/Audio`
 

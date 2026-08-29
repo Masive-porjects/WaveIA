@@ -1,10 +1,10 @@
-# 03 — Idea 2 · BrikMaster: Backend de Mastering (Parte I de la spec)
+# 03 — Idea 2 · WaveAI: Backend de Mastering (Parte I de la spec)
 
 > Fuente: `MASTERING_ECOSYSTEM_SPEC.md` — Parte I (ecosistema de mastering). Todo claim numérico es trazable al código citado.
 
 ## 1. Qué es
 
-BrikMaster es un estudio de mastering asistido por IA. El usuario sube WAV/MP3, el backend analiza (loudness, dinámica, espectro, tempo, género), mapea el resultado a parámetros de mastering por módulos, corre una **cadena DSP proporcional** y devuelve un master comparable en A/B, descargable en WAV o MP3.
+WaveAI es un estudio de mastering asistido por IA. El usuario sube WAV/MP3, el backend analiza (loudness, dinámica, espectro, tempo, género), mapea el resultado a parámetros de mastering por módulos, corre una **cadena DSP proporcional** y devuelve un master comparable en A/B, descargable en WAV o MP3.
 
 **Decisión de diseño clave: el motor es proporcional, no preset-driven.** Los presets definen carácter y targets de loudness; los valores DSP reales (gains de EQ, thresholds de compresor, gain LUFS) se calculan por track según lo que el análisis dice que el input necesita. Implementado en `backend/src/audiomind/processing/engine.py` (`process_audio`).
 
