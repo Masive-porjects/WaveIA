@@ -5,7 +5,7 @@ import { Loader2, Send, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { speak, stopSpeaking } from "@/lib/voice/speak";
-import { useSpeechInput } from "@/lib/voice/useSpeechInput";
+import { useVoiceInput } from "@/lib/voice/useVoiceInput";
 
 import MicButton from "./MicButton";
 import PresetCards, { type Recommendation } from "./PresetCards";
@@ -177,7 +177,7 @@ export default function ChatPanel({
     [busy, turns, profile, analysis, voiceOutput, controlledProfile, onProfileChange],
   );
 
-  const mic = useSpeechInput({ onFinal: send });
+  const mic = useVoiceInput({ onFinal: send });
 
   return (
     <section
@@ -352,6 +352,7 @@ export default function ChatPanel({
         <MicButton
           supported={mic.supported}
           listening={mic.listening}
+          transcribing={mic.transcribing}
           disabled={busy}
           transcript={mic.transcript}
           onToggle={() => {

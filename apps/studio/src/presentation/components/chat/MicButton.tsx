@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Mic, MicOff, Square, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Square, X } from "lucide-react";
 
 /**
  * Boton de voz: se toca para empezar, se toca para enviar.
@@ -18,6 +18,8 @@ import { Mic, MicOff, Square, X } from "lucide-react";
 export interface MicButtonProps {
   supported: boolean;
   listening: boolean;
+  /** true mientras se transcribe lo grabado (motor Gemini). */
+  transcribing?: boolean;
   disabled?: boolean;
   /** Texto parcial mientras habla. */
   transcript?: string;
@@ -28,12 +30,13 @@ export interface MicButtonProps {
 export default function MicButton({
   supported,
   listening,
+  transcribing = false,
   disabled = false,
   transcript = "",
   onToggle,
   onCancel,
 }: MicButtonProps) {
-  const inactive = !supported || disabled;
+  const inactive = !supported || disabled || transcribing;
 
   return (
     <div className="flex items-stretch gap-2">
@@ -78,6 +81,8 @@ export default function MicButton({
         <span className="relative flex min-w-0 items-center gap-2.5">
           {!supported ? (
             <MicOff size={17} strokeWidth={1.75} />
+          ) : transcribing ? (
+            <Loader2 size={16} strokeWidth={1.75} className="animate-spin" />
           ) : listening ? (
             <Square size={15} strokeWidth={2} fill="currentColor" />
           ) : (
@@ -87,7 +92,9 @@ export default function MicButton({
           <span className="truncate">
             {!supported
               ? "Tu navegador no soporta el micrófono"
-              : listening
+              : transcribing
+                ? "Entendiendo lo que dijiste…"
+                : listening
                 ? transcript || "Te escucho…"
                 : "Tocá para hablar"}
           </span>
