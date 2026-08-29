@@ -37,6 +37,40 @@ export function LiveView({
 }: LiveViewProps) {
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // ── Master real del flujo de mastering ─────────────────────────────
+  // El padre pasa la URL del masterizado (getAudioUrl(session_id, "mastered")).
+  // La decodificamos a AudioBuffer para el Live Engine. Con un AudioContext
+  // efímero (el decode es puntual; el hook usa el suyo para el graph).
+  const [masterBuffer, setMasterBuffer] = useState<AudioBuffer | null>(null);
+  const [decodedUrl, setDecodedUrl] = useState<string | null>(null);
+
+  // Patrón oficial React: si la URL cambió, descartar el buffer viejo
+  // (ajuste de estado durante render, no en efecto).
+  if (decodedUrl !== (masterAudioUrl ?? null)) {
+    setDecodedUrl(masterAudioUrl ?? null);
+    setMasterBuffer(null);
+  }
+
+  useEffect(() => {
+    if (!masterAudioUrl) return;
+
+    let cancelled = false;
+    const ctx = new AudioContext();
+    fetch(masterAudioUrl)
+      .then((r) => {
+        if (!r.ok) throw new Error(`fetch master: HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then((buf) => ctx.decodeAudioData(buf))
+      .then((audioBuf) => {
+        if (!cancelled) setMasterBuffer(audioBuf);
+      })
+      .catch((err) => console.error('[LiveView] decode master:', err))
+      .finally(() => { void ctx.close(); });
+
+    return () => { cancelled = true; };
+  }, [masterAudioUrl]);
+
   // Use the live engine hook
   const {
     params,
@@ -56,7 +90,7 @@ export function LiveView({
     downloadRecording,
     destroy,
   } = useLiveEngine({
-    masterAudioBuffer: masterAudioBuffer ?? null,
+    masterAudioBuffer: masterBuffer ?? masterAudioBuffer ?? null,
     initialParams: {
       filter_cutoff: 12000,
       filter_res: 0.7,
