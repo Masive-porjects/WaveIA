@@ -1,0 +1,41 @@
+#Requires -Version 5.1
+
+# Inicia un solo servicio de midiMastering en una ventana de PowerShell separada.
+# Guarda el PID en scripts/.pids para poder detenerlo con stop-all.ps1.
+
+param(
+    [Parameter(Mandatory = $true, Position = 0)]
+    [ValidateSet("audiomind", "bridge", "humanmidi", "studio")]
+    [string]$Name
+)
+
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$scriptsDir = Split-Path -Parent $PSScriptRoot
+$pidsFile = Join-Path $scriptsDir '.pids'
+
+$services = @{
+    audiomind = @{
+        WorkDir = "apps/audiomind"
+        Command = '$env:PYTHONPATH = (Join-Path $pwd ''src''); .venv\Scripts\python.exe -m uvicorn audiomind.main:app --reload --port 8000'
+    }
+    bridge = @{
+        WorkDir = "apps/bridge"
+        Command = ".venv\Scripts\python.exe main.py"
+    }
+    humanmidi = @{
+        WorkDir = "apps/humanmidi"
+        Command = ".venv\Scripts\python.exe run.py --mode studio"
+    }
+    studio = @{
+        WorkDir = "apps/studio"
+        Command = "bun run dev"
+    }
+}
+
+$cfg = $services[$Name]
+$wd = Join-Path $root $cfg.WorkDir
+
+Write-Host "Iniciando $Name en $wd"
+$process = Start-Process -FilePath "powershell" -WorkingDirectory $wd -PassThru -ArgumentList "-NoExit", "-Command", $cfg.Command
+"$Name=$($process.Id)" | Out-File -FilePath $pidsFile -Append
+Write-Host "$Name iniciado con PID $($process.Id)."
