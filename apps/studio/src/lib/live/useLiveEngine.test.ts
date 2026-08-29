@@ -21,11 +21,11 @@ const { createAudioGraphMock, liveSocketConfigs } = vi.hoisted(() => ({
   }>,
 }));
 
-vi.mock('./audioGraph', () => ({
+vi.mock('@/adapters/live/audioGraph', () => ({
   createAudioGraph: (...args: unknown[]) => createAudioGraphMock(...args),
 }));
 
-vi.mock('./liveSocket', () => ({
+vi.mock('@/adapters/live/liveSocket', () => ({
   createLiveSocket: (config: {
     onStateChange?: (state: string) => void;
     onParams?: (params: unknown) => void;
@@ -40,7 +40,7 @@ vi.mock('./liveSocket', () => ({
   },
 }));
 
-vi.mock('./recorder', () => ({
+vi.mock('@/adapters/live/recorder', () => ({
   createRecorder: vi.fn(() => ({
     start: vi.fn(),
     stop: vi.fn(),
@@ -49,7 +49,7 @@ vi.mock('./recorder', () => ({
   })),
 }));
 
-vi.mock('./fxPresets', () => ({
+vi.mock('@/adapters/live/fxPresets', () => ({
   applyPreset: (p: unknown) => p,
   getPresetByNote: vi.fn(),
   FX_PRESETS: {},

@@ -6,7 +6,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import type { ConnectionState } from '../../lib/live/liveSocket';
+import type { ConnectionState } from '@/lib/live/liveSocket';
 
 interface LiveMetersProps {
   /** Analyser data from audio graph */

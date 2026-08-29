@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://midimastering.dev/contracts/intent_profile.schema.json",
+  "title": "IntentProfile",
+  "description": "Salida del agente de IA. Vocabulario semantico, NO parametros tecnicos. El mapper (propiedad del area de DSP) lo traduce a MasteringSettings. 0.5 = neutral en todos los ejes: un perfil con los nueve ejes en 0.5 debe producir un master bit-exacto al original.",
+  "type": "object",
+  "properties": {
+    "warmth": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Calidez / cuerpo analogico. Alto = mas saturacion armonica y agudos mas suaves."
+    },
+    "punch": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Pegada, impacto de transientes. Alto = golpe mas marcado en bombo y caja."
+    },
+    "clarity": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Definicion y separacion de elementos. Alto = mezcla mas legible, menos barro."
+    },
+    "brightness": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Aire y brillo en agudos. Alto = mas presencia arriba de 8 kHz."
+    },
+    "width": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Amplitud estereo. Alto = imagen mas ancha. Bajo = mas centrado."
+    },
+    "bass_weight": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Peso y presencia de los graves. Alto = bajos mas grandes y controlados."
+    },
+    "vocal_focus": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Cuanto sobresale la voz sobre el resto de la mezcla."
+    },
+    "vintage": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Caracter de cinta / analogico. Alto = mas hysteresis, bias y roll-off."
+    },
+    "loudness": {
+      "type": "number", "minimum": 0, "maximum": 1, "default": 0.5,
+      "description": "Volumen percibido del master. Alto = mas fuerte, menos rango dinamico."
+    },
+    "target_platform": {
+      "type": "string",
+      "enum": ["spotify", "apple", "youtube", "club", "none"],
+      "default": "none",
+      "description": "Plataforma destino. Fija el objetivo de loudness cuando el usuario la menciona."
+    },
+    "reference_genre": {
+      "type": "string",
+      "maxLength": 60,
+      "default": "",
+      "description": "Genero o referencia que menciono el usuario. Cadena vacia si no dijo ninguno."
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 500,
+      "default": "",
+      "description": "Resumen en una frase de la intencion del usuario, para trazabilidad."
+    }
+  },
+  "required": [
+    "warmth", "punch", "clarity", "brightness", "width",
+    "bass_weight", "vocal_focus", "vintage", "loudness",
+    "target_platform", "reference_genre", "notes"
+  ],
+  "additionalProperties": false
+}
