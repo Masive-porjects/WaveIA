@@ -213,43 +213,39 @@ export default function Player({
           ? overlayRefPtr.current
           : overlayOrigRef.current;
     if (!activeEl || !isPlaying) return;
-    gsap.set(activeEl, { "--glow-strength": "4px" });
+    gsap.set(activeEl, { transformOrigin: "50% 50%" });
     const tl = gsap.timeline({ repeat: -1, yoyo: true });
     tl.to(activeEl, {
-      "--glow-strength": "22px",
-      scaleY: 1.06,
-      scaleX: 1.02,
-      y: -3,
-      duration: 0.7,
+      scaleY: 1.12,
+      scaleX: 1.04,
+      y: -4,
+      duration: 0.55,
       ease: "power2.inOut",
     })
       .to(activeEl, {
-        "--glow-strength": "6px",
-        scaleY: 0.96,
-        scaleX: 0.99,
-        y: 2,
-        duration: 0.45,
+        scaleY: 0.93,
+        scaleX: 0.98,
+        y: 3,
+        duration: 0.4,
         ease: "sine.inOut",
       })
       .to(activeEl, {
-        "--glow-strength": "28px",
-        scaleY: 1.08,
-        scaleX: 1.03,
-        y: -2,
+        scaleY: 1.15,
+        scaleX: 1.05,
+        y: -3,
         duration: 0.65,
         ease: "power2.inOut",
       })
       .to(activeEl, {
-        "--glow-strength": "8px",
         scaleY: 1,
         scaleX: 1,
         y: 0,
-        duration: 0.4,
+        duration: 0.35,
         ease: "sine.inOut",
       });
     return () => {
       tl.kill();
-      gsap.set(activeEl, { "--glow-strength": "", scaleY: 1, scaleX: 1, y: 0 });
+      gsap.set(activeEl, { scaleY: 1, scaleX: 1, y: 0 });
     };
   }, [isPlaying, source]);
 
@@ -662,21 +658,22 @@ export default function Player({
   return (
     <div className="rounded-2xl py-2 px-3 overflow-hidden bg-transparent border-none">
       {/* A/B/C Toggle */}
-      <div className="flex items-center mb-1">
-        <div className="relative grid grid-cols-2 bg-[var(--surface-hover)] rounded-lg p-0.5 w-full max-w-[220px] sm:min-w-[200px]">
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <div className="relative grid grid-cols-2 bg-[var(--surface-hover)] rounded-full p-0.5 w-full max-w-[220px] sm:min-w-[200px]">
           <div
-            className="absolute top-0.5 bottom-0.5 left-0 rounded-md transition-all duration-200 ease-out"
+            className="absolute top-0.5 bottom-0.5 left-0 rounded-full shadow-[0_0_10px_var(--accent-primary)]/40"
             style={{
               width: "calc((100% - 4px) / 2)",
               background: "var(--accent-primary)",
-              opacity: 0.2,
+              opacity: 0.25,
               transform: `translateX(calc(${sourceIndex[source] * 100}% + 2px))`,
+              transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
           />
           <button
             onClick={handleToggleOriginal}
             disabled={disabled || !originalUrl}
-            className={`relative z-10 px-2 py-1 rounded-md text-xs font-medium text-center transition-colors duration-200 ${
+            className={`relative z-10 px-2 py-1 rounded-full text-xs font-medium text-center transition-colors duration-200 ${
               source === "original"
                 ? "text-[var(--accent-primary)]"
                 : "text-[var(--text-muted)]"
@@ -695,7 +692,7 @@ export default function Player({
           <button
             onClick={handleToggleMastered}
             disabled={disabled || !masteredUrl}
-            className={`relative z-10 px-2 py-1 rounded-md text-xs font-medium text-center transition-colors duration-200 ${
+            className={`relative z-10 px-2 py-1 rounded-full text-xs font-medium text-center transition-colors duration-200 ${
               source === "mastered"
                 ? "text-[var(--accent-primary)]"
                 : "text-[var(--text-muted)]"
@@ -706,7 +703,7 @@ export default function Player({
         </div>
 
         {hasBoth && (
-          <span className="text-[10px] text-[var(--text-muted)]">Cambio instantáneo</span>
+          <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">Cambio instantáneo</span>
         )}
       </div>
 
@@ -764,7 +761,7 @@ export default function Player({
             className="absolute inset-0 transition-opacity duration-200"
             style={{
               opacity: source === "original" ? 1 : 0,
-              filter: isPlaying && source === "original" ? "drop-shadow(0 0 var(--glow-strength, 4px) var(--accent-primary)) saturate(1.1)" : "none",
+              filter: isPlaying && source === "original" ? "drop-shadow(0 0 12px var(--accent-primary)) saturate(1.15)" : "none",
             }}
           />
 
@@ -775,7 +772,7 @@ export default function Player({
               className="absolute inset-0 transition-opacity duration-200"
               style={{
                 opacity: source === "mastered" ? 1 : 0,
-                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 var(--glow-strength, 4px) var(--accent-primary)) saturate(1.1)" : "none",
+                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 14px var(--accent-primary)) saturate(1.15)" : "none",
               }}
             />
           )}
@@ -786,7 +783,7 @@ export default function Player({
             className="absolute inset-0 transition-opacity duration-200"
             style={{
               opacity: source === "reference" ? 1 : 0,
-              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 var(--glow-strength, 4px) rgba(255,255,255,0.5)) saturate(1.05)" : "none",
+              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 10px rgba(255,255,255,0.5)) saturate(1.1)" : "none",
             }}
           />
 

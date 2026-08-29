@@ -1290,21 +1290,29 @@ export default function Home() {
           ) : (
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>
-              {/* Player at top */}
-              <div className="relative z-[1] shrink-0 px-4 lg:px-6 pt-4 pb-2">
+              {/* Player — bigger and centered when no dock tab is selected */}
+              <div className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 transition-all duration-500 ${
+                currentTab === null
+                  ? "flex-1 flex items-center justify-center min-h-0"
+                  : "shrink-0"
+              }`}>
                 {session && (
-                  <Player
-                    originalUrl={getAudioUrl(session.session_id, "original")}
-                    masteredUrl={
-                      session.mastered_path
-                        ? getAudioUrl(session.session_id, "mastered")
-                        : null
-                    }
-                    disabled={processing}
-                    presetId={activePresetId ?? undefined}
-                    sessionId={session.session_id}
-                    burstSignal={masterBurst}
-                  />
+                  <div className={`w-full transition-transform duration-500 ${
+                    currentTab === null ? "max-w-5xl scale-110" : ""
+                  }`}>
+                    <Player
+                      originalUrl={getAudioUrl(session.session_id, "original")}
+                      masteredUrl={
+                        session.mastered_path
+                          ? getAudioUrl(session.session_id, "mastered")
+                          : null
+                      }
+                      disabled={processing}
+                      presetId={activePresetId ?? undefined}
+                      sessionId={session.session_id}
+                      burstSignal={masterBurst}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -1346,9 +1354,11 @@ export default function Home() {
               )}
 
               {/* Scrollable tab content — stays mounted (hidden while the
-                  module sheet is open) so module state survives.
+                  module sheet is open or when no tab is selected) so module state survives.
                   Extra bottom padding clears the floating dock. */}
-              <div className={`relative z-[1] flex-1 overflow-y-auto px-4 lg:px-6 pt-4 pb-40 ${sheetTab !== null ? "hidden" : ""}`}>
+              <div className={`relative z-[1] overflow-y-auto px-4 lg:px-6 pt-4 pb-40 ${
+                sheetTab !== null || currentTab === null ? "hidden" : "flex-1"
+              }`}>
                 {/* Error banner */}
                 {error && (
                   <motion.div className="mb-4" {...fadeUp(0)}>
