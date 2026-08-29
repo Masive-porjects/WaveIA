@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { fadeUp } from "@/lib/motion";
 
@@ -15,6 +15,13 @@ interface DropZoneProps {
 
 export default function DropZone({ onFileSelected, onError, disabled, compact }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = useCallback(() => {
+    if (!disabled) {
+      inputRef.current?.click();
+    }
+  }, [disabled]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -96,6 +103,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
   if (compact) {
     return (
       <div
+        onClick={handleClick}
         onDragEnter={handleDragIn}
         onDragLeave={handleDragOut}
         onDragOver={handleDrag}
@@ -115,11 +123,12 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         }}
       >
         <input
+          ref={inputRef}
           type="file"
           accept=".wav,.mp3"
           onChange={handleFileInput}
           disabled={disabled}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
         />
         <p className="text-xs text-[var(--text-muted)]">
           {isDragging ? "Soltá tu track aquí" : "Arrastrá un track diferente"}
@@ -131,6 +140,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
 
   return (
     <motion.div
+      onClick={handleClick}
       onDragEnter={handleDragIn}
       onDragLeave={handleDragOut}
       onDragOver={handleDrag}
@@ -182,11 +192,12 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
       <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 rounded-full bg-[rgba(130,156,161,0.15)]" />
 
       <input
+        ref={inputRef}
         type="file"
         accept=".wav,.mp3"
         onChange={handleFileInput}
         disabled={disabled}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+        className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
       />
 
       <div className="relative z-10 flex flex-col items-center gap-3">

@@ -33,8 +33,8 @@ function createWS(
     container,
     waveColor,
     progressColor,
-    cursorColor: "var(--text-primary)",
-    cursorWidth: 1,
+    cursorColor: "transparent",
+    cursorWidth: 0,
     interact: true,
     barWidth: 2,
     barGap: 1,
@@ -166,6 +166,7 @@ export default function Player({
   const overlayMastRef = useRef<HTMLDivElement>(null);
   const overlayRefPtr = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const seekOverlayRef = useRef<HTMLDivElement>(null);
   const wsOrigRef = useRef<WaveSurfer | null>(null);
   const wsMastRef = useRef<WaveSurfer | null>(null);
   const wsRefPtr = useRef<WaveSurfer | null>(null);
@@ -178,6 +179,7 @@ export default function Player({
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [noteBurst, setNoteBurst] = useState(0);
   const [minimized, setMinimized] = useState(false);
   const [playingNotes, setPlayingNotes] = useState<
@@ -194,6 +196,7 @@ export default function Player({
   // Instance that was active before the last source switch — used to
   // hand off position/playback state on toggle.
   const lastActiveWsRef = useRef<WaveSurfer | null>(null);
+  const prevSourceRef = useRef<SourceKind>(source);
 
   // Crossfade engine — 10ms smooth transition on A/B toggle
   const { crossfade } = useCrossfade();
@@ -201,6 +204,93 @@ export default function Player({
   useEffect(() => {
     sourceRef.current = source;
   }, [source]);
+
+  /* ── GSAP crossfade slide between waveform sources ─────
+     When Original/Master/Reference changes, the outgoing wave
+     slides out and the incoming one slides in with opacity. */
+  useEffect(() => {
+    const from = prevSourceRef.current;
+    const to = source;
+    prevSourceRef.current = to;
+
+    const getEl = (s: SourceKind) =>
+      s === "mastered"
+        ? overlayMastRef.current
+        : s === "reference"
+          ? overlayRefPtr.current
+          : overlayOrigRef.current;
+
+    const toEl = getEl(to);
+    if (!toEl) return;
+
+    [overlayOrigRef.current, overlayMastRef.current, overlayRefPtr.current].forEach((el) => {
+      if (el && el !== toEl) gsap.set(el, { opacity: 0, y: -12 });
+    });
+
+    if (from !== to) {
+      const fromEl = getEl(from);
+
+      if (fromEl) {
+        gsap.fromTo(
+          fromEl,
+          { opacity: 1, y: 0 },
+          { opacity: 0, y: -18, duration: 0.45, ease: "power2.in" },
+        );
+      }
+      gsap.fromTo(
+        toEl,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+      );
+    } else {
+      gsap.set(toEl, { opacity: 1, y: 0 });
+    }
+  }, [source]);
+
+  /* ── GSAP life on the active waveform while playing ── */
+  useEffect(() => {
+    const activeEl =
+      source === "mastered"
+        ? overlayMastRef.current
+        : source === "reference"
+          ? overlayRefPtr.current
+          : overlayOrigRef.current;
+    if (!activeEl || !isPlaying) return;
+    gsap.set(activeEl, { transformOrigin: "50% 50%" });
+    const tl = gsap.timeline({ repeat: -1, yoyo: true });
+    tl.to(activeEl, {
+      scaleY: 1.12,
+      scaleX: 1.04,
+      y: -4,
+      duration: 0.55,
+      ease: "power2.inOut",
+    })
+      .to(activeEl, {
+        scaleY: 0.93,
+        scaleX: 0.98,
+        y: 3,
+        duration: 0.4,
+        ease: "sine.inOut",
+      })
+      .to(activeEl, {
+        scaleY: 1.15,
+        scaleX: 1.05,
+        y: -3,
+        duration: 0.65,
+        ease: "power2.inOut",
+      })
+      .to(activeEl, {
+        scaleY: 1,
+        scaleX: 1,
+        y: 0,
+        duration: 0.35,
+        ease: "sine.inOut",
+      });
+    return () => {
+      tl.kill();
+      gsap.set(activeEl, { scaleY: 1, scaleX: 1, y: 0 });
+    };
+  }, [isPlaying, source]);
 
   const hasBoth = !!(originalUrl && masteredUrl);
 
@@ -543,6 +633,51 @@ export default function Player({
     setCurrentTime(0);
   }, []);
 
+  /* Click or drag anywhere on the waveform to move the playhead. */
+  const applySeek = useCallback(
+    (clientX: number) => {
+      const rect = seekOverlayRef.current?.getBoundingClientRect();
+      if (!rect || duration <= 0) return;
+      const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const time = percent * duration;
+      wsOrigRef.current?.setTime(time);
+      wsMastRef.current?.setTime(time);
+      wsRefPtr.current?.setTime(time);
+      setCurrentTime(time);
+    },
+    [duration],
+  );
+
+  const handleSeekClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      applySeek(e.clientX);
+    },
+    [applySeek],
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (duration <= 0) return;
+      setIsDragging(true);
+      (e.target as Element).setPointerCapture(e.pointerId);
+      applySeek(e.clientX);
+    },
+    [applySeek, duration],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+      applySeek(e.clientX);
+    },
+    [applySeek, isDragging],
+  );
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    (e.target as Element).releasePointerCapture(e.pointerId);
+  }, []);
+
   const formatTime = (t: number) => {
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
@@ -566,21 +701,22 @@ export default function Player({
   return (
     <div className="rounded-2xl py-2 px-3 overflow-hidden bg-transparent border-none">
       {/* A/B/C Toggle */}
-      <div className="flex items-center mb-1">
-        <div className="relative grid grid-cols-2 bg-[var(--surface-hover)] rounded-lg p-0.5 w-full max-w-[220px] sm:min-w-[200px]">
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <div className="relative grid grid-cols-2 bg-[var(--surface-hover)] rounded-full p-0.5 w-full max-w-[220px] sm:min-w-[200px]">
           <div
-            className="absolute top-0.5 bottom-0.5 left-0 rounded-md transition-all duration-200 ease-out"
+            className="absolute top-0.5 bottom-0.5 left-0 rounded-full shadow-[0_0_10px_var(--accent-primary)]/40"
             style={{
               width: "calc((100% - 4px) / 2)",
               background: "var(--accent-primary)",
-              opacity: 0.2,
+              opacity: 0.25,
               transform: `translateX(calc(${sourceIndex[source] * 100}% + 2px))`,
+              transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
           />
           <button
             onClick={handleToggleOriginal}
             disabled={disabled || !originalUrl}
-            className={`relative z-10 px-2 py-1 rounded-md text-xs font-medium text-center transition-colors duration-200 ${
+            className={`relative z-10 px-2 py-1 rounded-full text-xs font-medium text-center transition-colors duration-200 ${
               source === "original"
                 ? "text-[var(--accent-primary)]"
                 : "text-[var(--text-muted)]"
@@ -599,7 +735,7 @@ export default function Player({
           <button
             onClick={handleToggleMastered}
             disabled={disabled || !masteredUrl}
-            className={`relative z-10 px-2 py-1 rounded-md text-xs font-medium text-center transition-colors duration-200 ${
+            className={`relative z-10 px-2 py-1 rounded-full text-xs font-medium text-center transition-colors duration-200 ${
               source === "mastered"
                 ? "text-[var(--accent-primary)]"
                 : "text-[var(--text-muted)]"
@@ -610,7 +746,7 @@ export default function Player({
         </div>
 
         {hasBoth && (
-          <span className="text-[10px] text-[var(--text-muted)]">Cambio instantáneo</span>
+          <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">Cambio instantáneo</span>
         )}
       </div>
 
@@ -665,24 +801,92 @@ export default function Player({
           {/* Original waveform */}
           <div
             ref={overlayOrigRef}
-            className="absolute inset-0 transition-opacity duration-200"
-            style={{ opacity: source === "original" ? 1 : 0 }}
+            className="absolute inset-0"
+            style={{
+              filter: isPlaying && source === "original" ? "drop-shadow(0 0 12px var(--accent-primary)) saturate(1.15)" : "none",
+            }}
           />
 
           {/* Mastered waveform */}
           {hasBoth && (
             <div
               ref={overlayMastRef}
-              className="absolute inset-0 transition-opacity duration-200"
-              style={{ opacity: source === "mastered" ? 1 : 0 }}
+              className="absolute inset-0"
+              style={{
+                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 14px var(--accent-primary)) saturate(1.15)" : "none",
+              }}
             />
           )}
 
           {/* Reference waveform (neutral gray) */}
           <div
             ref={overlayRefPtr}
-            className="absolute inset-0 transition-opacity duration-200"
-            style={{ opacity: source === "reference" ? 1 : 0 }}
+            className="absolute inset-0"
+            style={{
+              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 10px rgba(255,255,255,0.5)) saturate(1.1)" : "none",
+            }}
+          />
+
+          {/* Animated playhead with glow */}
+          {duration > 0 && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 z-[40] pointer-events-none"
+              style={{
+                left: `${(currentTime / duration) * 100}%`,
+                transform: "translateX(-50%)",
+                background: "var(--accent-primary)",
+                boxShadow: "0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary)",
+                transition: "left 60ms linear",
+              }}
+            />
+          )}
+
+          {/* Subtle pulse when the track is playing */}
+          {isPlaying && (
+            <motion.div
+              className="absolute inset-0 z-10 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(circle at center, rgba(98,126,132,0.15) 0%, transparent 70%)",
+              }}
+              initial={{ opacity: 0.2 }}
+              animate={{ opacity: [0.2, 0.45, 0.2] }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          )}
+
+          {/* Shimmer sweep over the active wave */}
+          {isPlaying && (
+            <motion.div
+              className="absolute inset-0 z-20 pointer-events-none"
+              initial={{ x: "-150%" }}
+              animate={{ x: "250%" }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              style={{
+                width: "40%",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+              }}
+            />
+          )}
+
+          {/* Click-to-seek overlay */}
+          <div
+            ref={seekOverlayRef}
+            className={`absolute inset-0 z-30 ${isDragging ? "cursor-grabbing" : "cursor-ew-resize"}`}
+            onClick={handleSeekClick}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
           />
 
           {/* Music note burst on load / on external signal */}
@@ -693,7 +897,7 @@ export default function Player({
             {playingNotes.map((note) => (
               <motion.span
                 key={note.id}
-                className="absolute"
+                className="absolute pointer-events-none"
                 style={{ left: `${note.left}%`, bottom: 12 }}
                 initial={{ y: 0, opacity: 0, scale: 0.3, rotate: -15 }}
                 animate={{ y: -120, opacity: [0, 1, 0], scale: 1.2, rotate: 20 }}

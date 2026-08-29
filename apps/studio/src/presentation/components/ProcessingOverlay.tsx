@@ -3,12 +3,19 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useMemo } from "react";
 
+type Phase = "upload" | "process";
+
 interface ProcessingOverlayProps {
   progress: number;
   visible: boolean;
+  phase?: Phase;
 }
 
-function getSubtext(progress: number): string {
+function getSubtext(progress: number, phase: Phase = "process"): string {
+  if (phase === "upload") {
+    if (progress < 100) return "Subiendo tu track a WaveAI...";
+    return "Subido — preparando el análisis...";
+  }
   if (progress < 30) return "Analizando espectro y aplicando Gain Staging...";
   if (progress < 70) return "Aplicando algoritmos DSP de Waveman Paul Morales...";
   if (progress < 99) return "Modelando True Peak y Noise Shaping...";
@@ -18,9 +25,10 @@ function getSubtext(progress: number): string {
 export default function ProcessingOverlay({
   progress,
   visible,
+  phase = "process",
 }: ProcessingOverlayProps) {
   const clamped = Math.min(100, Math.max(0, Math.round(progress)));
-  const subtext = useMemo(() => getSubtext(clamped), [clamped]);
+  const subtext = useMemo(() => getSubtext(clamped, phase), [clamped, phase]);
   const [showCheck, setShowCheck] = useState(false);
 
   const radius = 72;
@@ -202,24 +210,10 @@ export default function ProcessingOverlay({
               </motion.p>
             </AnimatePresence>
 
-            {/* Linear progress bar */}
-            <div className="w-64 overflow-hidden rounded-full bg-[var(--border-subtle)] h-1.5">
-              <motion.div
-                className="h-full rounded-full"
-                style={{
-                  background:
-                    "linear-gradient(90deg, #627e84, #829ca1, #627e84)",
-                }}
-                initial={false}
-                animate={{ width: `${clamped}%` }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              />
-            </div>
-
             {/* Subtle branding */}
             {!showCheck && (
               <p className="text-[10px] text-[var(--text-muted)] tracking-widest uppercase">
-                WaveEngine
+                {phase === "upload" ? "WAVEAI" : "WaveEngine"}
               </p>
             )}
           </div>
