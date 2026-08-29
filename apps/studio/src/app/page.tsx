@@ -33,6 +33,7 @@ import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import AuthGuard from "@/components/auth/AuthGuard";
+import TrackChip from "@/presentation/components/TrackChip";
 import ChatPanel, {
   NEUTRAL_PROFILE,
   type Profile,
@@ -959,60 +960,130 @@ export default function Home() {
 
       {/* ── Navbar ─────────────────────────────────── */}
       <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
-        <div className="rounded-full px-4 py-2 glass">
-          <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-            Wave<span className="text-[var(--accent-primary)]">AI</span>
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="rounded-full px-4 py-2 glass">
+            <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+              Wave<span className="text-[var(--accent-primary)]">AI</span>
+            </span>
+          </div>
+
+          {currentView !== "upload" && session && (
+            <TrackChip
+              originalPath={session.original_path}
+              genre={session.analysis?.detected_genre}
+              disabled={processing || loading}
+              onChangeTrack={handleBackToUpload}
+            />
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {currentView === "mastering" && (
-            <div
-              className="glass flex items-center rounded-full p-1"
-              role="group"
-              aria-label="Modo de mastering"
-            >
-              {([
-                { id: "manual", label: "Manual", icon: SlidersHorizontal },
-                { id: "ai", label: "IA", icon: Sparkles },
-              ] as const).map(({ id, label, icon: Icon }) => {
-                const active = masteringMode === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      setMasteringMode(id);
-                      if (id === "ai") setSheetTab(null);
-                    }}
-                    className="relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300"
+        {currentView === "mastering" && (
+          <div
+            className="z-10 flex shrink-0 items-center gap-1 rounded-2xl border p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl lg:absolute lg:left-1/2 lg:-translate-x-1/2"
+            style={{
+              background: "var(--bg-glass-elevated)",
+              borderColor: "var(--border-strong)",
+            }}
+            role="group"
+            aria-label="Elegí cómo querés masterizar"
+          >
+            {([
+              {
+                id: "manual",
+                label: "Manual",
+                description: "Control total",
+                icon: SlidersHorizontal,
+              },
+              {
+                id: "ai",
+                label: "Asistente IA",
+                description: "Recomendaciones",
+                icon: Sparkles,
+              },
+            ] as const).map(({ id, label, description, icon: Icon }) => {
+              const active = masteringMode === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setMasteringMode(id);
+                    if (id === "ai") setSheetTab(null);
+                  }}
+                  className="group relative flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-[border-color,color] duration-300 md:min-w-36 lg:min-w-44 lg:px-4"
+                  style={{
+                    background: active ? "transparent" : "var(--surface-hover)",
+                    borderColor: active ? "var(--accent-primary)" : "transparent",
+                    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                    // El resplandor activo lo pone la pildora que se desliza.
+                    boxShadow: active ? "none" : "inset 0 1px 0 rgba(255,255,255,0.04)",
+                  }}
+                >
+                  {/* El fondo activo es un solo elemento que se desliza entre
+                      las dos opciones, en vez de encenderse y apagarse. */}
+                  {active && (
+                    <motion.span
+                      layoutId="mastering-mode-pill"
+                      aria-hidden
+                      className="absolute inset-0 -z-10 rounded-xl"
+                      style={{
+                        background:
+                          "color-mix(in srgb, var(--accent-primary) 22%, var(--bg-elevated))",
+                        boxShadow:
+                          "inset 0 1px 0 rgba(255,255,255,0.14), 0 0 20px rgba(98,126,132,0.2)",
+                      }}
+                      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    />
+                  )}
+
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-300"
                     style={{
-                      background: active ? "var(--surface-active)" : "transparent",
-                      color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                      background: active ? "var(--accent-primary)" : "var(--surface-active)",
+                      color: active ? "var(--text-primary)" : "var(--text-secondary)",
                     }}
                   >
-                    <Icon size={13} strokeWidth={1.75} aria-hidden="true" />
-                    <span className="hidden sm:inline">{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                    <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block whitespace-nowrap text-xs font-semibold tracking-tight lg:text-sm">
+                      {id === "ai" ? <><span className="md:hidden">IA</span><span className="hidden md:inline">{label}</span></> : label}
+                    </span>
+                    <span className="mt-0.5 hidden whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)] lg:block">
+                      {description}
+                    </span>
+                  </span>
+                  {active && (
+                    <span
+                      className="absolute right-2 top-2 size-1.5 rounded-full bg-[var(--accent-secondary)] shadow-[0_0_8px_rgba(130,156,161,0.8)]"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
           {/* Theme toggle — moved here when the icon sidebar was replaced by the dock */}
-          <ThemeToggle />
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
           {currentView === "mastering" && (
             <button
               onClick={handleBackToUpload}
               title="Inicio"
               aria-label="Inicio"
-              className="rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
+              className="hidden rounded-full w-9 h-9 md:flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             >
               <HomeIcon size={18} />
             </button>
           )}
-          <UserMenu />
+          <div className="hidden sm:block">
+            <UserMenu />
+          </div>
           <button
             className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

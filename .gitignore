@@ -62,3 +62,6 @@ scripts/.pids
 
 # TypeScript build info
 *.tsbuildinfo
+
+# el equipo usa bun (bun.lock); npm regenera este archivo al instalar
+package-lock.json
