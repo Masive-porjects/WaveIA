@@ -214,10 +214,10 @@ export default function Player({
           : overlayOrigRef.current;
     if (!activeEl || !isPlaying) return;
     const tl = gsap.timeline({ repeat: -1 });
-    tl.to(activeEl, { scaleY: 1.04, filter: "drop-shadow(0 0 10px var(--accent-primary))", duration: 0.4, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 0.97, filter: "drop-shadow(0 0 4px var(--accent-primary))", duration: 0.35, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 1.05, filter: "drop-shadow(0 0 14px var(--accent-primary))", duration: 0.45, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 1.01, filter: "drop-shadow(0 0 6px var(--accent-primary))", duration: 0.25, ease: "sine.inOut" });
+    tl.to(activeEl, { scaleY: 1.01, filter: "drop-shadow(0 0 6px var(--accent-primary))", duration: 0.7, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 0.99, filter: "drop-shadow(0 0 3px var(--accent-primary))", duration: 0.5, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 1.02, filter: "drop-shadow(0 0 8px var(--accent-primary))", duration: 0.6, ease: "sine.inOut" })
+      .to(activeEl, { scaleY: 1.0, filter: "drop-shadow(0 0 4px var(--accent-primary))", duration: 0.4, ease: "sine.inOut" });
     return () => {
       tl.kill();
       gsap.set(activeEl, { scaleY: 1, filter: "none" });
@@ -815,7 +815,7 @@ export default function Player({
           {/* Click-to-seek overlay */}
           <div
             ref={seekOverlayRef}
-            className={`absolute inset-0 z-30 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={`absolute inset-0 z-30 ${isDragging ? "cursor-grabbing" : "cursor-ew-resize"}`}
             onClick={handleSeekClick}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
