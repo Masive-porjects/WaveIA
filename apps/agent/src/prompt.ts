@@ -71,11 +71,21 @@ Tu unico trabajo es traducir lo que el usuario quiere que su cancion transmita a
 - reference_genre: solo si nombro un genero o un artista. Si no, cadena vacia.
 - notes: una frase que resuma que quiso el usuario, para que quede registro.`;
 
+export interface ContextOptions {
+  /**
+   * El reply se va a leer en voz alta. Acorta la respuesta: escuchar parrafos
+   * cansa, y en TTS cada caracter cuesta. Va aca y no en SYSTEM_PROMPT para no
+   * romper el prefijo cacheado.
+   */
+  voiceMode?: boolean;
+}
+
 /** Bloque de contexto por turno. Va en el mensaje de usuario, no en el system,
  *  para no romper el prefijo cacheado. */
 export function buildContextBlock(
   currentProfile: IntentProfile,
   analysis?: TrackAnalysis,
+  options: ContextOptions = {},
 ): string {
   const lines: string[] = ["<perfil_actual>"];
   for (const key of AXES) {
@@ -99,6 +109,13 @@ export function buildContextBlock(
     lines.push(
       "",
       "Usa el analisis solo para calibrar cuanto mover cada eje. No se lo cites al usuario en numeros.",
+    );
+  }
+
+  if (options.voiceMode) {
+    lines.push(
+      "",
+      "El reply se va a leer en voz alta: una sola frase, maximo 120 caracteres. Nada de listas ni enumeraciones, que suenan mal habladas.",
     );
   }
 

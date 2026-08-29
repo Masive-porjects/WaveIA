@@ -50,6 +50,8 @@ export interface InterpretOptions {
    * una tarea de interpretacion acotada, asi que `low` es el default correcto.
    */
   effort?: "low" | "medium" | "high";
+  /** El reply se va a leer en voz alta: pide una sola frase corta. */
+  voiceMode?: boolean;
   /** Inyectable para tests. */
   client?: Anthropic;
 }
@@ -100,6 +102,7 @@ export async function interpretIntent(options: InterpretOptions): Promise<Interp
     currentProfile = NEUTRAL_PROFILE,
     analysis,
     effort = "low",
+    voiceMode = false,
     client = getClient(),
   } = options;
 
@@ -109,7 +112,7 @@ export async function interpretIntent(options: InterpretOptions): Promise<Interp
 
   const apiMessages: Anthropic.MessageParam[] = [
     ...messages.map((turn) => ({ role: turn.role, content: turn.content }) as const),
-    { role: "user" as const, content: buildContextBlock(currentProfile, analysis) },
+    { role: "user" as const, content: buildContextBlock(currentProfile, analysis, { voiceMode }) },
   ];
 
   let response;
