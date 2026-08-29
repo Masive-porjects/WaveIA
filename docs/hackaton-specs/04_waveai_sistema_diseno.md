@@ -8,7 +8,7 @@ El studio se lee como un **panel de instrumento hardware oscuro**: superficies c
 
 Tipografía: **Inter** (UI) + **Instrument Serif italic** para acentos de una sola palabra ("Masterizá Tu *Música*", "Macro-*Carácter*") — el acento serif estilo Mindloop.
 
-**Light theme** soportado vía overrides `html[data-theme="light"]`; script inline `beforeInteractive` en `layout.tsx` restaura el tema persistido (`localStorage` `brikmaster-theme`) antes de la hidratación (sin flash).
+**Light theme** soportado vía overrides `html[data-theme="light"]`; script inline `beforeInteractive` en `layout.tsx` restaura el tema persistido (`localStorage` `waveai-theme`) antes de la hidratación (sin flash).
 
 ## 2. Sistema visual (`globals.css`)
 
@@ -72,7 +72,7 @@ Librerías: **GSAP** (+ `@gsap/react` `useGSAP`) para entradas coreografiadas; *
 | Upload card float | page.tsx | y ±6 px, 2.6 s `sine.inOut` yoyo |
 | Count-up métricas | `AnalysisPanel.tsx` | GSAP tween 1.1 s `power2.out` escribiendo `textContent` directo |
 | Unlock fade | `LicenseGuard.tsx` | Gate fade out (opacity 0, y −12, 0.6 s `power2.inOut`) al activar |
-| Processing overlay | `ProcessingOverlay.tsx` | Anillo SVG (radio 72, stroke 6); subtextos por umbral: <30% "Analizando espectro y aplicando Gain Staging...", <70% "Aplicando algoritmos DSP de Brikman Paul Morales...", <99% "Modelando True Peak y Noise Shaping...", else "Cargado"; check al 100% (+300 ms); exit scale 1.04 en 0.5 s |
+| Processing overlay | `ProcessingOverlay.tsx` | Anillo SVG (radio 72, stroke 6); subtextos por umbral: <30% "Analizando espectro y aplicando Gain Staging...", <70% "Aplicando algoritmos DSP de Waveman Paul Morales...", <99% "Modelando True Peak y Noise Shaping...", else "Cargado"; check al 100% (+300 ms); exit scale 1.04 en 0.5 s |
 
 **Contrato de accesibilidad:** todo efecto coreografiado protege `prefers-reduced-motion` (revealWave, PaintedModule, ModuleSheet, CountUp); componentes ambientales `aria-hidden`/pointer-events-none.
 

@@ -85,7 +85,7 @@ export default function LicenseGuard({ children }: LicenseGuardProps) {
       const res = await activateLicense(key);
       if (res.success) {
         // sessionStorage — vive solo en esta pestaña, se borra al cerrar
-        sessionStorage.setItem("brikmaster_license_key", key);
+        sessionStorage.setItem("waveai_license_key", key);
         setStatus("unlocked");
       }
     } catch (err) {
@@ -268,7 +268,7 @@ export default function LicenseGuard({ children }: LicenseGuardProps) {
         <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed relative z-10">
           WaveAI Studio © {new Date().getFullYear()}
           <br />
-          Creado por Brikman Paul Morales
+          Creado por Waveman Paul Morales
         </p>
         </div>
       </div>

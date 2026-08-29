@@ -18,8 +18,8 @@ Este índice reúne la documentación de arquitectura que une las dos ideas del 
 |-----|-----------|
 | [01_vision_unificada.md](01_vision_unificada.md) | La visión: masterizar primero, tocar el resultado en vivo |
 | [02_humanmidi_capa_performance.md](02_humanmidi_capa_performance.md) | Idea 1 — Capa de performance: HumanMidi (gestos → MIDI) |
-| [03_brikmaster_backend_mastering.md](03_brikmaster_backend_mastering.md) | Idea 2 — Capa de producción: backend de mastering (FastAPI) |
-| [04_brikmaster_sistema_diseno.md](04_brikmaster_sistema_diseno.md) | Idea 2 — Sistema de diseño del studio (Next.js) |
+| [03_waveai_backend_mastering.md](03_waveai_backend_mastering.md) | Idea 2 — Capa de producción: backend de mastering (FastAPI) |
+| [04_waveai_sistema_diseno.md](04_waveai_sistema_diseno.md) | Idea 2 — Sistema de diseño del studio (Next.js) |
 | [05_live_engine_gestos_a_master.md](05_live_engine_gestos_a_master.md) | ⭐ El puente: Live Engine — master + FX en tiempo real con gestos |
 | [06_roadmap_unificado.md](06_roadmap_unificado.md) | Roadmap conjunto de ambas ideas |
 | [07_estrategia_equipo_5devs.md](07_estrategia_equipo_5devs.md) | ⭐ Estrategia para 5 devs: roles, contratos, SOLID, UX/UI, plan 7 días |

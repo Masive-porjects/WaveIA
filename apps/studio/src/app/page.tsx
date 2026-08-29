@@ -666,7 +666,7 @@ export default function Home() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `brikmaster_${session.session_id}.${format}`;
+        a.download = `waveai_${session.session_id}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -915,7 +915,7 @@ export default function Home() {
       <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
         <div className="rounded-full px-4 py-2 glass">
           <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-            Brik<span className="text-[var(--accent-primary)]">Master</span>
+            Wave<span className="text-[var(--accent-primary)]">AI</span>
           </span>
         </div>
 

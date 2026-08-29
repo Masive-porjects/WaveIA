@@ -223,7 +223,7 @@ export default function ShareCard({
     }
     if (!blob) return;
 
-    const fileName = `brikmaster_${sessionId}_card.png`;
+    const fileName = `waveai_${sessionId}_card.png`;
     const file = new File([blob], fileName, { type: "image/png" });
 
     if (navigator.canShare?.({ files: [file] })) {

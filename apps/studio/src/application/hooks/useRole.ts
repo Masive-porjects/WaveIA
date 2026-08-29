@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { type UserRole, DEFAULT_ROLE } from "@/core/roles";
 
-const ROLE_KEY = "brikmaster-role";
+const ROLE_KEY = "waveai-role";
 
 export interface UseRoleReturn {
   role: UserRole;

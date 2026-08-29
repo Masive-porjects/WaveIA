@@ -17,7 +17,7 @@ El studio se lee como un **panel de instrumento hardware oscuro**: superficies c
 
 - Modo oscuro por defecto.
 - Modo claro soportado vía `html[data-theme="light"]`.
-- Anti-FOUC: el tema persistido (`localStorage` `brikmaster-theme`) se restaura antes de la hidratación en `layout.tsx`.
+- Anti-FOUC: el tema persistido (`localStorage` `waveai-theme`) se restaura antes de la hidratación en `layout.tsx`.
 
 ## Tokens de color (dark default)
 
@@ -90,7 +90,7 @@ Colocación: campos detrás de toda la app (z 1–2), el hero detrás de la card
 
 ## Componentes core
 
-La lista detallada vive en `docs/hackaton-specs/04_brikmaster_sistema_diseno.md`. Los principales son `DropZone`, `ModulePanel`, `PlatformSelector`, `ProcessingOverlay`, `LicenseGuard`, `AnalysisPanel`, `SignalChain`, `StereoField` y los live `Knob3D`, `LiveView`.
+La lista detallada vive en `docs/hackaton-specs/04_waveai_sistema_diseno.md`. Los principales son `DropZone`, `ModulePanel`, `PlatformSelector`, `ProcessingOverlay`, `LicenseGuard`, `AnalysisPanel`, `SignalChain`, `StereoField` y los live `Knob3D`, `LiveView`.
 
 ## Responsive
 
@@ -105,7 +105,7 @@ La lista detallada vive en `docs/hackaton-specs/04_brikmaster_sistema_diseno.md`
 
 ## Fuentes de verdad
 
-- `docs/hackaton-specs/04_brikmaster_sistema_diseno.md` — spec completa del sistema de diseño.
+- `docs/hackaton-specs/04_waveai_sistema_diseno.md` — spec completa del sistema de diseño.
 - `apps/studio/src/app/globals.css` — tokens y utilidades CSS.
 - `apps/studio/src/shared/motion.ts` — helpers de animación.
 - `apps/studio/src/core/presets.ts` — colores e información de presets.

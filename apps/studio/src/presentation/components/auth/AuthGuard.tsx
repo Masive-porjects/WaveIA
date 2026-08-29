@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-const AUTH_KEY = "brikmaster-auth";
+const AUTH_KEY = "waveai-auth";
 
 interface AuthGuardProps {
   children: ReactNode;

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Mic, Radio, Volume2, Download } from "lucide-react";
 
-/* ── BrikPod Teaser — "Próximamente" card
+/* ── WavePod Teaser — "Próximamente" card
    Placed below the upload card on the landing view.
    Zero interactivity: purely informational. */
 
@@ -25,7 +25,7 @@ const FEATURES = [
   },
 ] as const;
 
-export default function BrikPodTeaser() {
+export default function WavePodTeaser() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -64,7 +64,7 @@ export default function BrikPodTeaser() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                Brik<span className="text-[#5e5ce6]">Pod</span>
+                Wave<span className="text-[#5e5ce6]">Pod</span>
               </h3>
               <span
                 className="px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider"
@@ -111,7 +111,7 @@ export default function BrikPodTeaser() {
 
         {/* Bottom hint */}
         <p className="relative text-[10px] text-[var(--text-muted)] mt-3 text-center opacity-60">
-          Grabá tu episodio con el botón de arriba — cuando BrikPod llegue, tu workflow estará listo
+          Grabá tu episodio con el botón de arriba — cuando WavePod llegue, tu workflow estará listo
         </p>
       </div>
     </motion.div>

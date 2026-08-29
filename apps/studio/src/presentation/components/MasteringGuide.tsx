@@ -147,7 +147,7 @@ export default function MasteringGuide() {
           <span className="text-lg">🎧</span>
         </div>
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto">
-          <strong className="text-[var(--text-primary)]">Brikman Paul Morales</strong>, el creador de WaveAI,
+          <strong className="text-[var(--text-primary)]">Waveman Paul Morales</strong>, el creador de WaveAI,
           se ha tomado el trabajo de pulir meticulosamente cada algoritmo y modelo matemático DSP
           para garantizar que cada canción que pase por la plataforma suene{' '}
           <strong className="text-[var(--accent-primary)]">superbién</strong>, competitiva y lista

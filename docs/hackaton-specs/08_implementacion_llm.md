@@ -13,8 +13,8 @@ MASTERING_ECOSYSTEM_SPEC.md        # La spec verificada de WaveAI: DSP, presets,
 README.md                          # HumanMidi: modos, config, pitfalls
 ARCHITECTURE.md                    # HumanMidi: SOLID y estructura
 Hackaton-midiMastering/01_vision_unificada.md
-Hackaton-midiMastering/03_brikmaster_backend_mastering.md
-Hackaton-midiMastering/04_brikmaster_sistema_diseno.md
+Hackaton-midiMastering/03_waveai_backend_mastering.md
+Hackaton-midiMastering/04_waveai_sistema_diseno.md
 Hackaton-midiMastering/05_live_engine_gestos_a_master.md
 Hackaton-midiMastering/07_estrategia_equipo_5devs.md
 ```
@@ -64,7 +64,7 @@ midimastering/
 │   │   ├── tailwind.config.ts
 │   │   └── src/
 │   │       ├── app/
-│   │       │   ├── layout.tsx       # tema pre-hydration (localStorage brikmaster-theme)
+│   │       │   ├── layout.tsx       # tema pre-hydration (localStorage waveai-theme)
 │   │       │   ├── page.tsx         # orquestación + pestañas (upload / estudio / live)
 │   │       │   └── globals.css      # tokens de diseño (sección 9 de este prompt)
 │   │       ├── components/
@@ -329,7 +329,7 @@ pytest tests/ -q
 - App Router, TypeScript, Tailwind. Layout `h-screen overflow-hidden`, 3 columnas flex con scroll independiente.
 - Rail lateral: Home · Library · Estudio (abre Macro-Carácter) · **★ Live (nueva)** · Guides · ThemeToggle.
 - `page.tsx`: orquestación. Estados: subir audio → análisis (polling 500 ms, timeout 90 s) → procesar (timeout 600 s, AbortController) → player A/B + download.
-- Componentes: DropZone, ModulePanel (8 cards macro + Ajuste Fino con 9 knobs: Reverb wet 0–1 .05, Brillo ±6 .5, Ratio 1–10 .5, Ceiling −3…0 .1, Punch 0–6 .5, Drive 0–10 .5, Warmth ±6 .5, Width .5–2 .1, Haas 0–40 ms 1), PlatformSelector (Automático/Spotify −14/Apple −16...), Player (2 WaveSurfer apilados), AnalysisPanel (meters LUFS/TruePeak/Crest + métricas), ProcessingOverlay (anillo SVG progreso), LicenseGuard (sessionStorage `brikmaster_license_key`, header `X-License-Key`).
+- Componentes: DropZone, ModulePanel (8 cards macro + Ajuste Fino con 9 knobs: Reverb wet 0–1 .05, Brillo ±6 .5, Ratio 1–10 .5, Ceiling −3…0 .1, Punch 0–6 .5, Drive 0–10 .5, Warmth ±6 .5, Width .5–2 .1, Haas 0–40 ms 1), PlatformSelector (Automático/Spotify −14/Apple −16...), Player (2 WaveSurfer apilados), AnalysisPanel (meters LUFS/TruePeak/Crest + métricas), ProcessingOverlay (anillo SVG progreso), LicenseGuard (sessionStorage `waveai_license_key`, header `X-License-Key`).
 - Microcopy en español rioplatense (voseo): "Subí", "Ajustá", "Probá de nuevo".
 - Motion: GSAP + Framer Motion; helpers `fadeUp` y `VIEW_TRANSITION` en `lib/motion.ts`; todo con guard `prefers-reduced-motion`; ambient (FloatingGhosts 8, FloatingNotes 16, BigGhostWithNotes) seeded/determinista, `aria-hidden`.
 

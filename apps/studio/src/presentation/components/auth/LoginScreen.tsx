@@ -11,8 +11,8 @@ import BigGhostWithNotes from "@/components/BigGhostWithNotes";
 import FloatingGhosts from "@/components/FloatingGhosts";
 import FloatingNotes from "@/components/FloatingNotes";
 
-const AUTH_KEY = "brikmaster-auth";
-const USER_KEY = "brikmaster-user";
+const AUTH_KEY = "waveai-auth";
+const USER_KEY = "waveai-user";
 
 type Mode = "login" | "register";
 
@@ -94,7 +94,7 @@ export default function LoginScreen() {
             <KeyRound size={24} className="text-[var(--accent-primary)]" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">
-            Brik<span className="text-[var(--accent-primary)]">Master</span>
+            Wave<span className="text-[var(--accent-primary)]">AI</span>
           </h1>
         </div>
 
