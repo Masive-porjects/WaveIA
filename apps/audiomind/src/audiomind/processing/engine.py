@@ -9,6 +9,7 @@ Instead of applying fixed preset values, this engine:
 from collections.abc import Callable
 from pathlib import Path
 import numpy as np
+import soundfile as sf
 from pedalboard import (
     Pedalboard,
     HighpassFilter,
@@ -52,6 +53,9 @@ from audiomind.processing.adaptive_comp import (
     AdaptiveCompParams,
     adaptive_compress,
 )
+from audiomind.processing.delay import DelayParams, delay_pass
+from audiomind.processing.echo import EchoParams, echo_pass
+from audiomind.processing.reverb import ReverbParams, reverb_pass
 from audiomind.analysis.analyzer import (
     get_genre_target_profile,
     analyze_band_energies,
@@ -531,6 +535,50 @@ def _adaptive_comp_params_from_mastering(p: MasteringParameters) -> AdaptiveComp
     )
 
 
+def _delay_params_from_mastering(p: MasteringParameters) -> DelayParams:
+    """Map the MasteringParameters delay fields onto the DSP stage config.
+
+    The three ``delay_*`` fields map 1:1 onto the circular-buffer delay
+    stage. The neutral default (``mix == 0.0``) keeps the stage a bit-exact
+    no-op even when enabled, so the engine skips the processing pass
+    entirely and leaves the signal untouched.
+    """
+    return DelayParams(
+        time_ms=p.delay_time_ms,
+        mix=p.delay_mix,
+        feedback=p.delay_feedback,
+    )
+
+
+def _echo_params_from_mastering(p: MasteringParameters) -> EchoParams:
+    """Map the MasteringParameters echo fields onto the DSP stage config.
+
+    The three ``echo_*`` fields map 1:1 onto the cascading-repeats echo
+    stage. The neutral default (``mix == 0.0``) keeps the stage a bit-exact
+    no-op even when enabled, so the engine skips the processing pass
+    entirely and leaves the signal untouched.
+    """
+    return EchoParams(
+        time_ms=p.echo_time_ms,
+        mix=p.echo_mix,
+        feedback=p.echo_feedback,
+    )
+
+
+def _reverb_params_from_mastering(p: MasteringParameters) -> ReverbParams:
+    """Map the MasteringParameters reverb fields onto the DSP stage config.
+
+    The two ``reverb_*`` fields map 1:1 onto the Schroeder reverb stage
+    (4 combs + 2 all-passes). The neutral default (``mix == 0.0``) keeps
+    the stage a bit-exact no-op even when enabled, so the engine skips the
+    processing pass entirely and leaves the signal untouched.
+    """
+    return ReverbParams(
+        mix=p.reverb_mix,
+        size=p.reverb_size,
+    )
+
+
 def _stereo_imaging_params_from_mastering(
     p: MasteringParameters,
 ) -> StereoImagingParams:
@@ -623,6 +671,52 @@ def process_audio(
         analysis_result.is_already_mastered if analysis_result else False
     )
     am_factor = 0.8 if already_mastered else 1.0
+
+    # ── Neutral fast-path ──────────────────────────────────────────────
+    # Contract (AGENTS.md + approved PLAN): MasteringParameters() with all
+    # DEFAULT values = bit-exact bypass — the master must be identical to the
+    # original. When the params equal the pristine defaults we write the exact
+    # samples read back out (same sample rate, same channel count) and measure
+    # the output metrics on the untouched audio so the response keeps the same
+    # shape. `model_dump()` compares every field, current and future.
+    if params.model_dump() == MasteringParameters().model_dump():
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Write the samples read back out losslessly as a 32-bit float WAV.
+        # Pedalboard's AudioFile.write downconverts float audio to 16-bit PCM
+        # (lossy), which would break bit-exactness; soundfile with FLOAT
+        # subtype reproduces the exact float32 samples read, yielding a
+        # byte-identical file for float-WAV inputs.
+        sample_blocks = audio.T if audio.ndim > 1 else audio
+        sf.write(str(output_path), sample_blocks, sr, subtype="FLOAT")
+
+        report(100)
+
+        true_peak = measure_true_peak(audio, sr)
+        integrated_lufs = measure_lufs(audio, sr)
+        crest_factor_db = calculate_crest_factor(audio)
+        user_ceiling = _user_limiter_ceiling(
+            params.limiter_ceiling_db, already_mastered
+        )
+        safe_ceiling = compute_codec_safe_ceiling(
+            target_lufs=params.target_lufs_db
+            if params.target_lufs_db is not None
+            else -14 + (1.0 - params.limiter_ceiling_db / -0.3) * 6,
+            crest_factor_db=crest_factor_db,
+            default_ceiling_db=user_ceiling,
+        )
+
+        return {
+            "output_path": str(output_path),
+            "sample_rate": sr,
+            "channels": audio.shape[0],
+            "duration_seconds": audio.shape[1] / sr,
+            "true_peak_db": round(true_peak, 2),
+            "integrated_lufs": round(integrated_lufs, 2),
+            "crest_factor_db": round(crest_factor_db, 2),
+            "limiter_ceiling_db": round(safe_ceiling, 2),
+            "output_bit_depth": params.output_bit_depth,
+            "codec_pre_matching": safe_ceiling < user_ceiling,
+        }
 
     # 1. Gain staging — normalize to consistent headroom
     audio, _ = gain_stage(audio, target_peak_db=-6.0)
@@ -794,6 +888,28 @@ def process_audio(
         stereo_imaging_mono_applied = stereo_params.mono_below_hz > 0.0
     else:
         stereo_imaging_mono_applied = False
+
+    # 7f. Time-based effects (Sprint 10) — delay, echo and reverb as opt-in
+    #     insert stages between the dynamics/spatial chain and the final
+    #     limiter (time effects belong BEFORE limiting so the wet tails are
+    #     caught by the clipper/limiter, not after it). Each stage follows
+    #     the same opt-in contract as the other modules: enabled=False — or
+    #     enabled with mix 0.0 — is a bit-exact bypass, so existing masters
+    #     are untouched unless a mix knob moves. They run AFTER the spatial
+    #     stages and BEFORE the tape saturation, so the echoes feed the
+    #     real-tape model — the classic "tape echo" insert order.
+    if params.delay_enabled:
+        delay_params = _delay_params_from_mastering(params)
+        if not delay_params.is_neutral():
+            effected = delay_pass(effected, sr, delay_params)
+    if params.echo_enabled:
+        echo_params = _echo_params_from_mastering(params)
+        if not echo_params.is_neutral():
+            effected = echo_pass(effected, sr, echo_params)
+    if params.reverb_enabled:
+        reverb_params = _reverb_params_from_mastering(params)
+        if not reverb_params.is_neutral():
+            effected = reverb_pass(effected, sr, reverb_params)
 
     report(45)
 

@@ -367,6 +367,62 @@ class MasteringParameters(BaseModel):
         description="Makeup gain applied after compression. 0 = none.",
     )
 
+    # ── Time-Based Effects (Sprint 10) — Delay / Echo / Reverb ────────────────
+    # Disabled by default (mix 0.0 = bit-exact bypass), so existing masters
+    # are unchanged unless explicitly engaged. Each module follows the opt-in
+    # contract: enabling the flag while the mix stays 0.0 is STILL a bit-exact
+    # no-op (is_neutral → the pass is skipped), so the timing knobs
+    # (time/feedback/size) never alter the signal until the mix moves.
+    delay_enabled: bool = Field(
+        False,
+        description="Enable the delay stage. False = bit-exact bypass.",
+    )
+    delay_time_ms: float = Field(
+        250.0, ge=20, le=2000,
+        description="Delay time in ms. 0 = neutral",
+    )
+    delay_mix: float = Field(
+        0.0, ge=0, le=1,
+        description="Dry/wet mix of the delayed signal. 0.0 = no effect (neutral)",
+    )
+    delay_feedback: float = Field(
+        0.0, ge=0, le=0.8,
+        description=(
+            "Feedback amount for repeated echoes. 0.0 = single repeat "
+            "(neutral)"
+        ),
+    )
+
+    echo_enabled: bool = Field(
+        False,
+        description="Enable the echo stage. False = bit-exact bypass.",
+    )
+    echo_time_ms: float = Field(
+        400.0, ge=50, le=2000,
+        description="Echo time in ms. 0 = neutral",
+    )
+    echo_mix: float = Field(
+        0.0, ge=0, le=1,
+        description="Dry/wet mix of the echo. 0.0 = no effect (neutral)",
+    )
+    echo_feedback: float = Field(
+        0.0, ge=0, le=0.9,
+        description="Echo feedback — cascading repeats. 0.0 = single repeat (neutral)",
+    )
+
+    reverb_enabled: bool = Field(
+        False,
+        description="Enable the reverb stage. False = bit-exact bypass.",
+    )
+    reverb_mix: float = Field(
+        0.0, ge=0, le=1,
+        description="Dry/wet mix of the reverb. 0.0 = no effect (neutral)",
+    )
+    reverb_size: float = Field(
+        0.5, ge=0.1, le=1.0,
+        description="Reverb room size / decay. 0.1 = small room, 1.0 = huge hall",
+    )
+
 
 class MasterResultMetrics(BaseModel):
     """Measured metrics of the final master output.
