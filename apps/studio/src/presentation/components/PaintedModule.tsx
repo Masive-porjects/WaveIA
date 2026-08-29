@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
+import { motion } from "framer-motion";
 import gsap from "gsap";
 
 interface PaintedModuleProps {
@@ -77,9 +78,17 @@ export default function PaintedModule({
   );
 
   return (
-    <div
+    <motion.div
       ref={rootRef}
       className={`relative ${className ?? ""}`}
+      initial={{ opacity: 1, y: 0 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{
+        opacity: 0,
+        y: 20,
+        clipPath: "inset(0 0 100% 0)",
+        transition: { duration: 0.5, ease: [0.65, 0, 0.35, 1] },
+      }}
     >
       {/* Paint stroke — sweeps across the panel, then dissolves */}
       <div
@@ -95,6 +104,6 @@ export default function PaintedModule({
       <div ref={contentRef} className="relative z-20">
         {children}
       </div>
-    </div>
+    </motion.div>
   );
 }

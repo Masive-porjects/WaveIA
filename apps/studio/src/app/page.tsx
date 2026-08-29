@@ -1361,11 +1361,13 @@ export default function Home() {
                   </motion.div>
                 )}
 
-                {currentTab !== null && (
-                  <PaintedModule key={currentTab}>
-                    {renderTabContent(currentTab)}
-                  </PaintedModule>
-                )}
+                <AnimatePresence mode="wait">
+                  {currentTab !== null && (
+                    <PaintedModule key={currentTab}>
+                      {renderTabContent(currentTab)}
+                    </PaintedModule>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Floating ModuleDock — THE module navigator (fixed bottom-center).
