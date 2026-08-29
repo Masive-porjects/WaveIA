@@ -5,6 +5,8 @@ import { Play, Pause, ChevronDown, ChevronUp, SkipBack } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import gsap from "gsap";
 import WaveSurfer from "wavesurfer.js";
+
+import AudioSpectrum from "@/presentation/components/AudioSpectrum";
 import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/lib/presets";
 import { renderReference, getReferenceAudioUrl } from "@/lib/api";
 import { useCrossfade } from "@/lib/useCrossfade";
@@ -310,6 +312,21 @@ export default function Player({
           : wsOrigRef.current,
     [],
   );
+
+  /**
+   * El <audio> que WaveSurfer creo para la fuente activa.
+   *
+   * Se guarda en estado y no en un ref porque el espectro tiene que volver a
+   * montarse cuando cambia: un ref no dispara render.
+   */
+  const [mediaEl, setMediaEl] = useState<HTMLMediaElement | null>(null);
+  useEffect(() => {
+    const ws = wsFor(source);
+    const el = ws
+      ? (ws as unknown as { getMediaElement?: () => HTMLMediaElement }).getMediaElement?.()
+      : null;
+    setMediaEl(el ?? null);
+  }, [source, wsFor, isPlaying]);
 
   /* ── Create / destroy instances on URL change ───── */
   useEffect(() => {
@@ -840,6 +857,11 @@ export default function Player({
               }}
             />
           )}
+
+          {/* Espectro real del audio, detras de la onda. */}
+          <div className="absolute inset-0 z-[5] pointer-events-none opacity-70">
+            <AudioSpectrum mediaElement={mediaEl} playing={isPlaying} />
+          </div>
 
           {/* Subtle pulse when the track is playing */}
           {isPlaying && (

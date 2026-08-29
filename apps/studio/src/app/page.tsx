@@ -618,19 +618,41 @@ export default function Home() {
     }
   }, [session, params, activePresetId, completeProgress]);
 
+  /**
+   * Resultados ya procesados, por preset.
+   *
+   * El motor tarda ~44s por preset con un track cualquiera — el cache de
+   * masters pre-construidos del backend solo cubre el track de demo. Comparar
+   * dos filtros implicaba esperar dos veces, y volver al primero, una tercera.
+   *
+   * Guardar la sesion procesada de cada preset hace que volver a uno ya
+   * escuchado sea instantaneo. Se limpia al cambiar de track.
+   */
+  const presetCacheRef = useRef<Map<string, SessionData>>(new Map());
+
   /* ── Preset select (auto-process) ───────────────── */
   const handlePresetSelect = useCallback(
     async (presetParams: MasteringParameters, presetId?: string) => {
       if (!session) return;
 
+      setParams(presetParams);
+      setActivePresetId(presetId ?? null);
+      setError(null);
+
+      // Ya se proceso este preset para este track: no se vuelve al backend.
+      const cached = presetId ? presetCacheRef.current.get(presetId) : undefined;
+      if (cached) {
+        abortRef.current?.abort();
+        abortRef.current = null;
+        setSession(cached);
+        return;
+      }
+
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
-      setParams(presetParams);
-      setActivePresetId(presetId ?? null);
       setProcessing(true);
-      setError(null);
 
       // Watchdog: never let the UI stay stuck if the backend hangs
       const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
@@ -645,6 +667,7 @@ export default function Home() {
         completeProgress();
         await new Promise((r) => setTimeout(r, 600));
         setSession(result);
+        if (presetId) presetCacheRef.current.set(presetId, result);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
