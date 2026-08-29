@@ -371,8 +371,16 @@ export default function Home() {
   const [vocalProcessing, setVocalProcessing] = useState(false);
   const [vocalProcessed, setVocalProcessed] = useState(false);
 
-  // Right panel collapse state — hidden by default until the user asks for analysis
+  // Right panel collapse state — hidden by default until the user opens a tab
+  // that needs it (analysis, stereo or live).
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  useEffect(() => {
+    const needsRightPanel =
+      currentTab === "analysis" ||
+      currentTab === "stereo" ||
+      currentTab === "live";
+    setRightPanelOpen(needsRightPanel);
+  }, [currentTab]);
 
   // Abort controller for in-flight processing requests
   const abortRef = useRef<AbortController | null>(null);
@@ -1391,8 +1399,8 @@ export default function Home() {
           </div>
           </div>
 
-          {/* Expand button — visible when the analysis tab is selected and the right panel is collapsed */}
-          {currentView === "mastering" && currentTab === "analysis" && !rightPanelOpen && (
+          {/* Expand button — visible when a tab that needs the right panel is selected and the panel is collapsed */}
+          {currentView === "mastering" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
             <button
               onClick={() => setRightPanelOpen(true)}
               className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hover)] flex items-center justify-center hover:bg-[var(--bg-tertiary)] transition-all shadow-lg cursor-pointer"
