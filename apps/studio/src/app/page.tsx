@@ -450,16 +450,9 @@ export default function Home() {
         setUploadBurst((n) => n + 1);
         setSession(result);
 
-        // Keep the upload screen visible until the studio view is ready
-        // so the transition feels like one continuous flow.
+        // The studio view will be revealed only when the track is fully
+        // processed, keeping the overlay as the only visible surface.
         await new Promise((r) => setTimeout(r, 650));
-
-        setCurrentView("mastering");
-        setCurrentTab(null);
-
-        // Release the upload bar once the view has switched.
-        setLoading(false);
-        setUploadProgress(0);
 
         // The backend analyzes in the background now, so the studio is
         // usable immediately. Wait for the analysis (genre → params)
@@ -507,6 +500,10 @@ export default function Home() {
           // Brief pause so the user sees 100% before the overlay exits
           await new Promise((r) => setTimeout(r, 300));
           setSession(processed);
+
+          // Reveal the dashboard only after processing is done.
+          setCurrentView("mastering");
+          setCurrentTab(null);
         } catch (err) {
           if (err instanceof DOMException && err.name === "AbortError") {
             setError(
@@ -553,7 +550,6 @@ export default function Home() {
         }
       } finally {
         setLoading(false);
-        setUploadProgress(0);
       }
     },
     [completeProgress],
@@ -912,7 +908,11 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════
            Processing Overlay (global)
            ═══════════════════════════════════════════════ */}
-      <ProcessingOverlay progress={progress} visible={processing} />
+      <ProcessingOverlay
+        progress={processing ? progress : uploadProgress}
+        visible={loading || processing}
+        phase={processing ? "process" : "upload"}
+      />
       <ErrorModal
         open={errorModal !== null}
         title={errorModal?.title ?? ""}
