@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { VIEW_TRANSITION, fadeUp } from "@/lib/motion";
 import DropZone from "@/components/DropZone";
 import AnalysisPanel from "@/components/AnalysisPanel";
-import ModulePanel from "@/components/ModulePanel";
+import ModulePanel, { PRESETS } from "@/components/ModulePanel";
 import PlatformSelector from "@/components/PlatformSelector";
 import GenreGuide from "@/components/GenreGuide";
 import MasteringGuide from "@/components/MasteringGuide";
@@ -33,6 +33,10 @@ import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import AuthGuard from "@/components/auth/AuthGuard";
+import ChatPanel, {
+  NEUTRAL_PROFILE,
+  type Profile,
+} from "@/presentation/components/chat/ChatPanel";
 import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
@@ -360,7 +364,8 @@ export default function Home() {
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
+  const [currentView, setCurrentView] = useState<"upload" | "chat" | "mastering">("upload");
+  const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
 
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
@@ -458,7 +463,10 @@ export default function Home() {
         // Give the burst time to play before we show the studio
         await new Promise((r) => setTimeout(r, 650));
 
-        setCurrentView("mastering");
+        // Al chat, no al dashboard: el usuario cuenta que quiere mientras el
+        // analisis y el master automatico corren por detras. Cuando termina de
+        // hablar ya hay un master hecho, en vez de esperarlo mirando una barra.
+        setCurrentView("chat");
         setCurrentTab(null);
 
         // The backend analyzes in the background now, so the studio is
@@ -702,6 +710,7 @@ export default function Home() {
     abortRef.current?.abort();
     abortRef.current = null;
     setCurrentView("upload");
+    setIntentProfile(NEUTRAL_PROFILE);
     setSession(null);
     setProcessing(false);
     setError(null);
@@ -1302,6 +1311,52 @@ export default function Home() {
                 </button>
               )}
             </>
+          ) : currentView === "chat" ? (
+            /* ── CHAT VIEW — el agente entre subir y el dashboard ─── */
+            <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-y-auto">
+              <motion.div
+                key="chat"
+                className="w-full max-w-2xl flex flex-col gap-3"
+                initial={VIEW_TRANSITION.initial}
+                animate={VIEW_TRANSITION.animate}
+                exit={VIEW_TRANSITION.exit}
+                transition={VIEW_TRANSITION.transition}
+              >
+                <div className="h-[32rem] min-h-0">
+                  <ChatPanel
+                    profile={intentProfile}
+                    onProfileChange={setIntentProfile}
+                    analysis={session?.analysis ?? undefined}
+                    welcome={
+                      "Ya tengo tu track. Contame cómo querés que suene: ¿más cálida, con más pegada, la voz al frente? Decilo con tus palabras, yo lo traduzco."
+                    }
+                    onPresetSelect={(presetId) => {
+                      // El preset elegido pinta las perillas y procesa, igual
+                      // que si lo hubiera tocado en el dashboard. Los params
+                      // salen de PRESETS, la misma tabla que usa ModulePanel.
+                      const preset = PRESETS.find((x) => x.id === presetId);
+                      if (!preset) return;
+                      void handlePresetSelect(preset.params, presetId);
+                      setCurrentView("mastering");
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentView("mastering")}
+                  className="self-end rounded-full border px-4 py-2 text-xs transition-colors
+                    duration-300 hover:border-[var(--border-hover)]"
+                  style={{
+                    background: "var(--surface-hover)",
+                    borderColor: "var(--border-subtle)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  Ir a las perillas →
+                </button>
+              </motion.div>
+            </div>
           ) : (
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>

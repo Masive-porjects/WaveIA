@@ -4,6 +4,7 @@ import {
   interpretIntent,
   type ChatTurn,
   type IntentProfile,
+  type TrackAnalysis,
 } from "@midimastering/agent";
 
 /**
@@ -17,6 +18,8 @@ interface ChatRequest {
   messages: ChatTurn[];
   profile?: IntentProfile;
   voiceMode?: boolean;
+  /** Analisis de AudioMind. Con esto el agente calibra cuanto mover cada eje. */
+  analysis?: TrackAnalysis;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -43,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await interpretIntent({
       messages: body.messages,
       currentProfile: body.profile ?? NEUTRAL_PROFILE,
+      analysis: body.analysis,
       voiceMode: body.voiceMode ?? false,
     });
     return Response.json(result);

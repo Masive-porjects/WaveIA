@@ -43,6 +43,15 @@ const SUGERENCIAS = [
   "Que pegue en el club",
 ];
 
+/** Subconjunto del analisis de AudioMind que le sirve al agente. */
+export interface TrackAnalysis {
+  integrated_lufs?: number;
+  dynamic_range_db?: number;
+  tempo_bpm?: number;
+  detected_genre?: string;
+  is_already_mastered?: boolean;
+}
+
 export interface ChatPanelProps {
   /** Perfil vigente. Si no se pasa, el panel arranca en neutral. */
   profile?: Profile;
@@ -50,6 +59,8 @@ export interface ChatPanelProps {
   onProfileChange?: (profile: Profile) => void;
   /** Se dispara cuando el usuario elige uno de los presets sugeridos. */
   onPresetSelect?: (presetId: string) => void;
+  /** Analisis del track. Con esto el agente calibra cuanto mover cada eje. */
+  analysis?: TrackAnalysis;
   /** Lee las respuestas en voz alta. */
   voiceOutput?: boolean;
   /**
@@ -64,6 +75,7 @@ export default function ChatPanel({
   profile: controlledProfile,
   onProfileChange,
   onPresetSelect,
+  analysis,
   voiceOutput = true,
   welcome,
 }: ChatPanelProps) {
@@ -105,6 +117,7 @@ export default function ChatPanel({
           body: JSON.stringify({
             messages: history.map(({ role, content }) => ({ role, content })),
             profile,
+            analysis,
             voiceMode: voiceOutput,
           }),
         });
@@ -130,7 +143,7 @@ export default function ChatPanel({
         setBusy(false);
       }
     },
-    [busy, turns, profile, voiceOutput, controlledProfile, onProfileChange],
+    [busy, turns, profile, analysis, voiceOutput, controlledProfile, onProfileChange],
   );
 
   const mic = useSpeechInput({ onFinal: send });

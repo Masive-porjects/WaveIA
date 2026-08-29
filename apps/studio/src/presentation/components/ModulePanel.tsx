@@ -39,7 +39,9 @@ interface MacroPreset {
 
 /* ── 8 Macro-Character Presets ────────────────────────── */
 
-const PRESETS: MacroPreset[] = [
+/** Exportado para que el agente pueda aplicar un preset sin duplicar sus
+ *  parametros. Los ids coinciden con PRESET_CHAINS del backend. */
+export const PRESETS: MacroPreset[] = [
   {
     id: "universal",
     title: "Pulido",
