@@ -5,18 +5,23 @@ import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 
 /**
- * Sin NEXT_PUBLIC_CONVEX_URL no se instancia el cliente.
+ * Sin una URL real de Convex no se instancia el cliente.
  *
  * Antes se usaba `!` y el modulo explotaba al cargar, lo que tumbaba TODAS las
  * paginas para cualquiera que todavia no hubiera corrido `npx convex dev`.
  * Ahora la app arranca igual y solo falla lo que realmente consulta a Convex.
+ *
+ * La decision se toma a nivel de modulo y no dentro del componente: resolverlo
+ * adentro obliga a un return temprano antes de los hooks, que es justo lo que
+ * las reglas de hooks prohiben.
  */
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
+const isConfigured = Boolean(convexUrl) && !convexUrl!.includes("localhost");
+const convex = isConfigured ? new ConvexReactClient(convexUrl!) : null;
 
-if (!convexUrl && typeof window !== "undefined") {
+if (!isConfigured && typeof window !== "undefined") {
   console.warn(
-    "NEXT_PUBLIC_CONVEX_URL no esta definida: la app corre sin Convex. " +
+    "NEXT_PUBLIC_CONVEX_URL no esta configurada: la app corre sin Convex. " +
       "Para habilitarlo, corre `npx convex dev` en apps/studio.",
   );
 }
