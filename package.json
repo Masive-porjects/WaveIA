@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev:studio": "npm run dev --workspace=apps/studio",
+    "dev:convex": "npm run dev:convex --workspace=apps/studio",
     "build:studio": "npm run build --workspace=apps/studio",
     "lint:studio": "npm run lint --workspace=apps/studio",
     "dev:audiomind": "cd apps/audiomind && uvicorn audiomind.main:app --reload --port 8000",

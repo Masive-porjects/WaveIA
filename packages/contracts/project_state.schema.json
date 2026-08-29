@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProjectState",
+  "description": "Estado de un proyecto en Convex: dueño, archivos, chat, parámetros y resultado del job de mastering. Fuente de verdad de Tomás — ver PLAN.md §4 (Tomás) y §3.",
+  "type": "object",
+  "properties": {
+    "_id": { "type": "string", "description": "Convex document id (projects table)" },
+    "userId": { "type": "string", "description": "Convex Auth user id — dueño del proyecto" },
+    "name": { "type": "string", "default": "Sin título" },
+    "createdAt": { "type": "number", "description": "Unix ms" },
+    "updatedAt": { "type": "number", "description": "Unix ms" },
+
+    "audioFileId": {
+      "type": ["string", "null"],
+      "description": "Convex Storage id del audio original subido por el usuario"
+    },
+    "masteredFileId": {
+      "type": ["string", "null"],
+      "description": "Convex Storage id del audio masterizado (resultado de AudioMind)"
+    },
+
+    "intentProfile": {
+      "type": ["object", "null"],
+      "description": "Última salida de la IA — ver intent_profile.schema.json (Miguel)"
+    },
+    "masteringSettings": {
+      "type": ["object", "null"],
+      "description": "Parámetros técnicos a procesar — ver mastering_settings.schema.json (Brickman). Solo lo escriben: el mapper, las perillas del usuario, o un preset. Nunca la IA directamente (PLAN.md D4)."
+    },
+
+    "job": {
+      "type": "object",
+      "description": "Estado del job de mastering. Mapea a AudioMind: uploaded→pending, analyzing/processing→processing, completed→completed, error→failed.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["idle", "pending", "processing", "completed", "failed"],
+          "default": "idle"
+        },
+        "progress": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "error": { "type": ["string", "null"], "default": null },
+        "startedAt": { "type": ["number", "null"] },
+        "finishedAt": { "type": ["number", "null"] }
+      },
+      "required": ["status", "progress"],
+      "additionalProperties": false
+    },
+
+    "result": {
+      "type": ["object", "null"],
+      "description": "Métricas medidas del master final (null hasta que job.status === 'completed').",
+      "properties": {
+        "integrated_lufs": { "type": ["number", "null"] },
+        "true_peak_db": { "type": ["number", "null"] },
+        "crest_factor_db": { "type": ["number", "null"] },
+        "duration_seconds": { "type": ["number", "null"] },
+        "sample_rate": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["_id", "userId", "job"],
+  "additionalProperties": false,
+
+  "state_machine": {
+    "states": ["idle", "pending", "processing", "completed", "failed"],
+    "transitions": {
+      "idle": ["pending"],
+      "pending": ["processing", "failed"],
+      "processing": ["completed", "failed"],
+      "completed": ["pending"],
+      "failed": ["pending"]
+    },
+    "invariant": "Un proyecto nunca tiene más de un job en estado 'pending' o 'processing' a la vez — startMastering es idempotente (PLAN.md, entregable 4 de Tomás)."
+  }
+}
