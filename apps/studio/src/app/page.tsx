@@ -52,7 +52,6 @@ import {
   DEFAULT_PARAMS,
 } from "@/lib/api";
 import {
-  Search,
   Menu,
   X,
   AudioWaveform,
@@ -960,9 +959,6 @@ export default function Home() {
               <HomeIcon size={18} />
             </button>
           )}
-          <button className="rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all">
-            <Search size={18} />
-          </button>
           <UserMenu />
           <button
             className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
