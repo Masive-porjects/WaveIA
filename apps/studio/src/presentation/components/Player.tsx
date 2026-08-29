@@ -213,14 +213,43 @@ export default function Player({
           ? overlayRefPtr.current
           : overlayOrigRef.current;
     if (!activeEl || !isPlaying) return;
-    const tl = gsap.timeline({ repeat: -1 });
-    tl.to(activeEl, { scaleY: 1.01, filter: "drop-shadow(0 0 6px var(--accent-primary))", duration: 0.7, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 0.99, filter: "drop-shadow(0 0 3px var(--accent-primary))", duration: 0.5, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 1.02, filter: "drop-shadow(0 0 8px var(--accent-primary))", duration: 0.6, ease: "sine.inOut" })
-      .to(activeEl, { scaleY: 1.0, filter: "drop-shadow(0 0 4px var(--accent-primary))", duration: 0.4, ease: "sine.inOut" });
+    gsap.set(activeEl, { "--glow-strength": "4px" });
+    const tl = gsap.timeline({ repeat: -1, yoyo: true });
+    tl.to(activeEl, {
+      "--glow-strength": "22px",
+      scaleY: 1.06,
+      scaleX: 1.02,
+      y: -3,
+      duration: 0.7,
+      ease: "power2.inOut",
+    })
+      .to(activeEl, {
+        "--glow-strength": "6px",
+        scaleY: 0.96,
+        scaleX: 0.99,
+        y: 2,
+        duration: 0.45,
+        ease: "sine.inOut",
+      })
+      .to(activeEl, {
+        "--glow-strength": "28px",
+        scaleY: 1.08,
+        scaleX: 1.03,
+        y: -2,
+        duration: 0.65,
+        ease: "power2.inOut",
+      })
+      .to(activeEl, {
+        "--glow-strength": "8px",
+        scaleY: 1,
+        scaleX: 1,
+        y: 0,
+        duration: 0.4,
+        ease: "sine.inOut",
+      });
     return () => {
       tl.kill();
-      gsap.set(activeEl, { scaleY: 1, filter: "none" });
+      gsap.set(activeEl, { "--glow-strength": "", scaleY: 1, scaleX: 1, y: 0 });
     };
   }, [isPlaying, source]);
 
@@ -735,7 +764,7 @@ export default function Player({
             className="absolute inset-0 transition-opacity duration-200"
             style={{
               opacity: source === "original" ? 1 : 0,
-              filter: isPlaying && source === "original" ? "drop-shadow(0 0 6px var(--accent-primary))" : "none",
+              filter: isPlaying && source === "original" ? "drop-shadow(0 0 var(--glow-strength, 4px) var(--accent-primary)) saturate(1.1)" : "none",
             }}
           />
 
@@ -746,7 +775,7 @@ export default function Player({
               className="absolute inset-0 transition-opacity duration-200"
               style={{
                 opacity: source === "mastered" ? 1 : 0,
-                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 6px var(--accent-primary))" : "none",
+                filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 var(--glow-strength, 4px) var(--accent-primary)) saturate(1.1)" : "none",
               }}
             />
           )}
@@ -757,7 +786,7 @@ export default function Player({
             className="absolute inset-0 transition-opacity duration-200"
             style={{
               opacity: source === "reference" ? 1 : 0,
-              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 5px rgba(255,255,255,0.35))" : "none",
+              filter: isPlaying && source === "reference" ? "drop-shadow(0 0 var(--glow-strength, 4px) rgba(255,255,255,0.5)) saturate(1.05)" : "none",
             }}
           />
 
