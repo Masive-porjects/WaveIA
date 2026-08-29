@@ -446,20 +446,20 @@ export default function Home() {
       try {
         const result = await uploadAudio(file, setUploadProgress);
 
-        // Upload is done — release the upload bar immediately so it
-        // doesn't sit at 100% while the analysis finishes in background.
-        setLoading(false);
-        setUploadProgress(0);
-
         // Fire the musical note burst the moment the upload lands
         setUploadBurst((n) => n + 1);
         setSession(result);
 
-        // Give the burst time to play before we show the studio
+        // Keep the upload screen visible until the studio view is ready
+        // so the transition feels like one continuous flow.
         await new Promise((r) => setTimeout(r, 650));
 
         setCurrentView("mastering");
         setCurrentTab(null);
+
+        // Release the upload bar once the view has switched.
+        setLoading(false);
+        setUploadProgress(0);
 
         // The backend analyzes in the background now, so the studio is
         // usable immediately. Wait for the analysis (genre → params)
