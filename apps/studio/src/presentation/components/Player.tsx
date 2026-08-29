@@ -196,12 +196,55 @@ export default function Player({
   // Instance that was active before the last source switch — used to
   // hand off position/playback state on toggle.
   const lastActiveWsRef = useRef<WaveSurfer | null>(null);
+  const prevSourceRef = useRef<SourceKind>(source);
 
   // Crossfade engine — 10ms smooth transition on A/B toggle
   const { crossfade } = useCrossfade();
 
   useEffect(() => {
     sourceRef.current = source;
+  }, [source]);
+
+  /* ── GSAP crossfade slide between waveform sources ─────
+     When Original/Master/Reference changes, the outgoing wave
+     slides out and the incoming one slides in with opacity. */
+  useEffect(() => {
+    const from = prevSourceRef.current;
+    const to = source;
+    prevSourceRef.current = to;
+
+    const getEl = (s: SourceKind) =>
+      s === "mastered"
+        ? overlayMastRef.current
+        : s === "reference"
+          ? overlayRefPtr.current
+          : overlayOrigRef.current;
+
+    const toEl = getEl(to);
+    if (!toEl) return;
+
+    [overlayOrigRef.current, overlayMastRef.current, overlayRefPtr.current].forEach((el) => {
+      if (el && el !== toEl) gsap.set(el, { opacity: 0, y: -12 });
+    });
+
+    if (from !== to) {
+      const fromEl = getEl(from);
+
+      if (fromEl) {
+        gsap.fromTo(
+          fromEl,
+          { opacity: 1, y: 0 },
+          { opacity: 0, y: -18, duration: 0.45, ease: "power2.in" },
+        );
+      }
+      gsap.fromTo(
+        toEl,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+      );
+    } else {
+      gsap.set(toEl, { opacity: 1, y: 0 });
+    }
   }, [source]);
 
   /* ── GSAP life on the active waveform while playing ── */
@@ -758,9 +801,8 @@ export default function Player({
           {/* Original waveform */}
           <div
             ref={overlayOrigRef}
-            className="absolute inset-0 transition-opacity duration-200"
+            className="absolute inset-0"
             style={{
-              opacity: source === "original" ? 1 : 0,
               filter: isPlaying && source === "original" ? "drop-shadow(0 0 12px var(--accent-primary)) saturate(1.15)" : "none",
             }}
           />
@@ -769,9 +811,8 @@ export default function Player({
           {hasBoth && (
             <div
               ref={overlayMastRef}
-              className="absolute inset-0 transition-opacity duration-200"
+              className="absolute inset-0"
               style={{
-                opacity: source === "mastered" ? 1 : 0,
                 filter: isPlaying && source === "mastered" ? "drop-shadow(0 0 14px var(--accent-primary)) saturate(1.15)" : "none",
               }}
             />
@@ -780,9 +821,8 @@ export default function Player({
           {/* Reference waveform (neutral gray) */}
           <div
             ref={overlayRefPtr}
-            className="absolute inset-0 transition-opacity duration-200"
+            className="absolute inset-0"
             style={{
-              opacity: source === "reference" ? 1 : 0,
               filter: isPlaying && source === "reference" ? "drop-shadow(0 0 10px rgba(255,255,255,0.5)) saturate(1.1)" : "none",
             }}
           />

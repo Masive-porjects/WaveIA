@@ -359,7 +359,7 @@ export default function Home() {
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
+  const [currentView, setCurrentView] = useState<"upload" | "selection" | "mastering">("upload");
 
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
@@ -373,12 +373,26 @@ export default function Home() {
   // Right panel collapse state — hidden by default until the user opens a tab
   // that needs it (analysis, stereo or live).
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const playerScaleRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const needsRightPanel =
       currentTab === "analysis" ||
       currentTab === "stereo" ||
       currentTab === "live";
     setRightPanelOpen(needsRightPanel);
+  }, [currentTab]);
+
+  /* ── Player stretch/reposition when a dock tab is toggled */
+  useEffect(() => {
+    if (!playerScaleRef.current) return;
+    const stretch = currentTab === null ? 1 : 1.03;
+    gsap.to(playerScaleRef.current, {
+      scaleX: stretch,
+      scaleY: 1,
+      duration: 0.9,
+      ease: "power3.inOut",
+      overwrite: "auto",
+    });
   }, [currentTab]);
 
   // Abort controller for in-flight processing requests
@@ -417,7 +431,7 @@ export default function Home() {
     getSession(savedId)
       .then((s) => {
         setSession(s);
-        setCurrentView(s.mastered_path ? "mastering" : "upload");
+        setCurrentView(s.mastered_path ? "mastering" : "selection");
       })
       .catch(() => localStorage.removeItem("waveai-session"));
   }, []);
@@ -480,6 +494,10 @@ export default function Home() {
         const mapped = genreToParams(genre);
         setParams(mapped);
 
+        // After analysis, let the user choose manual or AI mastering
+        setLoading(false);
+        setCurrentView("selection");
+
         // Check if audio is already mastered → warn before processing
         if (analyzed.analysis.is_already_mastered) {
           setOverMasterWarning({
@@ -488,43 +506,6 @@ export default function Home() {
             analyzedSession: analyzed,
             mappedParams: mapped,
           });
-          return; // Wait for user decision
-        }
-
-        // Auto-process with overlay (unchanged flow)
-        setProcessing(true);
-        const controller = new AbortController();
-        abortRef.current = controller;
-        // Watchdog: never let the UI stay stuck if the backend hangs
-        const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
-        try {
-          const processed = await processAudio(
-            result.session_id,
-            mapped,
-            controller.signal,
-          );
-          completeProgress();
-          // Brief pause so the user sees 100% before the overlay exits
-          await new Promise((r) => setTimeout(r, 300));
-          setSession(processed);
-
-          // Reveal the dashboard only after processing is done.
-          setCurrentView("mastering");
-          setCurrentTab(null);
-        } catch (err) {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            setError(
-              'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
-            );
-            return;
-          }
-          setError(
-            err instanceof Error ? err.message : "Auto-process failed",
-          );
-        } finally {
-          clearTimeout(watchdog);
-          setProcessing(false);
-          if (abortRef.current === controller) abortRef.current = null;
         }
       } catch (err) {
         // Map backend status codes to friendly messages
@@ -700,6 +681,20 @@ export default function Home() {
     [session],
   );
 
+  /* ── Selection: manual mastering opens the dashboard */
+  const handleManualMaster = useCallback(() => {
+    setCurrentView("mastering");
+    setCurrentTab("modules");
+  }, []);
+
+  /* ── Selection: AI mastering (placeholder for future branch) */
+  const handleAiMaster = useCallback(() => {
+    setErrorModal({
+      title: "Próximamente",
+      message: "La remasterización por IA está en desarrollo. Usá la opción manual para probar el flujo.",
+    });
+  }, []);
+
   /* ── Back to upload ──────────────────────────────── */
   const handleBackToUpload = useCallback(() => {
     abortRef.current?.abort();
@@ -733,6 +728,8 @@ export default function Home() {
       completeProgress();
       await new Promise((r) => setTimeout(r, 300));
       setSession(processed);
+      setCurrentView("mastering");
+      setCurrentTab(null);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
@@ -1113,6 +1110,75 @@ export default function Home() {
                 </motion.div>
               </AnimatePresence>
             </div>
+          ) : currentView === "selection" ? (
+            /* ── SELECTION VIEW ───────────────────── */
+            <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-y-auto relative">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="relative w-full max-w-xl rounded-3xl p-6 md:p-8 text-center glass-elevated"
+                style={{ boxShadow: "var(--shadow-heavy)" }}
+              >
+                <div className="mb-6">
+                  <h2 className="text-2xl md:text-3xl font-bold text-knockout" style={{ letterSpacing: "-0.03em" }}>
+                    ¿Cómo querés masterizar?
+                  </h2>
+                  <p className="text-sm text-[var(--text-muted)] mt-2">
+                    Elegí el modo que se adapte a tu flujo.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    onClick={handleManualMaster}
+                    className="group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300
+                      border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]
+                      bg-[var(--bg-elevated)] hover:bg-[var(--surface-hover)]"
+                  >
+                    <div className="relative z-10">
+                      <span className="text-xs font-medium tracking-widest uppercase text-[var(--accent-primary)]">
+                        Manual
+                      </span>
+                      <h3 className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
+                        Remasterización manual
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
+                        Controlá el preset, la cadena DSP y los parámetros del master.
+                      </p>
+                    </div>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 bg-[var(--accent-primary)]" />
+                  </button>
+
+                  <button
+                    onClick={handleAiMaster}
+                    className="group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300
+                      border border-[var(--border-subtle)] hover:border-[var(--accent-secondary)]
+                      bg-[var(--bg-elevated)] hover:bg-[var(--surface-hover)]"
+                  >
+                    <div className="relative z-10">
+                      <span className="text-xs font-medium tracking-widest uppercase text-[var(--accent-secondary)]">
+                        IA
+                      </span>
+                      <h3 className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
+                        Masterización por IA
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
+                        Dejá que el modelo analice y aplique el mejor master.
+                      </p>
+                    </div>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 bg-[var(--accent-secondary)]" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleBackToUpload}
+                  className="mt-6 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  ← Subir otro track
+                </button>
+              </motion.div>
+            </div>
           ) : isMobile ? (
             /* ── MOBILE MASTERING VIEW ──────────────── */
             <>
@@ -1291,15 +1357,22 @@ export default function Home() {
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>
               {/* Player — bigger and centered when no dock tab is selected */}
-              <div className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 transition-all duration-500 ${
-                currentTab === null
-                  ? "flex-1 flex items-center justify-center min-h-0"
-                  : "shrink-0"
-              }`}>
+              <motion.div
+                layout="position"
+                transition={{ type: "spring", stiffness: 40, damping: 12 }}
+                className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
+                  currentTab === null
+                    ? "flex-1 flex items-center justify-center min-h-0"
+                    : "shrink-0"
+                }`}
+              >
                 {session && (
-                  <div className={`w-full transition-transform duration-500 ${
-                    currentTab === null ? "max-w-5xl scale-110" : ""
-                  }`}>
+                  <div
+                    ref={playerScaleRef}
+                    className={`w-full origin-center ${
+                      currentTab === null ? "max-w-5xl" : ""
+                    }`}
+                  >
                     <Player
                       originalUrl={getAudioUrl(session.session_id, "original")}
                       masteredUrl={
@@ -1314,7 +1387,7 @@ export default function Home() {
                     />
                   </div>
                 )}
-              </div>
+              </motion.div>
 
               {/* Vocal result bar — visible from any tab */}
               {vocalProcessed && session && (
