@@ -31,11 +31,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Falta messages" }, { status: 400 });
   }
 
-  // El SDK resuelve credenciales de forma perezosa y falla con un Error sin
-  // tipar. Validar aca da un mensaje util en vez de un 500 opaco.
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
+  // Validar aca da un mensaje util en vez de un 500 opaco cuando falta la key.
+  if (!process.env.GEMINI_API_KEY) {
     return Response.json(
-      { error: "Falta ANTHROPIC_API_KEY. Copiá apps/studio/.env.example a .env.local y completala." },
+      { error: "Falta GEMINI_API_KEY. Copiá apps/studio/.env.example a .env.local y completala." },
       { status: 503 },
     );
   }
