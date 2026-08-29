@@ -42,12 +42,14 @@ export async function POST(request: Request): Promise<Response> {
   const modelId = process.env.ELEVENLABS_MODEL_ID;
   const enabled = process.env.VOICE_MODE === "elevenlabs";
 
-  if (!enabled || !apiKey || !voiceId || !modelId) {
+  // El modelo es opcional: si no se define, ElevenLabs usa su default. Asi la
+  // voz funciona sin necesitar el permiso models_read para descubrir el id.
+  if (!enabled || !apiKey || !voiceId) {
     // 204 = "sintetizalo vos con speechSynthesis". No es un error.
     return new Response(null, { status: 204 });
   }
 
-  const hash = createHash("sha256").update(`${modelId}:${voiceId}:${text}`).digest("hex");
+  const hash = createHash("sha256").update(`${modelId ?? "default"}:${voiceId}:${text}`).digest("hex");
   const cached = path.join(CACHE_DIR, `${hash}.mp3`);
 
   try {
@@ -64,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     {
       method: "POST",
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ text, model_id: modelId, language_code: "es" }),
+      body: JSON.stringify({ text, ...(modelId ? { model_id: modelId } : {}) }),
     },
   );
 

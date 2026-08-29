@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
+import { AGENT_RESPONSE_SCHEMA } from "./geminiSchema.js";
 import {
   IntentProfileSchema,
   NEUTRAL_PROFILE,
@@ -11,26 +11,42 @@ import {
 } from "./intentProfile.js";
 import { SYSTEM_PROMPT, buildContextBlock, type TrackAnalysis } from "./prompt.js";
 
-export const MODEL = "claude-opus-5";
+/** Sobreescribible por si cambia el catalogo de modelos sin tocar codigo. */
+export const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.7-flash";
 
 /**
- * Lo que el modelo debe devolver. Un solo objeto en vez de una union: los
- * esquemas con `oneOf` son fragiles con structured outputs, y un booleano mas
- * un string vacio expresan lo mismo sin ambiguedad.
+ * Cadena de respaldo. Los modelos flash mas nuevos se saturan seguido y
+ * devuelven 503 de forma sostenida, no en picos cortos: reintentar sobre el
+ * mismo modelo no alcanza. Si el primero no da, se pasa al siguiente.
+ */
+export const MODEL_CHAIN = [...new Set([MODEL, "gemini-3.6-flash", "gemini-3.5-flash"])];
+
+const RETRIES = 2;
+const BACKOFF_MS = 600;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Saturacion del modelo (503) o cuota agotada momentaneamente (429).
+ * El SDK no expone un codigo tipado, asi que se inspecciona el mensaje.
+ */
+function isTransient(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b(429|503|500|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand)\b/i.test(message);
+}
+
+/**
+ * Validacion de la respuesta del modelo.
+ *
+ * El responseSchema que se le manda a Gemini guia la generacion, pero no la
+ * garantiza: el contrato lo hace cumplir Zod aca. Un valor fuera de rango se
+ * rechaza, no se recorta en silencio.
  */
 const AgentResponseSchema = z.object({
-  reply: z
-    .string()
-    .describe("Respuesta para el chat, en voseo rioplatense. Dos o tres frases."),
-  needs_clarification: z
-    .boolean()
-    .describe("true solo si el pedido es demasiado vago para saber que eje mover."),
-  clarifying_question: z
-    .string()
-    .describe(
-      "Pregunta concreta con dos o tres opciones. Cadena vacia si needs_clarification es false.",
-    ),
-  profile: IntentProfileSchema.describe("El IntentProfile completo despues del ajuste."),
+  reply: z.string(),
+  needs_clarification: z.boolean(),
+  clarifying_question: z.string(),
+  profile: IntentProfileSchema,
 });
 
 export interface ChatTurn {
@@ -46,14 +62,15 @@ export interface InterpretOptions {
   /** Analisis del track que devolvio AudioMind, si ya esta listo. */
   analysis?: TrackAnalysis;
   /**
-   * Profundidad de razonamiento. El chat es sensible a la latencia y esto es
-   * una tarea de interpretacion acotada, asi que `low` es el default correcto.
+   * Presupuesto de razonamiento en tokens. 0 lo desactiva, -1 lo deja
+   * automatico. El chat es sensible a la latencia y esta es una tarea de
+   * interpretacion acotada, asi que un presupuesto chico es el default.
    */
-  effort?: "low" | "medium" | "high";
+  thinkingBudget?: number;
   /** El reply se va a leer en voz alta: pide una sola frase corta. */
   voiceMode?: boolean;
   /** Inyectable para tests. */
-  client?: Anthropic;
+  client?: GoogleGenAI;
 }
 
 export interface InterpretResult {
@@ -66,8 +83,9 @@ export interface InterpretResult {
   usage: {
     inputTokens: number;
     outputTokens: number;
-    cacheReadTokens: number;
   };
+  /** Modelo que finalmente respondio. Puede no ser el primero de la cadena. */
+  servedBy: string;
 }
 
 /** Error de contrato: el modelo devolvio algo que no valida contra el schema. */
@@ -81,12 +99,16 @@ export class IntentParseError extends Error {
   }
 }
 
-let defaultClient: Anthropic | undefined;
+let defaultClient: GoogleGenAI | undefined;
 
-function getClient(): Anthropic {
-  // Resuelve credenciales del entorno: ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN
-  // o un perfil de `ant auth login`. No hardcodear la key.
-  defaultClient ??= new Anthropic();
+function getClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new IntentParseError(
+      "Falta GEMINI_API_KEY. Completala en apps/studio/.env.local.",
+    );
+  }
+  defaultClient ??= new GoogleGenAI({ apiKey });
   return defaultClient;
 }
 
@@ -94,69 +116,92 @@ function getClient(): Anthropic {
  * Traduce lo que dijo el usuario a un IntentProfile validado.
  *
  * El agente nunca escribe en el motor de audio: devuelve un perfil semantico
- * que el mapper del area de DSP convierte en MasteringSettings.
+ * que el mapper del area de DSP convierte en MasteringSettings. El proveedor
+ * del modelo es un detalle de este archivo; nada mas en el proyecto lo sabe.
  */
 export async function interpretIntent(options: InterpretOptions): Promise<InterpretResult> {
   const {
     messages,
     currentProfile = NEUTRAL_PROFILE,
     analysis,
-    effort = "low",
+    thinkingBudget = 512,
     voiceMode = false,
-    client = getClient(),
   } = options;
 
   if (messages.length === 0) {
     throw new IntentParseError("interpretIntent necesita al menos un mensaje del usuario");
   }
 
-  const apiMessages: Anthropic.MessageParam[] = [
-    ...messages.map((turn) => ({ role: turn.role, content: turn.content }) as const),
-    { role: "user" as const, content: buildContextBlock(currentProfile, analysis, { voiceMode }) },
+  const client = options.client ?? getClient();
+
+  // Gemini llama "model" al rol del asistente.
+  const contents = [
+    ...messages.map((turn) => ({
+      role: turn.role === "assistant" ? "model" : "user",
+      parts: [{ text: turn.content }],
+    })),
+    { role: "user", parts: [{ text: buildContextBlock(currentProfile, analysis, { voiceMode }) }] },
   ];
 
-  let response;
-  try {
-    response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort,
-        format: zodOutputFormat(AgentResponseSchema),
-      },
-      // El system es estable byte a byte entre turnos, asi que cachea.
-      system: [
-        { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-      ],
-      messages: apiMessages,
-    });
-  } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) {
-      throw new IntentParseError(
-        "Credenciales invalidas. Configura ANTHROPIC_API_KEY o corre `ant auth login`.",
-        error,
-      );
+  let raw: string | undefined;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  // Reintento con backoff sobre cada modelo; si sigue caido, se baja al
+  // siguiente de la cadena. 503 (saturado) y 429 (cuota) son transitorios.
+  let lastError: unknown;
+  let servedBy = MODEL_CHAIN[0];
+
+  outer: for (const model of MODEL_CHAIN) {
+    for (let attempt = 0; attempt < RETRIES; attempt++) {
+      try {
+        const response = await client.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            responseMimeType: "application/json",
+            responseSchema: AGENT_RESPONSE_SCHEMA,
+            thinkingConfig: { thinkingBudget },
+          },
+        });
+        raw = response.text;
+        inputTokens = response.usageMetadata?.promptTokenCount ?? 0;
+        outputTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
+        servedBy = model;
+        lastError = undefined;
+        break outer;
+      } catch (error) {
+        lastError = error;
+        // Un error no transitorio (schema invalido, key mala) se repite igual
+        // en los demas modelos: no tiene sentido seguir bajando la cadena.
+        if (!isTransient(error)) break outer;
+        if (attempt < RETRIES - 1) await sleep(BACKOFF_MS * 2 ** attempt);
+      }
     }
-    if (error instanceof Anthropic.RateLimitError) {
-      throw new IntentParseError("Rate limit de la API. Reintenta en unos segundos.", error);
-    }
-    if (error instanceof Anthropic.APIError) {
-      throw new IntentParseError(`Error ${error.status} de la API: ${error.message}`, error);
-    }
-    throw error;
   }
 
-  if (response.stop_reason === "refusal") {
+  if (lastError !== undefined) {
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
     throw new IntentParseError(
-      `El modelo rechazo el pedido (${response.stop_details?.category ?? "sin categoria"}).`,
+      `Fallo la llamada a Gemini. Se probo: ${MODEL_CHAIN.join(", ")}. Ultimo error: ${message}`,
+      lastError,
     );
   }
 
-  const parsed = response.parsed_output;
-  if (!parsed) {
+  if (!raw) {
     throw new IntentParseError(
-      "El modelo no devolvio un IntentProfile valido. No se aplica ningun cambio.",
+      "Gemini no devolvio contenido. Puede haber cortado por filtros de seguridad.",
+    );
+  }
+
+  let parsed: z.infer<typeof AgentResponseSchema>;
+  try {
+    parsed = AgentResponseSchema.parse(JSON.parse(raw));
+  } catch (error) {
+    throw new IntentParseError(
+      "La respuesta no cumple el contrato IntentProfile. No se aplica ningun cambio.",
+      error,
     );
   }
 
@@ -171,10 +216,7 @@ export async function interpretIntent(options: InterpretOptions): Promise<Interp
     clarifyingQuestion: parsed.clarifying_question,
     profile,
     changes: diffProfiles(currentProfile, profile),
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
-    },
+    usage: { inputTokens, outputTokens },
+    servedBy,
   };
 }
