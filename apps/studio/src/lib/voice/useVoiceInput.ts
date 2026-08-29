@@ -2,66 +2,35 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useSpeechInput } from "./useSpeechInput";
-
 /**
- * Entrada de voz con dos motores y cambio automático.
+ * Entrada de voz: graba con el micrófono y transcribe en el servidor.
  *
- * 1. Reconocimiento del navegador — gratis e instantáneo, pero Chrome manda el
- *    audio a servidores de Google y en algunas redes eso falla con "network".
- * 2. Grabación local + Gemini — usa la misma clave que el chat, así que si el
- *    chat funciona, esto funciona.
+ * NO usa el reconocimiento de voz del navegador. Ese no transcribe localmente:
+ * Chrome manda el audio a servidores de Google, y esa petición falla en algunas
+ * redes con un error que el cliente no puede reintentar. La transcripción la
+ * hace `/voz/escuchar` con ElevenLabs Scribe, y Gemini como respaldo.
  *
- * Arranca con el navegador y, ante el primer fallo que no se arregla
- * reintentando, se pasa a Gemini para el resto de la sesión sin avisar. Al
- * usuario le tiene que dar igual cuál está corriendo.
+ * La grabación sí es local — del equipo sale solo el audio ya grabado.
  */
-
-export type VoiceEngine = "browser" | "gemini";
-
-/**
- * Si el reconocimiento del navegador ya fallo en este equipo, se recuerda.
- *
- * En redes donde Google no responde falla SIEMPRE, y reintentarlo en cada
- * sesion solo agrega una demora y un error visible antes de caer a Gemini.
- */
-const FALLBACK_KEY = "waveai-voice-fallback";
-
-function browserFailedBefore(): boolean {
-  try {
-    return localStorage.getItem(FALLBACK_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function rememberBrowserFailure(): void {
-  try {
-    localStorage.setItem(FALLBACK_KEY, "1");
-  } catch {
-    // Storage bloqueado: se reintenta el navegador la proxima vez. No es grave.
-  }
-}
 
 export interface UseVoiceInputOptions {
-  lang?: string;
   onFinal?: (text: string) => void;
 }
 
 export interface VoiceInput {
-  /** Siempre true: si el navegador no reconoce, se graba y transcribe. */
+  /** false solo si el navegador no permite grabar audio. */
   supported: boolean;
   listening: boolean;
-  /** true mientras Gemini transcribe lo grabado. */
+  /** true mientras el servidor transcribe lo grabado. */
   transcribing: boolean;
-  transcript: string;
   error: string | null;
-  engine: VoiceEngine;
+  /** Empieza a grabar, o corta y envia si ya estaba grabando. */
   toggle: () => void;
+  /** Corta y descarta sin transcribir. */
   cancel: () => void;
 }
 
-/** El primero que soporte el navegador. Gemini acepta los tres. */
+/** El primero que soporte el navegador. El servidor acepta los tres. */
 function pickMimeType(): string {
   const candidates = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"];
   for (const type of candidates) {
@@ -73,17 +42,10 @@ function pickMimeType(): string {
 }
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
-  const { lang = "es-ES", onFinal } = options;
+  const { onFinal } = options;
 
   // El motor inicial se calcula una sola vez, sin efecto: si el navegador ni
   // siquiera implementa la API, se arranca directo en Gemini.
-  const [engine, setEngine] = useState<VoiceEngine>(() => {
-    if (typeof window === "undefined") return "gemini";
-    const hasApi =
-      "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
-    if (!hasApi || browserFailedBefore()) return "gemini";
-    return "browser";
-  });
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,31 +58,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
   useEffect(() => {
     onFinalRef.current = onFinal;
   }, [onFinal]);
-
-  // startRecording se define mas abajo, asi que se llama por ref para no
-  // reordenar el archivo ni crear una dependencia circular entre callbacks.
-  const startRecordingRef = useRef<() => void>(() => {});
-
-  const browser = useSpeechInput({
-    lang,
-    onFinal,
-    onFatalError: useCallback((code: string) => {
-      // Permiso denegado o micro ausente fallan igual con cualquier motor:
-      // ahi si se le muestra al usuario.
-      if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
-        setError(
-          "Necesito permiso para usar el micrófono. Habilitalo en el candado de la barra de direcciones.",
-        );
-        return;
-      }
-      // Lo demas (tipicamente "network") lo resuelve Gemini. Se cambia de motor
-      // y se sigue grabando en el acto: el usuario no tiene que volver a tocar.
-      rememberBrowserFailure();
-      setEngine("gemini");
-      setError(null);
-      startRecordingRef.current();
-    }, []),
-  });
 
   const stopTracks = useCallback(() => {
     recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
@@ -182,52 +119,30 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
     setRecording(true);
   }, [stopTracks]);
 
-  useEffect(() => {
-    startRecordingRef.current = () => void startRecording();
-  }, [startRecording]);
-
   const stopRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }, []);
 
   const toggle = useCallback(() => {
-    if (engine === "browser") {
-      // El navegador ya fallo una vez: se cambia de motor para el resto de la
-      // sesion. Se decide aca y no en un efecto porque setState dentro de un
-      // efecto dispara renders en cascada.
-      if (browser.error) {
-        setEngine("gemini");
-        setError(null); // el cambio es transparente, no es culpa del usuario
-        void startRecording();
-        return;
-      }
-      browser.toggle();
-      return;
-    }
     if (recording) stopRecording();
     else void startRecording();
-  }, [engine, browser, recording, startRecording, stopRecording]);
+  }, [recording, startRecording, stopRecording]);
 
   const cancel = useCallback(() => {
-    if (engine === "browser") {
-      browser.cancel();
-      return;
-    }
     discardRef.current = true;
     stopRecording();
     stopTracks();
     setRecording(false);
-  }, [engine, browser, stopRecording, stopTracks]);
+  }, [stopRecording, stopTracks]);
 
   useEffect(() => stopTracks, [stopTracks]);
 
   return {
-    supported: true,
-    listening: engine === "browser" ? browser.listening : recording,
+    // MediaRecorder existe en todo navegador moderno, Firefox incluido.
+    supported: typeof window !== "undefined" && typeof MediaRecorder !== "undefined",
+    listening: recording,
     transcribing,
-    transcript: engine === "browser" ? browser.transcript : "",
-    error: engine === "browser" ? browser.error : error,
-    engine,
+    error,
     toggle,
     cancel,
   };

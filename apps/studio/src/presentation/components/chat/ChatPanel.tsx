@@ -350,12 +350,6 @@ export default function ChatPanel({
         </p>
       )}
 
-      {mic.transcript && (
-        <p className="relative px-5 pb-1 text-xs italic" style={{ color: "var(--text-muted)" }}>
-          {mic.transcript}
-        </p>
-      )}
-
       <div className="relative border-t px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
 
         <MicButton
@@ -363,7 +357,6 @@ export default function ChatPanel({
           listening={mic.listening}
           transcribing={mic.transcribing}
           disabled={busy}
-          transcript={mic.transcript}
           onToggle={() => {
             // El agente deja de hablar al abrir el microfono: si no, se graba
             // a si mismo y transcribe su propia respuesta.

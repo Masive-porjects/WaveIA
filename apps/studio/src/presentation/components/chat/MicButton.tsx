@@ -21,8 +21,6 @@ export interface MicButtonProps {
   /** true mientras se transcribe lo grabado (motor Gemini). */
   transcribing?: boolean;
   disabled?: boolean;
-  /** Texto parcial mientras habla. */
-  transcript?: string;
   onToggle: () => void;
   onCancel?: () => void;
 }
@@ -32,7 +30,6 @@ export default function MicButton({
   listening,
   transcribing = false,
   disabled = false,
-  transcript = "",
   onToggle,
   onCancel,
 }: MicButtonProps) {
@@ -95,8 +92,8 @@ export default function MicButton({
               : transcribing
                 ? "Entendiendo lo que dijiste…"
                 : listening
-                ? transcript || "Te escucho…"
-                : "Tocá para hablar"}
+                  ? "Te escucho… tocá para enviar"
+                  : "Tocá para hablar"}
           </span>
         </span>
       </motion.button>
