@@ -12,9 +12,10 @@
 | `apps/studio` build + typecheck | ✅ OK | `npx tsc --noEmit` + `npm run build` |
 | `apps/studio` unit tests | ✅ 6/6 | vitest 2.1.9 + jsdom 24 (nuevo: `npm test`) |
 | `apps/studio` lint | ✅ 0 errores | warnings pre-existentes, no bloqueantes |
-| `apps/humanmidi` + `apps/bridge` pytest | ⏳ pendiente | el entorno de Python se está instalando (venv del repo) |
-| `mediapipe` pin | ⚠️ **problema de plataforma** | `0.10.14` no tiene wheel en macOS arm64 → instalar `0.10.33` (último con `mp.solutions.hands`). Actualizar `requirements.txt` con nota de plataforma. |
+| `apps/humanmidi` + `apps/bridge` pytest | ⚠️ **bridge 53/53 ✅ · humanmidi 16 failed + 8 errors** | entorno listo (venv Python 3.12 + mediapipe 0.10.33); humanmidi depende de `mp.solutions.hands` que **no existe en wheels arm64** |
+| `mediapipe` pin | 🔴 **bloqueante en macOS arm64** | `0.10.14` no tiene wheel arm64; los wheels arm64 disponibles (0.10.30–0.10.33) **no incluyen `mp.solutions`** (verificado 0.10.30 y 0.10.33). El código de humanmidi usa la API legacy → **migrar a `mp.tasks.vision.HandLandmarker`** o correr humanmidi en Linux |
 | CI | ❌ no existe | el PR #1 no tiene checks automáticos; la verificación es manual por ahora |
+| Studio post-merge develop (2026-08-29) | ⚠️ typecheck global falla en esta máquina | **no es del merge**: develop trajo Convex (Tomás) y agent (Miguel). Faltan: `npx convex codegen` (genera `convex/_generated`, por eso los implicit any) y el link del workspace `@midimastering/agent`. **0 errores en archivos live** (PR #1). El equipo migró a **bun** (`bun.lock`; package-lock.json del PR #1 queda obsoleto — decidir si se elimina). |
 
 **Hallazgo**: el `INTEGRATION_REPORT.md` describe 49/49 + 53/53 tests, pero esa verificación fue en otra máquina. En esta Mac el entorno no estaba instalado (faltaba `rtmidi`, `mediapipe`). El repo recién queda "verificado" cuando la suite pasa en la máquina de cada dev.
 
