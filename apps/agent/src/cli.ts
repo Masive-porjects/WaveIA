@@ -13,6 +13,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AXES, NEUTRAL_PROFILE, type IntentProfile } from "./intentProfile.js";
+import { PRESETS } from "./presets.js";
 import type { TrackAnalysis } from "./prompt.js";
 
 /**
@@ -136,8 +137,19 @@ async function main(): Promise<void> {
         }
       }
 
+      const tipo = result.trackType === "unknown" ? "sin determinar" : result.trackType;
+      console.log(`\n  track: ${tipo}`);
+      console.log("  presets recomendados:");
+      result.recommendations.forEach((r, i) => {
+        const preset = PRESETS[r.presetId];
+        const star = i === 0 ? "*" : " ";
+        console.log(
+          `  ${star} ${i + 1}. ${preset.title.padEnd(11)} ${preset.genre.padEnd(18)} ${r.why}`,
+        );
+      });
+
       console.log(
-        `\n  [${result.usage.inputTokens} in / ${result.usage.outputTokens} out]\n`,
+        `\n  [${result.usage.inputTokens} in / ${result.usage.outputTokens} out · ${result.servedBy}]\n`,
       );
     } catch (error) {
       if (error instanceof IntentParseError) {

@@ -9,6 +9,7 @@ import { useSpeechInput } from "@/lib/voice/useSpeechInput";
 
 import IntentBars, { AXES } from "./IntentBars";
 import MicButton from "./MicButton";
+import PresetCards, { type Recommendation } from "./PresetCards";
 
 /**
  * Panel de conversación con el agente de mastering.
@@ -47,6 +48,8 @@ export interface ChatPanelProps {
   profile?: Profile;
   /** Se dispara cada vez que el agente propone un perfil nuevo. */
   onProfileChange?: (profile: Profile) => void;
+  /** Se dispara cuando el usuario elige uno de los presets sugeridos. */
+  onPresetSelect?: (presetId: string) => void;
   /** Lee las respuestas en voz alta. */
   voiceOutput?: boolean;
   /**
@@ -60,6 +63,7 @@ export interface ChatPanelProps {
 export default function ChatPanel({
   profile: controlledProfile,
   onProfileChange,
+  onPresetSelect,
   voiceOutput = true,
   welcome,
 }: ChatPanelProps) {
@@ -71,6 +75,9 @@ export default function ChatPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [trackType, setTrackType] = useState<string>("unknown");
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastChanged = turns.at(-1)?.changed ?? [];
@@ -106,6 +113,8 @@ export default function ChatPanel({
 
         const changed: string[] = (data.changes ?? []).map((c: { axis: string }) => c.axis);
         setTurns([...history, { role: "assistant", content: data.reply, changed }]);
+        setRecommendations(data.recommendations ?? []);
+        setTrackType(data.trackType ?? "unknown");
 
         if (controlledProfile === undefined) setInternalProfile(data.profile);
         onProfileChange?.(data.profile);
@@ -234,6 +243,26 @@ export default function ChatPanel({
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {recommendations.length > 0 && !busy && (
+            <div className="pt-1">
+              <p
+                className="mb-2 text-xs tracking-tight"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Elegí por dónde arrancar
+                {trackType !== "unknown" && ` · ${trackType === "vocal" ? "con voz" : "instrumental"}`}
+              </p>
+              <PresetCards
+                recommendations={recommendations}
+                selected={selectedPreset}
+                onSelect={(id) => {
+                  setSelectedPreset(id);
+                  onPresetSelect?.(id);
+                }}
+              />
+            </div>
+          )}
 
           {busy && (
             <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>

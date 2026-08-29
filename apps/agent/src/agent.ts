@@ -10,6 +10,7 @@ import {
   type IntentProfile,
 } from "./intentProfile.js";
 import { SYSTEM_PROMPT, buildContextBlock, type TrackAnalysis } from "./prompt.js";
+import { PRESET_IDS, TRACK_TYPES, type PresetId, type TrackType } from "./presets.js";
 
 /** Sobreescribible por si cambia el catalogo de modelos sin tocar codigo. */
 export const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.7-flash";
@@ -42,12 +43,25 @@ function isTransient(error: unknown): boolean {
  * garantiza: el contrato lo hace cumplir Zod aca. Un valor fuera de rango se
  * rechaza, no se recorta en silencio.
  */
+const RecommendationSchema = z.object({
+  preset_id: z.enum(PRESET_IDS),
+  why: z.string(),
+});
+
 const AgentResponseSchema = z.object({
   reply: z.string(),
   needs_clarification: z.boolean(),
   clarifying_question: z.string(),
+  track_type: z.enum(TRACK_TYPES),
+  // Exactamente 3: el schema de Gemini lo pide pero no lo garantiza.
+  recommendations: z.array(RecommendationSchema).length(3),
   profile: IntentProfileSchema,
 });
+
+export interface Recommendation {
+  presetId: PresetId;
+  why: string;
+}
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -80,6 +94,10 @@ export interface InterpretResult {
   profile: IntentProfile;
   /** Ejes que se movieron respecto del perfil de entrada. Alimenta la UI. */
   changes: AxisChange[];
+  /** Los 3 presets sugeridos, del mas al menos recomendado. */
+  recommendations: Recommendation[];
+  /** Si el track lleva voz. "unknown" hasta que haya evidencia. */
+  trackType: TrackType;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -216,6 +234,8 @@ export async function interpretIntent(options: InterpretOptions): Promise<Interp
     clarifyingQuestion: parsed.clarifying_question,
     profile,
     changes: diffProfiles(currentProfile, profile),
+    recommendations: parsed.recommendations.map((r) => ({ presetId: r.preset_id, why: r.why })),
+    trackType: parsed.track_type,
     usage: { inputTokens, outputTokens },
     servedBy,
   };

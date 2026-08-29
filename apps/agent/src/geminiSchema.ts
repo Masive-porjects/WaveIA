@@ -1,6 +1,7 @@
 import { Type, type Schema } from "@google/genai";
 
 import { AXES } from "./intentProfile.js";
+import { PRESET_IDS, TRACK_TYPES } from "./presets.js";
 
 /**
  * El schema que se le manda a Gemini para forzar la salida estructurada.
@@ -52,6 +53,25 @@ const intentProfileSchema: Schema = {
   required: [...AXES, "target_platform", "reference_genre", "notes"],
 };
 
+const recommendationSchema: Schema = {
+  type: Type.OBJECT,
+  description: "Un preset recomendado, con el porque en el idioma del usuario.",
+  properties: {
+    preset_id: {
+      type: Type.STRING,
+      enum: [...PRESET_IDS],
+      description: "Id exacto del preset. Solo uno de la lista.",
+    },
+    why: {
+      type: Type.STRING,
+      description:
+        "Una frase corta explicando por que le sirve a ESTE track. Sin terminos tecnicos.",
+    },
+  },
+  required: ["preset_id", "why"],
+  propertyOrdering: ["preset_id", "why"],
+};
+
 export const AGENT_RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -68,10 +88,37 @@ export const AGENT_RESPONSE_SCHEMA: Schema = {
       description:
         "Pregunta concreta con dos o tres opciones. Cadena vacia si needs_clarification es false.",
     },
+    track_type: {
+      type: Type.STRING,
+      enum: [...TRACK_TYPES],
+      description:
+        'Si el track tiene voz. "unknown" mientras no haya evidencia: no lo adivines.',
+    },
+    recommendations: {
+      type: Type.ARRAY,
+      description: "Exactamente 3 presets, del mas al menos recomendado, sin repetir.",
+      items: recommendationSchema,
+      minItems: "3",
+      maxItems: "3",
+    },
     profile: intentProfileSchema,
   },
-  required: ["reply", "needs_clarification", "clarifying_question", "profile"],
-  // Gemini respeta este orden al generar. Poner el perfil al final deja que el
-  // modelo razone en la respuesta antes de comprometer los numeros.
-  propertyOrdering: ["reply", "needs_clarification", "clarifying_question", "profile"],
+  required: [
+    "reply",
+    "needs_clarification",
+    "clarifying_question",
+    "track_type",
+    "recommendations",
+    "profile",
+  ],
+  // Gemini respeta este orden al generar. El perfil va al final para que el
+  // modelo razone en la respuesta y en los presets antes de comprometer numeros.
+  propertyOrdering: [
+    "reply",
+    "needs_clarification",
+    "clarifying_question",
+    "track_type",
+    "recommendations",
+    "profile",
+  ],
 };
