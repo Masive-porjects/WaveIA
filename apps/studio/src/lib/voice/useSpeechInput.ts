@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /**
  * Reconocimiento de voz con la Web Speech API del navegador.
@@ -74,7 +74,15 @@ export interface SpeechInput {
 export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput {
   const { lang = "es-ES", onFinal } = options;
 
-  const [supported, setSupported] = useState(false);
+  // useSyncExternalStore en vez de estado + efecto: el soporte del navegador no
+  // cambia en runtime, y setState dentro de un efecto dispara render en cascada.
+  // En el servidor devuelve false, asi que no hay mismatch de hidratacion.
+  const supported = useSyncExternalStore(
+    () => () => {},
+    () => getConstructor() !== null,
+    () => false,
+  );
+
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -82,16 +90,16 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const finalRef = useRef("");
   // En un ref para que cambiar el callback no reinicie el reconocimiento.
+  // Se asigna en un efecto y no durante el render: escribir un ref mientras se
+  // renderiza rompe con StrictMode y con render concurrente.
   const onFinalRef = useRef(onFinal);
-  onFinalRef.current = onFinal;
+  useEffect(() => {
+    onFinalRef.current = onFinal;
+  }, [onFinal]);
 
   useEffect(() => {
     const Ctor = getConstructor();
-    if (!Ctor) {
-      setSupported(false);
-      return;
-    }
-    setSupported(true);
+    if (!Ctor) return;
 
     const recognition = new Ctor();
     recognition.lang = lang;

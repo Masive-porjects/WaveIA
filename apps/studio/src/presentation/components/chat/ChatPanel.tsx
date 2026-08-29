@@ -49,12 +49,19 @@ export interface ChatPanelProps {
   onProfileChange?: (profile: Profile) => void;
   /** Lee las respuestas en voz alta. */
   voiceOutput?: boolean;
+  /**
+   * Saludo inicial del agente. Se muestra como un turno suyo pero NO se manda
+   * al modelo: `contents` tiene que empezar con un turno de usuario, y ademas
+   * no hay nada que interpretar en un saludo.
+   */
+  welcome?: string;
 }
 
 export default function ChatPanel({
   profile: controlledProfile,
   onProfileChange,
   voiceOutput = true,
+  welcome,
 }: ChatPanelProps) {
   const [internalProfile, setInternalProfile] = useState<Profile>(NEUTRAL_PROFILE);
   const profile = controlledProfile ?? internalProfile;
@@ -165,6 +172,18 @@ export default function ChatPanel({
       </header>
 
       <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-5">
+        {welcome && turns.length === 0 && (
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+            className="py-2 text-sm leading-relaxed"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {welcome}
+          </motion.p>
+        )}
+
         {turns.length === 0 && (
           <div className="flex flex-wrap gap-2 py-2">
             {SUGERENCIAS.map((s) => (
