@@ -16,6 +16,25 @@ export interface SpeakResult {
   cached: boolean;
 }
 
+/** Lo que esta sonando ahora, para poder cortarlo al abrir el microfono. */
+let current: HTMLAudioElement | null = null;
+
+/**
+ * Corta la voz del agente.
+ *
+ * Se llama al abrir el microfono: si el agente sigue hablando, el microfono lo
+ * graba a el y transcribe su propia respuesta.
+ */
+export function stopSpeaking(): void {
+  if (current) {
+    current.pause();
+    current = null;
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
 /** Voz en espanol del navegador, la primera que aparezca. */
 function pickSpanishVoice(): SpeechSynthesisVoice | undefined {
   const voices = window.speechSynthesis.getVoices();
@@ -43,10 +62,13 @@ function playAudio(blob: Blob, cached: boolean): Promise<SpeakResult> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    current = audio;
     const done = (source: SpeakSource) => {
       URL.revokeObjectURL(url);
+      if (current === audio) current = null;
       resolve({ source, cached });
     };
+    audio.onpause = () => done("elevenlabs");
     audio.onended = () => done("elevenlabs");
     audio.onerror = () => done("none");
     void audio.play().catch(() => done("none"));

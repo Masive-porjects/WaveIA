@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Send, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { speak } from "@/lib/voice/speak";
+import { speak, stopSpeaking } from "@/lib/voice/speak";
 import { useSpeechInput } from "@/lib/voice/useSpeechInput";
 
 import MicButton from "./MicButton";
@@ -331,6 +331,16 @@ export default function ChatPanel({
         </div>
       </div>
 
+      {mic.error && (
+        <p
+          className="relative mx-6 mb-2 rounded-lg px-3 py-2 text-xs leading-relaxed"
+          style={{ background: "var(--surface-hover)", color: "var(--accent-warning)" }}
+          role="status"
+        >
+          {mic.error}
+        </p>
+      )}
+
       {mic.transcript && (
         <p className="relative px-5 pb-1 text-xs italic" style={{ color: "var(--text-muted)" }}>
           {mic.transcript}
@@ -344,7 +354,15 @@ export default function ChatPanel({
           listening={mic.listening}
           disabled={busy}
           transcript={mic.transcript}
-          onToggle={mic.toggle}
+          onToggle={() => {
+            // El agente deja de hablar al abrir el microfono: si no, se graba
+            // a si mismo y transcribe su propia respuesta.
+            if (!mic.listening) {
+              stopSpeaking();
+              setSpeaking(false);
+            }
+            mic.toggle();
+          }}
           onCancel={mic.cancel}
         />
 

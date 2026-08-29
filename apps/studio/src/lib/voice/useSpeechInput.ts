@@ -120,6 +120,14 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
   const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Distingue "el usuario corto" de "descarto": onend no sabe por que paso.
   const discardRef = useRef(false);
+  /**
+   * Lo que el usuario QUIERE, que no es lo mismo que lo que el navegador hace.
+   *
+   * Chrome termina la sesion de reconocimiento por su cuenta cada pocos
+   * segundos aunque continuous sea true. Sin este ref, cada corte del navegador
+   * se interpretaba como "el usuario termino" y el microfono se apagaba solo.
+   */
+  const wantListeningRef = useRef(false);
   // En un ref para que cambiar el callback no reinicie el reconocimiento.
   // Se asigna en un efecto y no durante el render: escribir un ref mientras se
   // renderiza rompe con StrictMode y con render concurrente.
@@ -168,6 +176,17 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
     };
 
     recognition.onend = () => {
+      // Chrome corta por su cuenta: si el usuario no pidio terminar, se
+      // reanuda y para el la toma nunca se interrumpio.
+      if (wantListeningRef.current && !discardRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          // Si no se puede reanudar, se cierra la toma normalmente.
+        }
+      }
+
       setListening(false);
       if (silenceRef.current) {
         clearTimeout(silenceRef.current);
@@ -180,6 +199,7 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
 
     recognitionRef.current = recognition;
     return () => {
+      wantListeningRef.current = false;
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
@@ -194,13 +214,32 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
     if (!recognition || listening) return;
     finalRef.current = "";
     discardRef.current = false;
+    wantListeningRef.current = true;
     setTranscript("");
     setError(null);
     try {
       recognition.start();
       setListening(true);
-    } catch {
-      // start() tira si ya estaba corriendo. No es un error para el usuario.
+    } catch (err) {
+      // InvalidStateError = la sesion anterior todavia no cerro. Se reintenta
+      // una vez; cualquier otra cosa se le muestra al usuario en vez de dejar
+      // el boton mudo, que era lo que hacia antes.
+      if (err instanceof DOMException && err.name === "InvalidStateError") {
+        recognition.abort();
+        setTimeout(() => {
+          if (!wantListeningRef.current) return;
+          try {
+            recognition.start();
+            setListening(true);
+          } catch {
+            wantListeningRef.current = false;
+            setError("No pude abrir el micrófono. Recargá la página.");
+          }
+        }, 120);
+        return;
+      }
+      wantListeningRef.current = false;
+      setError("No pude abrir el micrófono. Revisá que ninguna otra app lo esté usando.");
     }
   }, [listening]);
 
@@ -213,11 +252,13 @@ export function useSpeechInput(options: UseSpeechInputOptions = {}): SpeechInput
 
   const stop = useCallback(() => {
     clearSilence();
+    wantListeningRef.current = false;
     recognitionRef.current?.stop();
   }, [clearSilence]);
 
   const cancel = useCallback(() => {
     clearSilence();
+    wantListeningRef.current = false;
     discardRef.current = true;
     finalRef.current = "";
     setTranscript("");
