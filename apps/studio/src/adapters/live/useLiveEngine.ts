@@ -153,8 +153,8 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       onStateChange: (state) => {
         setConnectionState(state);
         onConnectionStateChange?.(state);
-        // Pol+—tica de neutral: anotar el momento de la ca+—da; se resetea
-        // a defaults si sigue ca+—do > NEUTRAL_AFTER_MS (spec AGENTS.md).
+        // Política de neutral: anotar el momento de la caída; se resetea
+        // a defaults si sigue caído > NEUTRAL_AFTER_MS (spec AGENTS.md).
         if (state === 'connected' || state === 'connecting') {
           disconnectSinceRef.current = null;
         } else if (disconnectSinceRef.current === null) {
@@ -207,7 +207,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, []);
 
-  // ── Neutral policy: socket ca+—do > 2 s — volver a defaults (spec) ──
+  // ── Neutral policy: socket caído > 2 s → volver a defaults (spec) ──
   const disconnectSinceRef = useRef<number | null>(null);
 
   const resetToNeutral = useCallback(() => {
@@ -221,7 +221,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     const check = () => {
       const since = disconnectSinceRef.current;
       if (since !== null && Date.now() - since > NEUTRAL_AFTER_MS) {
-        disconnectSinceRef.current = null; // reset una sola vez por ca+—da
+        disconnectSinceRef.current = null; // reset una sola vez por caída
         resetToNeutral();
       }
     };
