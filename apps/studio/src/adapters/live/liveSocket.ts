@@ -1,5 +1,5 @@
 /**
- * Live Socket Client ÔÇö WebSocket connection to Bridge (localhost:8765).
+ * Live Socket Client â€” WebSocket connection to Bridge (localhost:8765).
  * Handles auto-reconnect, ping/pong for RTT, and typed message parsing.
  */
 
@@ -11,8 +11,8 @@ export interface LiveSocketConfig {
   url?: string;                    // Default: ws://localhost:8765
   reconnectInterval?: number;      // Base reconnect interval (ms)
   maxReconnectInterval?: number;   // Max reconnect interval (ms)
-  pingInterval?: number;           // Heartbeat interval (ms) ÔÇö spec: 5000
-  pongTimeout?: number;            // Max ms without PONG before marking socket stale (default: 2 +ù heartbeat)
+  pingInterval?: number;           // Heartbeat interval (ms) â€” spec: 5000
+  pongTimeout?: number;            // Max ms without PONG before marking socket stale (default: 2 Ã— heartbeat)
   onStateChange?: (state: ConnectionState) => void;
   onParams?: (params: LiveParams) => void;
   onHello?: (data: HelloData) => void;
@@ -65,7 +65,7 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
     reconnectInterval = 1000,
     maxReconnectInterval = 5000,
     pingInterval = 5000,           // spec: heartbeat cada 5 s
-    pongTimeout = 10000,           // 2 +ù heartbeat
+    pongTimeout = 10000,           // 2 Ã— heartbeat
     onStateChange,
     onParams,
     onHello,
@@ -159,17 +159,17 @@ export function createLiveSocket(config: LiveSocketConfig = {}) {
     clearWatchdog();
   }
 
-  // Watchdog: si no llega PONG dentro de pongTimeout, el socket est+í
+  // Watchdog: si no llega PONG dentro de pongTimeout, el socket estÃ¡
   // "stale" (conectado a nivel TCP pero muerto a nivel protocolo).
   // El deadline se fija con el PRIMER PING sin respuesta: no se rearma
-  // con cada heartbeat, o nunca vencer+¡a.
+  // con cada heartbeat, o nunca vencerÃ­a.
   function armWatchdog() {
     if (pongWatchdog) return;
     pongWatchdog = setTimeout(() => {
       pongWatchdog = null;
       if (ws && ws.readyState === WebSocket.OPEN) {
         setState('stale');
-        onError?.(new Error('LiveSocket: no PONG within ' + pongTimeout + 'ms ÔÇö socket stale'));
+        onError?.(new Error('LiveSocket: no PONG within ' + pongTimeout + 'ms â€” socket stale'));
       }
     }, pongTimeout);
   }

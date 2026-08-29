@@ -1,5 +1,5 @@
 /**
- * useLiveEngine ��� React hook orchestrating the complete live engine.
+ * useLiveEngine — React hook orchestrating the complete live engine.
  * Manages: AudioContext, AudioGraph, WebSocket, Recorder, and UI state.
  */
 
@@ -53,7 +53,7 @@ export interface UseLiveEngineReturn {
 
 /**
  * Main hook for the Live Engine.
- * Handles the complete pipeline: WebSocket ��� Params ��� AudioGraph ��� Recorder.
+ * Handles the complete pipeline: WebSocket → Params → AudioGraph → Recorder.
  */
 export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineReturn {
   const {
@@ -67,14 +67,14 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     onError,
   } = options;
 
-  // ������ Refs for persistent objects ������������������������������������������������������������������������������������������������������
+  // ── Refs for persistent objects ──────────────────────────────────
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioGraphRef = useRef<AudioGraph | null>(null);
   const socketRef = useRef<ReturnType<typeof createLiveSocket> | null>(null);
   const recorderRef = useRef<ReturnType<typeof createRecorder> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // ������ React State ������������������������������������������������������������������������������������������������������������������������������������������������������
+  // ── React State ──────────────────────────────────────────────────
   const [params, setParamsState] = useState<LiveParams>(() => ({
     ...LIVE_PARAM_DEFAULTS,
     ts: Date.now(),
@@ -103,7 +103,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     paramsRef.current = params;
   }, [params]);
 
-  // ������ Initialize AudioContext ������������������������������������������������������������������������������������������������������������������
+  // ── Initialize AudioContext ──────────────────────────────────────
   useEffect(() => {
     if (!audioContextRef.current) {
       const ctx = providedContext || new AudioContext({ latencyHint: 'interactive' });
@@ -111,7 +111,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     }
   }, [providedContext]);
 
-  // ������ Initialize AudioGraph when buffer is ready ���������������������������������������������������������
+  // ── Initialize AudioGraph when buffer is ready ───────────────────
   useEffect(() => {
     const ctx = audioContextRef.current;
     if (!ctx || !masterAudioBuffer || audioGraphRef.current) return;
@@ -146,15 +146,15 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, [masterAudioBuffer]);
 
-  // ������ Initialize WebSocket ���������������������������������������������������������������������������������������������������������������������������
+  // ── Initialize WebSocket ─────────────────────────────────────────
   useEffect(() => {
     const socket = createLiveSocket({
       url: wsUrl,
       onStateChange: (state) => {
         setConnectionState(state);
         onConnectionStateChange?.(state);
-        // Pol+�tica de neutral: anotar el momento de la ca+�da; se resetea
-        // a defaults si sigue ca+�do > NEUTRAL_AFTER_MS (spec AGENTS.md).
+        // Política de neutral: anotar el momento de la caída; se resetea
+        // a defaults si sigue caído > NEUTRAL_AFTER_MS (spec AGENTS.md).
         if (state === 'connected' || state === 'connecting') {
           disconnectSinceRef.current = null;
         } else if (disconnectSinceRef.current === null) {
@@ -186,7 +186,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, [wsUrl]);
 
-  // ������ Analyser / Output Level Loop ������������������������������������������������������������������������������������������������
+  // ── Analyser / Output Level Loop ────────────────────────────────
   useEffect(() => {
     const graph = audioGraphRef.current;
     if (!graph) return;
@@ -207,7 +207,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, []);
 
-  // ������ Neutral policy: socket ca+�do > 2 s ��� volver a defaults (spec) ������
+  // ── Neutral policy: socket caído > 2 s → volver a defaults (spec) ──
   const disconnectSinceRef = useRef<number | null>(null);
 
   const resetToNeutral = useCallback(() => {
@@ -221,7 +221,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     const check = () => {
       const since = disconnectSinceRef.current;
       if (since !== null && Date.now() - since > NEUTRAL_AFTER_MS) {
-        disconnectSinceRef.current = null; // reset una sola vez por ca+�da
+        disconnectSinceRef.current = null; // reset una sola vez por caída
         resetToNeutral();
       }
     };
@@ -229,7 +229,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     return () => clearInterval(id);
   }, [resetToNeutral]);
 
-  // ������ Parameter Setters ������������������������������������������������������������������������������������������������������������������������������������
+  // ── Parameter Setters ────────────────────────────────────────────
   const setParams = useCallback((newParams: Partial<LiveParams>) => {
     setParamsState(prev => {
       const merged = { ...prev, ...newParams, ts: Date.now() };
@@ -248,7 +248,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     });
   }, [onParamsChange]);
 
-  // ������ Transport Controls ���������������������������������������������������������������������������������������������������������������������������������
+  // ── Transport Controls ───────────────────────────────────────────
   const play = useCallback(() => {
     audioGraphRef.current?.start(true);
     setIsPlaying(true);
@@ -264,7 +264,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     setIsPlaying(false);
   }, []);
 
-  // ������ Recorder Controls ������������������������������������������������������������������������������������������������������������������������������������
+  // ── Recorder Controls ────────────────────────────────────────────
   const startRecording = useCallback(() => {
     recorderRef.current?.start();
     setRecorderState(prev => ({ ...prev, recording: true, paused: false, duration: 0 }));
@@ -279,7 +279,7 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     recorderRef.current?.download(filename);
   }, []);
 
-  // ������ Cleanup ������������������������������������������������������������������������������������������������������������������������������������������������������������������
+  // ── Cleanup ──────────────────────────────────────────────────────
   const destroy = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);

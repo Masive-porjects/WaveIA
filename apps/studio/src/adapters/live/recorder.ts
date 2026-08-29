@@ -1,5 +1,5 @@
 /**
- * Live Recorder ÔÇö Capture the live output using MediaRecorder.
+ * Live Recorder â€” Capture the live output using MediaRecorder.
  * Records the post-FX master signal. Detects best supported MIME type.
  */
 
