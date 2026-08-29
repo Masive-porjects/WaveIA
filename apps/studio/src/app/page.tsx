@@ -522,37 +522,14 @@ export default function Home() {
           return; // Wait for user decision
         }
 
-        // Auto-process with overlay (unchanged flow)
-        setProcessing(true);
-        const controller = new AbortController();
-        abortRef.current = controller;
-        // Watchdog: never let the UI stay stuck if the backend hangs
-        const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
-        try {
-          const processed = await processAudio(
-            result.session_id,
-            mapped,
-            controller.signal,
-          );
-          completeProgress();
-          // Brief pause so the user sees 100% before the overlay exits
-          await new Promise((r) => setTimeout(r, 300));
-          setSession(processed);
-        } catch (err) {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            setError(
-              'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
-            );
-            return;
-          }
-          setError(
-            err instanceof Error ? err.message : "Auto-process failed",
-          );
-        } finally {
-          clearTimeout(watchdog);
-          setProcessing(false);
-          if (abortRef.current === controller) abortRef.current = null;
-        }
+        // Nada se masteriza solo: el usuario elige el filtro.
+        //
+        // El flujo viejo arrancaba un master automatico con el preset adivinado
+        // por genero, porque caia directo al dashboard. Ahora cae al chat, y
+        // ese overlay tapaba la conversacion aplicando un filtro que nadie
+        // pidio. Los parametros del genero quedan cargados como punto de
+        // partida, pero el motor recien corre cuando el usuario elige un preset
+        // o aprieta procesar en el dashboard.
       } catch (err) {
         // Map backend status codes to friendly messages
         if (err instanceof ApiError) {
@@ -587,7 +564,7 @@ export default function Home() {
         setUploadProgress(0);
       }
     },
-    [completeProgress],
+    [],
   );
 
   /* ── Reprocess ───────────────────────────────────── */
