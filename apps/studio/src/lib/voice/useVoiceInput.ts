@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BASE_PATH } from "@/lib/basePath";
+
 /**
  * Entrada de voz: graba con el micrófono y transcribe en el servidor.
  *
@@ -102,7 +104,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
       try {
         const form = new FormData();
         form.append("audio", blob, "voz.webm");
-        const res = await fetch("/voz/escuchar", { method: "POST", body: form });
+        const res = await fetch(`${BASE_PATH}/voz/escuchar`, { method: "POST", body: form });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
         const text = (data.text ?? "").trim();
