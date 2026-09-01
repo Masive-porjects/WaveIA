@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
 
@@ -7,6 +8,12 @@ export const metadata: Metadata = {
   title: "WaveAI — AI Mastering Studio",
   description: "Professional audio mastering powered by AI",
 };
+
+/**
+ * ConvexAuthNextjsProvider no soporta prerender estático (crash en
+ * /_not-found durante `next build`): forzamos render dinámico.
+ */
+export const dynamic = "force-dynamic";
 
 /**
  * iOS viewport config: allows fullscreen PWA-like behavior
@@ -28,7 +35,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen">
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexAuthNextjsServerProvider>
+          <ConvexClientProvider>{children}</ConvexClientProvider>
+        </ConvexAuthNextjsServerProvider>
         <Script id="theme-init" strategy="beforeInteractive">
           {`(function(){try{var t=localStorage.getItem("waveai-theme");if(t==="light"){document.documentElement.dataset.theme="light";}}catch(e){}})();`}
         </Script>

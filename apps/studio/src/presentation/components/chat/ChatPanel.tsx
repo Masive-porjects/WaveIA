@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { speak, stopSpeaking } from "@/lib/voice/speak";
 import { useVoiceInput } from "@/lib/voice/useVoiceInput";
+import { BASE_PATH } from "@/lib/basePath";
 import { decodeAgentText } from "@/lib/voice/decodeAgentText";
 
 import MicButton from "./MicButton";
@@ -143,7 +144,7 @@ export default function ChatPanel({
       setTurns(history);
 
       try {
-        const res = await fetch("/voz/chat", {
+        const res = await fetch(`${BASE_PATH}/voz/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

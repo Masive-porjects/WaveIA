@@ -1,5 +1,7 @@
 "use client";
 
+import { BASE_PATH } from "@/lib/basePath";
+
 /**
  * Reproduce una respuesta del agente en voz alta.
  *
@@ -86,7 +88,7 @@ export async function speak(text: string): Promise<SpeakResult> {
 
   let response: Response;
   try {
-    response = await fetch("/voz/speak", {
+    response = await fetch(`${BASE_PATH}/voz/speak`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),

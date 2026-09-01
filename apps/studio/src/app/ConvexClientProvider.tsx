@@ -1,33 +1,23 @@
 "use client";
 
-import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
-import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 
 /**
- * Sin una URL real de Convex no se instancia el cliente.
+ * Convex Auth v0.0.95 — la app NO consulta Convex todavía (0 imports de
+ * `convex/_generated`, auth desactivada con NEXT_PUBLIC_REQUIRE_AUTH).
  *
- * Antes se usaba `!` y el modulo explotaba al cargar, lo que tumbaba TODAS las
- * paginas para cualquiera que todavia no hubiera corrido `npx convex dev`.
- * Ahora la app arranca igual y solo falla lo que realmente consulta a Convex.
+ * El wrapper viejo `<ConvexAuthNextjsProvider>` (pre-0.0.9x) crashea en SSR
+ * con "Cannot destructure property 'isLoading' from null or undefined":
+ * su `useAuth` lee un contexto que solo setea `AuthProvider`, y el provider
+ * viejo no lo monta. El layout raíz ya envuelve la app con
+ * `ConvexAuthNextjsServerProvider` (API nueva), que SÍ monta AuthProvider
+ * con serverState — por eso aquí ya no hace falta nada.
  *
- * La decision se toma a nivel de modulo y no dentro del componente: resolverlo
- * adentro obliga a un return temprano antes de los hooks, que es justo lo que
- * las reglas de hooks prohiben.
+ * Cuando haya queries/auth reales, reemplazar este passthrough por:
+ *   import { ConvexAuthProvider } from "@convex-dev/auth/react";
+ *   const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+ *   <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>
  */
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-const isConfigured = Boolean(convexUrl) && !convexUrl!.includes("localhost");
-const convex = isConfigured ? new ConvexReactClient(convexUrl!) : null;
-
-if (!isConfigured && typeof window !== "undefined") {
-  console.warn(
-    "NEXT_PUBLIC_CONVEX_URL no esta configurada: la app corre sin Convex. " +
-      "Para habilitarlo, corre `npx convex dev` en apps/studio.",
-  );
-}
-
-/** Envuelve la app con el cliente de Convex + Convex Auth (login/sesión). */
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  if (!convex) return <>{children}</>;
-  return <ConvexAuthNextjsProvider client={convex}>{children}</ConvexAuthNextjsProvider>;
+  return <>{children}</>;
 }
