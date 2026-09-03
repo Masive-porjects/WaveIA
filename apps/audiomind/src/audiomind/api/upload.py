@@ -73,6 +73,18 @@ async def upload_audio(file: UploadFile = File(...)):
             pass  # Analysis is optional on upload; process will do it if needed
         finally:
             session.status = ProcessingStatus.UPLOADED
+            # Trigger pre-render of all presets once analysis is ready.
+            # Lazy import to avoid circular dependency (mastering imports upload).
+            if session.analysis is not None:
+                try:
+                    from audiomind.api.mastering import _prerender_all_presets
+                    _prerender_all_presets(
+                        session_id=session_id,
+                        input_path=str(file_path),
+                        analysis=session.analysis,
+                    )
+                except Exception:
+                    pass  # Pre-render is best-effort; never break upload
 
     task = loop.run_in_executor(None, _analyze)
     _background_tasks.add(task)

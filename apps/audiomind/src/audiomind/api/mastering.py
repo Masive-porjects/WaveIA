@@ -36,9 +36,128 @@ router = APIRouter()
 # so progress polling and other requests remain responsive during processing.
 _dsp_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dsp")
 
+# Separate executor for pre-rendering all presets in parallel after upload.
+# Uses 8 workers (one per preset) so all presets process concurrently.
+_prerender_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="prerender")
+
 # Engine's default proportional-processing intensity (see
 # ``process_audio`` signature). The Layer 2 auto-retry scales it down once.
 _BASE_INTENSITY_MULTIPLIER = 1.8
+
+# ── Pre-render cache: stores results for all presets ────────────────
+# Structure: {session_id: {preset_id: {"output_path", "master_result",
+# "validation", "status", "progress", "error"}}}
+# Status per preset: "pending" | "processing" | "completed" | "error"
+_prerender_cache: dict[str, dict[str, dict]] = {}
+
+
+def _build_preset_params(preset_id: str) -> MasteringParameters:
+    """Build MasteringParameters from a PRESET_CHAINS entry for pre-rendering.
+
+    Uses the preset's loudness/ceiling targets and character defaults.
+    Custom user slider overrides are NOT applied — pre-render uses the
+    canonical preset values so the result is always "factory default".
+    """
+    entry = PRESET_CHAINS[preset_id]
+    comp = entry.get("compressor", {})
+    return MasteringParameters(
+        clarity_wet=0.15 if entry.get("eq_character") == "brillante" else 0.1,
+        clarity_brightness_db=1.0 if entry.get("eq_character") == "brillante" else 0.5,
+        compression_ratio=comp.get("ratio", 2.0),
+        limiter_ceiling_db=entry.get("limiter_ceiling_db", -1.0),
+        transient_boost_db=1.0 if entry.get("eq_character") == "punch" else 0.5,
+        saturation_drive_db=entry.get("saturation", {}).get("drive_max", 0) if entry.get("saturation") else 0.0,
+        saturation_warmth_db=1.0 if entry.get("saturation") else 0.0,
+        stereo_width=1.2 if entry.get("spatial") else 1.0,
+        haas_delay_ms=5.0 if entry.get("spatial") else 0.0,
+        output_bit_depth=24,
+        target_lufs_db=entry.get("target_lufs"),
+    )
+
+
+def _prerender_single_preset(
+    session_id: str,
+    preset_id: str,
+    input_path: str,
+    analysis,
+) -> None:
+    """Process a single preset and store the result in _prerender_cache.
+
+    Runs inside _prerender_executor — one thread per preset.
+    """
+    cache = _prerender_cache.get(session_id, {})
+    entry = cache.get(preset_id, {})
+    entry["status"] = "processing"
+    entry["progress"] = 0.0
+
+    try:
+        params = _build_preset_params(preset_id)
+        output_path = (
+            settings.output_dir / f"{session_id}_{preset_id}_mastered.wav"
+        ).resolve()
+
+        def update_progress(pct: float) -> None:
+            entry["progress"] = max(0.0, min(1.0, pct))
+
+        result = process_audio(
+            input_path=input_path,
+            output_path=output_path,
+            params=params,
+            analysis_result=analysis,
+            intensity_multiplier=_BASE_INTENSITY_MULTIPLIER,
+            progress_cb=update_progress,
+        )
+
+        entry["output_path"] = str(output_path)
+        entry["master_result"] = _master_result_from_engine(result)
+        entry["progress"] = 1.0
+
+        # Best-effort validation
+        preset_entry = PRESET_CHAINS.get(preset_id)
+        if preset_entry is not None:
+            try:
+                verdict = validate_master(
+                    entry["master_result"], preset_entry, analysis
+                )
+                if verdict is not None:
+                    entry["validation"] = ValidationReport(**verdict)
+            except Exception:
+                pass
+
+        entry["status"] = "completed"
+    except Exception as e:
+        entry["status"] = "error"
+        entry["error"] = str(e)
+        entry["progress"] = 0.0
+
+
+def _prerender_all_presets(
+    session_id: str,
+    input_path: str,
+    analysis,
+) -> None:
+    """Launch pre-rendering of all presets in parallel (background task).
+
+    Called after upload/analysis completes. Each preset runs in its own
+    thread via _prerender_executor. Results are stored in _prerender_cache.
+    """
+    _prerender_cache[session_id] = {}
+    for preset_id in PRESET_CHAINS:
+        _prerender_cache[session_id][preset_id] = {
+            "status": "pending",
+            "progress": 0.0,
+            "output_path": None,
+            "master_result": None,
+            "validation": None,
+            "error": None,
+        }
+        _prerender_executor.submit(
+            _prerender_single_preset,
+            session_id,
+            preset_id,
+            input_path,
+            analysis,
+        )
 _RETRY_INTENSITY_SCALE = 0.8
 
 
@@ -249,6 +368,26 @@ async def process_session(
                     session.validation = None  # never break a cache hit
             return session
 
+    # ── Pre-render cache: serve dynamically pre-rendered master ── */
+    if preset_id and session_id in _prerender_cache:
+        entry = _prerender_cache[session_id].get(preset_id)
+        if (
+            entry
+            and entry["status"] == "completed"
+            and entry.get("output_path")
+        ):
+            cached_path = Path(entry["output_path"])
+            if cached_path.exists() and cached_path.stat().st_size > 0:
+                shutil.copy2(cached_path, output_path)
+                session.mastered_path = str(output_path)
+                session.parameters = params
+                session.status = ProcessingStatus.COMPLETED
+                session.progress = 1.0
+                session.error = None
+                session.master_result = entry.get("master_result")
+                session.validation = entry.get("validation")
+                return session
+
     # Use background analysis if already done; skip re-analysis entirely
     # when it's still running (status == ANALYZING) to avoid double work.
     # The engine handles analysis_result=None gracefully with safe defaults.
@@ -329,6 +468,126 @@ async def process_session(
         raise HTTPException(status_code=500, detail=session.error)
 
     return session
+
+
+# ── Pre-render endpoints ────────────────────────────────────────────
+
+
+@router.post("/session/{session_id}/prerender")
+async def trigger_prerender(session_id: str, _=Depends(require_license)):
+    """Trigger background pre-rendering of all presets for this session.
+
+    Launches 8 parallel DSP jobs (one per preset). Each preset's result
+    is stored in _prerender_cache and can be served instantly when the
+    user selects that preset via GET /prerender/{preset_id}.
+    """
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.original_path or not Path(session.original_path).exists():
+        raise HTTPException(
+            status_code=400, detail="No audio file found for this session"
+        )
+
+    # If already pre-rendered, return current status
+    if session_id in _prerender_cache:
+        completed = sum(
+            1 for v in _prerender_cache[session_id].values()
+            if v["status"] == "completed"
+        )
+        return {
+            "session_id": session_id,
+            "status": "in_progress" if completed < len(PRESET_CHAINS) else "completed",
+            "completed": completed,
+            "total": len(PRESET_CHAINS),
+        }
+
+    # Reuse existing analysis; compute only when missing
+    if not session.analysis and session.status != ProcessingStatus.ANALYZING:
+        try:
+            session.analysis = await asyncio.get_running_loop().run_in_executor(
+                _dsp_executor, analyze_audio, session.original_path
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+    # Launch pre-render in background (non-blocking)
+    _prerender_all_presets(
+        session_id=session_id,
+        input_path=session.original_path,
+        analysis=session.analysis,
+    )
+
+    return {
+        "session_id": session_id,
+        "status": "in_progress",
+        "completed": 0,
+        "total": len(PRESET_CHAINS),
+    }
+
+
+@router.get("/session/{session_id}/prerender/status")
+async def prerender_status(session_id: str):
+    """Check which presets have been pre-rendered for this session.
+
+    Returns a dict mapping preset_id -> {status, progress, ...}.
+    """
+    cache = _prerender_cache.get(session_id)
+    if not cache:
+        return {"session_id": session_id, "presets": {}, "status": "not_started"}
+
+    presets = {}
+    completed = 0
+    errors = 0
+    for preset_id, info in cache.items():
+        presets[preset_id] = {
+            "status": info["status"],
+            "progress": info.get("progress", 0.0),
+        }
+        if info["status"] == "completed":
+            completed += 1
+        elif info["status"] == "error":
+            errors += 1
+
+    total = len(PRESET_CHAINS)
+    overall = "completed" if completed == total else "in_progress"
+
+    return {
+        "session_id": session_id,
+        "status": overall,
+        "completed": completed,
+        "errors": errors,
+        "total": total,
+        "presets": presets,
+    }
+
+
+@router.get("/session/{session_id}/prerender/{preset_id}")
+async def get_prerendered(session_id: str, preset_id: str):
+    """Serve a pre-rendered master for instant playback.
+
+    If the preset is cached, returns the mastered file immediately.
+    Falls back to processing on demand if not cached.
+    """
+    cache = _prerender_cache.get(session_id, {})
+    entry = cache.get(preset_id)
+
+    if entry and entry["status"] == "completed" and entry.get("output_path"):
+        path = Path(entry["output_path"])
+        if path.exists() and path.stat().st_size > 0:
+            # Also update the session so the rest of the app sees it
+            session = sessions.get(session_id)
+            if session:
+                session.mastered_path = str(path)
+                session.master_result = entry.get("master_result")
+                session.validation = entry.get("validation")
+            return FileResponse(str(path), media_type="audio/wav", filename=path.name)
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Preset '{preset_id}' not ready yet. Check GET /prerender/status.",
+    )
 
 
 @router.post(
@@ -558,13 +817,13 @@ async def download_audio(
         return FileResponse(
             str(mp3_path),
             media_type="audio/mpeg",
-            filename=f"{session_id}_mastered.mp3",
+            filename="BrikmasterFinal.mp3",
         )
 
     return FileResponse(
         session.mastered_path,
         media_type="audio/wav",
-        filename=f"{session_id}_mastered.wav",
+        filename="BrikmasterFinal.wav",
     )
 
 

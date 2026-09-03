@@ -1165,7 +1165,7 @@ export default function Home() {
                       <h1 className="text-2xl md:text-4xl font-bold mb-1 text-knockout"
                         style={{ letterSpacing: "-0.04em" }}
                       >
-                        Masterizá Tu <span className="serif-accent" style={{ color: "hsl(var(--foreground))", WebkitTextFillColor: "hsl(var(--foreground))" }}>Música</span>
+                        Masterizá Tu <span className="serif-accent">Música</span>
                       </h1>
 
                       <p className="text-[var(--text-muted)] text-sm">

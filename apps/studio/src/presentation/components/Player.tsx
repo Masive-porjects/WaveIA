@@ -249,50 +249,6 @@ export default function Player({
     }
   }, [source]);
 
-  /* ── GSAP life on the active waveform while playing ── */
-  useEffect(() => {
-    const activeEl =
-      source === "mastered"
-        ? overlayMastRef.current
-        : source === "reference"
-          ? overlayRefPtr.current
-          : overlayOrigRef.current;
-    if (!activeEl || !isPlaying) return;
-    gsap.set(activeEl, { transformOrigin: "50% 50%" });
-    const tl = gsap.timeline({ repeat: -1, yoyo: true });
-    tl.to(activeEl, {
-      scaleY: 1.12,
-      scaleX: 1.04,
-      y: -4,
-      duration: 0.55,
-      ease: "power2.inOut",
-    })
-      .to(activeEl, {
-        scaleY: 0.93,
-        scaleX: 0.98,
-        y: 3,
-        duration: 0.4,
-        ease: "sine.inOut",
-      })
-      .to(activeEl, {
-        scaleY: 1.15,
-        scaleX: 1.05,
-        y: -3,
-        duration: 0.65,
-        ease: "power2.inOut",
-      })
-      .to(activeEl, {
-        scaleY: 1,
-        scaleX: 1,
-        y: 0,
-        duration: 0.35,
-        ease: "sine.inOut",
-      });
-    return () => {
-      tl.kill();
-      gsap.set(activeEl, { scaleY: 1, scaleX: 1, y: 0 });
-    };
-  }, [isPlaying, source]);
 
   const hasBoth = !!(originalUrl && masteredUrl);
 
