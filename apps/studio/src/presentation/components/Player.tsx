@@ -375,6 +375,7 @@ export default function Player({
 
       const onMastTime = (t: number) => {
         if (isCleaningRef.current) return;
+        setCurrentTime(t);
         if (sourceRef.current === "mastered" && !syncGuardRef.current) {
           syncGuardRef.current = true;
           wsOrigRef.current?.setTime(t);
