@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
 
@@ -10,8 +9,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * ConvexAuthNextjsProvider no soporta prerender estático (crash en
- * /_not-found durante `next build`): forzamos render dinámico.
+ * Convex está desconectado de la UI (el provider es un passthrough).
+ * Se quitó ConvexAuthNextjsServerProvider del layout: exigía
+ * NEXT_PUBLIC_CONVEX_URL y crasheaba la app con 500 sin ella.
+ * Se mantiene force-dynamic para cuando el client real de Convex se conecte.
  */
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen">
-        <ConvexAuthNextjsServerProvider>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </ConvexAuthNextjsServerProvider>
+        <ConvexClientProvider>{children}</ConvexClientProvider>
         <Script id="theme-init" strategy="beforeInteractive">
           {`(function(){try{var t=localStorage.getItem("waveai-theme");if(t==="light"){document.documentElement.dataset.theme="light";}}catch(e){}})();`}
         </Script>
