@@ -946,8 +946,12 @@ def process_audio(
     if params.target_lufs_db is not None:
         target_lufs_val = params.target_lufs_db
     else:
+        # Automatic loudness target. Clamped to the streaming-safe range:
+        # never hotter than -12 LUFS (Spotify/YouTube/Tidal normalize at -14,
+        # Apple at -16; louder masters are attenuated by the platforms while
+        # carrying over-compression and distortion).
         target_lufs_val = -14 + (1.0 - params.limiter_ceiling_db / -0.3) * 6
-        target_lufs_val = max(-14, min(-8, target_lufs_val))
+        target_lufs_val = max(-14, min(-12, target_lufs_val))
     effected = target_lufs(effected, sr, target_lufs_val)
     report(70)
 

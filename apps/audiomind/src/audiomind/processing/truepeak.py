@@ -267,12 +267,12 @@ def compute_codec_safe_ceiling(
     target_lufs: float,
     crest_factor_db: float,
     default_ceiling_db: float = -1.0,
-    aggressive_threshold_lufs: float = -10.0,
+    aggressive_threshold_lufs: float = -12.0,
     crest_threshold_db: float = 6.0,
 ) -> float:
     """Dynamically adjust the True Peak ceiling for lossy codec safety.
 
-    When a track is mastered to high loudness (low LUFS target like -8)
+    When a track is mastered to high loudness (low LUFS target like -12)
     AND has low crest factor (heavily compressed), lossy encoders
     (AAC, Ogg Vorbis, MP3) introduce inter-sample clipping during
     the time/frequency domain transform.
@@ -282,18 +282,19 @@ def compute_codec_safe_ceiling(
     from Spotify, Apple Music, and Tidal.
 
     Args:
-        target_lufs: Target LUFS from the preset (e.g., -8, -9, -12, -14).
+        target_lufs: Target LUFS from the preset (e.g., -12, -13, -14).
         crest_factor_db: Measured crest factor in dB.
         default_ceiling_db: Default ceiling when no adjustment is needed.
         aggressive_threshold_lufs: LUFS threshold for "aggressive" loudness
-                                   (default -10 LUFS).
+                                   (default -12 LUFS — the loudest target
+                                   the delivery now ever uses).
         crest_threshold_db: Crest factor threshold in dB.
                             Below this = heavily compressed (default 6.0 dB).
 
     Returns:
         Adjusted ceiling in dBTP (e.g., -1.0, -1.5, -2.0).
     """
-    # Only adjust for loud targets (<= -10 LUFS is "aggressively loud")
+    # Only adjust for loud targets (<= -12 LUFS is "aggressively loud")
     if target_lufs > aggressive_threshold_lufs:
         return default_ceiling_db
 

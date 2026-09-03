@@ -19,7 +19,11 @@ export const DEFAULT_PRESET_COLOR = { wave: "#ff3b30", progress: "#ff6b35" };
 
 /* ── Preset info map (target DSP values) ──────────────────
    Numbers mirror backend PRESET_CHAINS (audiomind.processing.presets)
-   — the backend is what actually runs, so it is the source of truth. */
+   — the backend is what actually runs, so it is the source of truth.
+   All targets are streaming-safe: LUFS in [-14, -12] and true-peak
+   ceiling ≤ -1.0 dBTP (Spotify/YouTube/Tidal -14/-1, Apple -16/-1), so a
+   master never gets attenuated by loudness normalization while carrying
+   over-compression or inter-sample clipping. */
 
 export interface PresetInfo {
   title: string;
@@ -32,11 +36,11 @@ export interface PresetInfo {
 
 export const PRESET_INFO: Record<string, PresetInfo> = {
   universal: { title: "Pulido", genre: "Multigénero", targetLufs: -14, ceiling: -1.0, ratio: 1.5, color: "#ff3b30" },
-  fuego: { title: "Brutal", genre: "Trap / Drill", targetLufs: -9, ceiling: -0.3, ratio: 4.0, color: "#ff6b00" },
-  claridad: { title: "Cristalino", genre: "Pop / Latin Pop", targetLufs: -12, ceiling: -1.5, ratio: 1.8, color: "#ffd700" },
+  fuego: { title: "Brutal", genre: "Trap / Drill", targetLufs: -12, ceiling: -1.0, ratio: 4.0, color: "#ff6b00" },
+  claridad: { title: "Cristalino", genre: "Pop / Latin Pop", targetLufs: -13, ceiling: -1.5, ratio: 1.8, color: "#ffd700" },
   cinta: { title: "Vintage", genre: "Lo-Fi / Hip Hop", targetLufs: -12, ceiling: -1.0, ratio: 2.5, color: "#ff8c00" },
   natural: { title: "Crudo", genre: "Acústico / Folk", targetLufs: -14, ceiling: -2.0, ratio: 1.1, color: "#34c759" },
-  espacial: { title: "Envolvente", genre: "Ambient / Electronic", targetLufs: -12, ceiling: -1.0, ratio: 1.6, color: "#af52de" },
-  cinematico: { title: "Épico", genre: "Rock / Alternativo", targetLufs: -8, ceiling: -0.3, ratio: 5.0, color: "#ff375f" },
-  empuje: { title: "Muro", genre: "Reggaeton / Dembow", targetLufs: -8, ceiling: -0.3, ratio: 6.0, color: "#ff453a" },
+  espacial: { title: "Envolvente", genre: "Ambient / Electronic", targetLufs: -13, ceiling: -1.0, ratio: 1.6, color: "#af52de" },
+  cinematico: { title: "Épico", genre: "Rock / Alternativo", targetLufs: -12, ceiling: -1.0, ratio: 5.0, color: "#ff375f" },
+  empuje: { title: "Muro", genre: "Reggaeton / Dembow", targetLufs: -12, ceiling: -1.0, ratio: 6.0, color: "#ff453a" },
 };

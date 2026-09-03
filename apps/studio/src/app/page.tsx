@@ -96,10 +96,11 @@ function genreToParams(genre: string | null): MasteringParameters {
     case "hip-hop":
     case "reggaeton":
       p.compression_ratio = 4.0;
-      p.limiter_ceiling_db = -0.5;
+      p.limiter_ceiling_db = -1.0;
       p.transient_boost_db = 2.0;
       p.haas_delay_ms = 5;
       p.stereo_width = 1.2;
+      p.target_lufs_db = -12;
       break;
     case "rock":
     case "indie":

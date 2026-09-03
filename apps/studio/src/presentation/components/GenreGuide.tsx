@@ -7,7 +7,7 @@ const GENRES = [
     emoji: "🎤",
     color: "#ff6b35",
     description:
-      "El sonido urbano moderno se caracteriza por la DOMINANCIA del sub-bass entre 50–80 Hz. En el mastering comercial, los transitorios se controlan de forma estricta para maximizar la densidad de volumen (LUFS competitivos de -8 a -10). La imagen estéreo tiende a ser angosta en las bajas frecuencias y abierta en los agudos, con una compresión agresiva del bus maestro que mantiene el ritmo constante y la energía sin picos disruptivos.",
+      "El sonido urbano moderno se caracteriza por la DOMINANCIA del sub-bass entre 50–80 Hz. En el mastering comercial para streaming, la densidad se controla con transitorios afinados para mantener la energía sin pasar del techo seguro de loudness (target -12 LUFS integrados y true-peak en -1 dBTP). Así el master suena caliente y consistente sin que Spotify/Apple/YouTube lo atenúen ni le sumen distorsión. La imagen estéreo tiende a ser angosta en las bajas frecuencias y abierta en los agudos, con una compresión del bus maestro que mantiene el ritmo constante y la energía sin picos disruptivos.",
     details: [
       "Sub-bass profundo y controlado (60 Hz con alta densidad espectral)",
       "Transitorios recortados para maximizar LUFS sin distorsión audible",
@@ -35,7 +35,7 @@ const GENRES = [
     emoji: "✨",
     color: "#ffd700",
     description:
-      "El pop comercial exige un BRILLO cristalino en las frecuencias altas (8–12 kHz) combinado con una compresión balanceada que mantenga la energía sin sacrificar claridad. La imagen estéreo es moderna y extendida, con pads y sintetizadores que llenan el espacio lateral mientras el kick y el bajo se mantienen sólidos en el centro. El target de loudness ronda los -10 a -12 LUFS, optimizado para streaming.",
+      "El pop comercial exige un BRILLO cristalino en las frecuencias altas (8–12 kHz) combinado con una compresión balanceada que mantenga la energía sin sacrificar claridad. La imagen estéreo es moderna y extendida, con pads y sintetizadores que llenan el espacio lateral mientras el kick y el bajo se mantienen sólidos en el centro. El target de loudness ronda los -13 a -14 LUFS integrados con true-peak en -1 dBTP, optimizado y seguro para streaming.",
     details: [
       "Brightness extensivo en el rango de 8–12 kHz para brillo 'air'",
       "Compresión multibanda suave para controlar picos sin bombear",

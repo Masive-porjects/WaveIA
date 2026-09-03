@@ -32,7 +32,7 @@ const PRESETS: PresetItem[] = [
   { id: "universal", title: "Pulido", icon: Sparkles, params: { ...DEFAULT_PARAMS } },
   {
     id: "fuego", title: "Brutal", icon: Flame,
-    params: { ...DEFAULT_PARAMS, compression_ratio: 5.0, transient_boost_db: 3.0, saturation_drive_db: 2.0, limiter_ceiling_db: -0.3 },
+    params: { ...DEFAULT_PARAMS, compression_ratio: 5.0, transient_boost_db: 3.0, saturation_drive_db: 2.0, limiter_ceiling_db: -1.0, target_lufs_db: -12 },
   },
   {
     id: "claridad", title: "Cristalino", icon: Sun,
@@ -56,7 +56,7 @@ const PRESETS: PresetItem[] = [
   },
   {
     id: "empuje", title: "Muro", icon: Zap,
-    params: { ...DEFAULT_PARAMS, compression_ratio: 8.0, limiter_ceiling_db: -0.1, transient_boost_db: 4.0, saturation_drive_db: 4.0 },
+    params: { ...DEFAULT_PARAMS, compression_ratio: 8.0, limiter_ceiling_db: -1.0, transient_boost_db: 4.0, saturation_drive_db: 4.0, target_lufs_db: -12 },
   },
 ];
 

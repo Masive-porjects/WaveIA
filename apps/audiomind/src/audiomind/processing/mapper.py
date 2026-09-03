@@ -22,9 +22,12 @@ _DYN_EQ_ENGAGE = 0.6  # clarity / vocal_focus
 
 # Loudness ramp limits. At 0.5 the target is None (engine automatic, which
 # at the neutral ceiling evaluates to -14 LUFS); above 0.5 it ramps toward
-# -9 LUFS at 1.0 so the axis is continuous with the engine's own math.
+# the max streaming-safe target. The cap is now -12 LUFS (the loudest a
+# delivery should ever be for universal normalization: Spotify/YouTube/Tidal
+# sit at -14, Apple at -16; anything hotter than -12 gets attenuated by the
+# platforms while carrying over-compression and distortion).
 _LOUDNESS_TARGET_NEUTRAL_DB = -14.0
-_LOUDNESS_TARGET_MAX_DB = -9.0
+_LOUDNESS_TARGET_MAX_DB = -12.0
 
 
 def _lerp(axis: float, anchors: list[tuple[float, float]]) -> float:

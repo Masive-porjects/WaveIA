@@ -16,8 +16,10 @@ from audiomind.processing.validation import (
     validate_master,
 )
 
-# fuego: target_lufs=-9, limiter_ceiling_db=-0.3
+# fuego: target_lufs=-12, limiter_ceiling_db=-1.0 (streaming-safe target)
 PRESET = PRESET_CHAINS["fuego"]
+_FUEGO_LUFS = PRESET["target_lufs"]
+_FUEGO_CEILING = PRESET["limiter_ceiling_db"]
 
 
 def _analysis(confidence: float = 0.9) -> AnalysisResult:
@@ -46,7 +48,7 @@ def _master(lufs=None, peak=None, crest=None) -> MasterResultMetrics:
 class TestAllOk:
     def test_within_tolerances_is_ok(self):
         verdict = validate_master(
-            _master(lufs=-9.2, peak=-0.4, crest=9.0), PRESET, _analysis()
+            _master(lufs=-12.2, peak=-1.4, crest=9.0), PRESET, _analysis()
         )
         assert verdict is not None
         assert verdict["status"] == "ok"
@@ -58,8 +60,8 @@ class TestAllOk:
         # Strictly-beyond comparisons: sitting exactly on a limit passes
         verdict = validate_master(
             _master(
-                lufs=-9 - LUFS_TOLERANCE_DB,
-                peak=PRESET["limiter_ceiling_db"] + TRUE_PEAK_MARGIN_DB,
+                lufs=_FUEGO_LUFS - LUFS_TOLERANCE_DB,
+                peak=_FUEGO_CEILING + TRUE_PEAK_MARGIN_DB,
                 crest=CREST_MINIMUM_DB,
             ),
             PRESET,
@@ -71,24 +73,24 @@ class TestAllOk:
 
 class TestLufsMiss:
     def test_below_target_reports_issue(self):
-        verdict = validate_master(_master(lufs=-11.1, crest=9.0), PRESET, _analysis())
+        verdict = validate_master(_master(lufs=-14.1, crest=9.0), PRESET, _analysis())
         assert verdict is not None
         assert verdict["status"] == "warning"
         issue = next(i for i in verdict["issues"] if i["metric"] == "lufs")
-        assert issue["measured"] == -11.1
-        assert "-9" in issue["expected"]
+        assert issue["measured"] == -14.1
+        assert f"{_FUEGO_LUFS}" in issue["expected"]
         assert "más bajo" in issue["message_es"]
         assert verdict["retry_recommended"] is True
 
     def test_above_target_reports_issue(self):
-        verdict = validate_master(_master(lufs=-7.0, crest=9.0), PRESET, _analysis())
+        verdict = validate_master(_master(lufs=-10.0, crest=9.0), PRESET, _analysis())
         issue = next(i for i in verdict["issues"] if i["metric"] == "lufs")
         assert "más alto" in issue["message_es"]
 
 
 class TestCrestCollapse:
     def test_low_crest_flags_over_compression(self):
-        verdict = validate_master(_master(lufs=-9.0, crest=4.2), PRESET, _analysis())
+        verdict = validate_master(_master(lufs=-12.0, crest=4.2), PRESET, _analysis())
         issue = next(i for i in verdict["issues"] if i["metric"] == "crest")
         assert issue["measured"] == 4.2
         assert "≥ 6 dB" == issue["expected"]
@@ -96,7 +98,7 @@ class TestCrestCollapse:
         assert verdict["status"] == "warning"
 
     def test_healthy_crest_has_no_crest_issue(self):
-        verdict = validate_master(_master(lufs=-9.0, crest=12.0), PRESET, _analysis())
+        verdict = validate_master(_master(lufs=-12.0, crest=12.0), PRESET, _analysis())
         assert verdict is not None
         assert all(i["metric"] != "crest" for i in verdict["issues"])
 
@@ -104,14 +106,14 @@ class TestCrestCollapse:
 class TestTruePeakOverCeiling:
     def test_peak_above_ceiling_flags_issue(self):
         verdict = validate_master(
-            _master(lufs=-9.0, peak=0.1), PRESET, _analysis()
+            _master(lufs=-12.0, peak=0.1), PRESET, _analysis()
         )
         issue = next(i for i in verdict["issues"] if i["metric"] == "true_peak")
         assert issue["measured"] == 0.1
         assert "techo" in issue["message_es"]
 
     def test_peak_at_ceiling_passes(self):
-        verdict = validate_master(_master(lufs=-9.0, peak=-0.3), PRESET, _analysis())
+        verdict = validate_master(_master(lufs=-12.0, peak=-1.0), PRESET, _analysis())
         assert verdict is not None
         assert all(i["metric"] != "true_peak" for i in verdict["issues"])
 
@@ -119,21 +121,21 @@ class TestTruePeakOverCeiling:
 class TestLowConfidenceSuggestion:
     def test_warning_with_low_confidence_suggests_universal(self):
         verdict = validate_master(
-            _master(lufs=-11.0, crest=9.0), PRESET, _analysis(confidence=0.4)
+            _master(lufs=-14.0, crest=9.0), PRESET, _analysis(confidence=0.4)
         )
         assert verdict is not None
         assert verdict["suggested_preset_id"] == "universal"
 
     def test_warning_with_high_confidence_has_no_suggestion(self):
         verdict = validate_master(
-            _master(lufs=-11.0, crest=9.0), PRESET, _analysis(confidence=0.85)
+            _master(lufs=-14.0, crest=9.0), PRESET, _analysis(confidence=0.85)
         )
         assert verdict is not None
         assert verdict["suggested_preset_id"] is None
 
     def test_ok_status_never_suggests_even_with_low_confidence(self):
         verdict = validate_master(
-            _master(lufs=-9.0, crest=9.0), PRESET, _analysis(confidence=0.1)
+            _master(lufs=-12.0, crest=9.0), PRESET, _analysis(confidence=0.1)
         )
         assert verdict is not None
         assert verdict["status"] == "ok"
@@ -155,7 +157,7 @@ class TestNullSafety:
         assert [i["metric"] for i in verdict["issues"]] == ["crest"]
 
     def test_missing_analysis_does_not_crash(self):
-        verdict = validate_master(_master(lufs=-11.0, crest=9.0), PRESET, None)
+        verdict = validate_master(_master(lufs=-14.0, crest=9.0), PRESET, None)
         assert verdict is not None
         assert verdict["status"] == "warning"
         assert verdict["suggested_preset_id"] == "universal"

@@ -91,7 +91,7 @@ class TestReferenceRender:
         data = resp.json()
 
         assert data["source_preset_id"] == "fuego"
-        assert data["target_lufs"] == -9  # fuego's target, not natural's -14
+        assert data["target_lufs"] == -12  # fuego's target, not natural's -14
         assert Path(data["reference_path"]).exists()
         assert Path(data["reference_path"]).read_bytes() == b"FAKE-REFERENCE-WAV"
 
@@ -106,8 +106,8 @@ class TestReferenceRender:
         assert params.stereo_width == pytest.approx(1.0)
         assert params.haas_delay_ms == 0
         # Loudness overridden with the source preset's targets
-        assert params.target_lufs_db == pytest.approx(-9)
-        assert params.limiter_ceiling_db == pytest.approx(-0.3)
+        assert params.target_lufs_db == pytest.approx(-12)
+        assert params.limiter_ceiling_db == pytest.approx(-1.0)
 
     def test_cache_hit_skips_rerender(self, monkeypatch):
         session_id = _make_session()
