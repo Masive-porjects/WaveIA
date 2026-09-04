@@ -37,8 +37,9 @@ RUN pip install --no-cache-dir --no-deps --no-build-isolation -e .
 
 RUN mkdir -p uploads outputs
 
-EXPOSE 8000
-
-# Railway provee $PORT; si no existe, cae a 8000.
+# Railway provee $PORT (tipicamente 8080); si no existe, cae a 8080 para
+# coincidir con el puerto de red configurado en Railway (Networking).
 # IMPORTANTE: el modulo es audiomind.main:app (src-layout), NO main:app.
-CMD ["sh", "-c", "uvicorn audiomind.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+EXPOSE 8080
+
+CMD ["sh", "-c", "uvicorn audiomind.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
