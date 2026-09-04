@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:convex": "convex dev",
-    "build": "next build",
+    "build": "bun run --filter @midimastering/agent build && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

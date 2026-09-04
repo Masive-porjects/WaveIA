@@ -9,7 +9,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "bun run --filter @midimastering/agent build && bun run --filter studio build",
+    "build": "bun run --filter studio build",
     "start": "bun run --filter studio start",
     "dev:studio": "bun run --filter studio dev",
     "dev:convex": "bun run --filter studio dev:convex",
