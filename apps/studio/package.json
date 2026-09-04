@@ -2,6 +2,9 @@
   "name": "studio",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:convex": "convex dev",

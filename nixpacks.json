@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "bun install --frozen-lockfile && bun run build",
+    "nixpacksConfig": {
+      "phases": {
+        "setup": {
+          "nixPkgs": ["nodejs_20"],
+          "aptPkgs": []
+        }
+      }
+    }
+  },
+  "deploy": {
+    "startCommand": "bun run start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
