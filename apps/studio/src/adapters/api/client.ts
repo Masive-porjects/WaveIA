@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+import { API_BASE } from "./config";
 
 /** Thrown when an API call fails. Carries the HTTP status code. */
 export class ApiError extends Error {

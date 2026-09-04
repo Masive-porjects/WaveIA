@@ -5,6 +5,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
 import { VIEW_TRANSITION, fadeUp } from "@/lib/motion";
+import { API_BASE } from "@/adapters/api/config";
 import DropZone from "@/components/DropZone";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ModulePanel, { PRESETS } from "@/components/ModulePanel";
@@ -1508,7 +1509,7 @@ export default function Home() {
                     <span className="text-xs text-[var(--text-secondary)]">
                       Voz procesada —{" "}
                       <a
-                        href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/session/${session.session_id}/vocal/audio`}
+                        href={`${API_BASE}/session/${session.session_id}/vocal/audio`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#5e5ce6] hover:underline"
@@ -1519,7 +1520,7 @@ export default function Home() {
                     <button
                       onClick={() => {
                         const a = document.createElement("a");
-                        a.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/session/${session.session_id}/vocal/audio`;
+                        a.href = `${API_BASE}/session/${session.session_id}/vocal/audio`;
                         a.download = `${session.session_id}_vocal.wav`;
                         a.click();
                       }}

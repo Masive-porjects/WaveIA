@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Play, Pause, Loader2, CheckCircle2, Mic2,
 } from "lucide-react";
+import { API_BASE } from "@/adapters/api/config";
 
 /* ── Types ───────────────────────────────────────────── */
 
@@ -165,7 +166,7 @@ export default function VocalChain({
 
   // The vocal endpoint doesn't serve via /stem, but via /vocal/audio
   const vocalAudioUrl = sessionId
-    ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/session/${sessionId}/vocal/audio`
+    ? `${API_BASE}/session/${sessionId}/vocal/audio`
     : null;
 
   // Play/pause the processed vocal

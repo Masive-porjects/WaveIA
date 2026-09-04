@@ -3,6 +3,8 @@
  * Loads original and mastered audio via file URLs + decodeAudioData.
  * No effect chain — backend handles all DSP via Pedalboard.
  */
+import { API_BASE } from "@/adapters/api/config";
+
 export class AudioProcessor {
   private context: AudioContext | null = null;
   private sourceNode: AudioBufferSourceNode | null = null;
@@ -19,7 +21,7 @@ export class AudioProcessor {
   private apiUrl: string;
 
   constructor(apiUrl?: string) {
-    this.apiUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    this.apiUrl = apiUrl || API_BASE;
   }
 
   async init(): Promise<void> {
