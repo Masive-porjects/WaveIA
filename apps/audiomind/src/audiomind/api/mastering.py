@@ -23,9 +23,9 @@ from audiomind.models.audio import (
     ValidationReport,
 )
 from audiomind.api.upload import sessions
-from audiomind.analysis.analyzer import analyze_audio
-from audiomind.processing.engine import process_audio
-from audiomind.processing.loudness import measure_lufs
+# Heavy DSP modules (librosa/pedalboard) are imported lazily inside the
+# functions that use them so FastAPI startup stays light and fast on
+# low-memory deployments (Railway 1GB) — see OOM/timeout mitigation.
 from audiomind.processing.presets import PRESET_CHAINS
 from audiomind.processing.validation import validate_master
 from audiomind.api.license import require_license
@@ -85,6 +85,8 @@ def _prerender_single_preset(
 
     Runs inside _prerender_executor — one thread per preset.
     """
+    from audiomind.processing.engine import process_audio
+
     cache = _prerender_cache.get(session_id, {})
     entry = cache.get(preset_id, {})
     entry["status"] = "processing"
@@ -194,6 +196,8 @@ def _measure_master_file(path: Path) -> MasterResultMetrics:
     measurements must never break a cache-hit response.
     """
     try:
+        from audiomind.processing.loudness import measure_lufs
+
         audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
         mono = audio.mean(axis=1)
         lufs = measure_lufs(audio.T, sr)
@@ -269,6 +273,8 @@ def _retry_once_on_lufs_miss(
     closest to the preset LUFS target wins. Hard cap: ONE retry.
     Returns ``(final_result, retried)``.
     """
+    from audiomind.processing.engine import process_audio
+
     target_lufs = preset_entry.get("target_lufs")
     if target_lufs is None:
         return result, False
@@ -394,6 +400,8 @@ async def process_session(
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         session.status = ProcessingStatus.ANALYZING
         try:
+            from audiomind.analysis.analyzer import analyze_audio
+
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -411,6 +419,8 @@ async def process_session(
 
     def _run_processing():
         """CPU-bound work executed in a thread so the event loop stays free."""
+        from audiomind.processing.engine import process_audio
+
         result = process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -506,6 +516,8 @@ async def trigger_prerender(session_id: str, _=Depends(require_license)):
     # Reuse existing analysis; compute only when missing
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
+            from audiomind.analysis.analyzer import analyze_audio
+
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -635,6 +647,8 @@ async def render_reference(
     # already running in the background — same policy as process_session.
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
+            from audiomind.analysis.analyzer import analyze_audio
+
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -643,6 +657,8 @@ async def render_reference(
 
     def _run_reference():
         """CPU-bound work executed in a thread so the event loop stays free."""
+        from audiomind.processing.engine import process_audio
+
         process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -913,6 +929,9 @@ async def master_stateless(
 
     def _run_pipeline():
         """Analyze + process on the DSP executor; the event loop stays free."""
+        from audiomind.analysis.analyzer import analyze_audio
+        from audiomind.processing.engine import process_audio
+
         analysis = analyze_audio(input_path)
         return process_audio(
             input_path=input_path,

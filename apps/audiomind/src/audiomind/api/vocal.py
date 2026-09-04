@@ -12,7 +12,6 @@ from fastapi.responses import FileResponse
 from audiomind.config import settings
 from audiomind.api.upload import sessions
 from audiomind.api.license import require_license
-from audiomind.processing.vocal import process_vocal, VocalParameters
 from audiomind.models.audio import ProcessingStatus
 
 router = APIRouter()
@@ -51,6 +50,8 @@ def process_vocal_endpoint(
     session.progress = 0.0
 
     try:
+        from audiomind.processing.vocal import process_vocal, VocalParameters
+
         vp = VocalParameters(
             deesser_amount=params.deesser_amount,
             pitch_shift_semitones=params.pitch_shift_semitones,

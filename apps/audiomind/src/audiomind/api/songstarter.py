@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field
 
 from audiomind.config import settings
 from audiomind.models.audio import BeatData
-from audiomind.processing.songstarter import BeatGenerator
 
 router = APIRouter()
 
@@ -102,6 +101,8 @@ async def generate_beat(session_id: str, params: BeatGenParams):
     output_dir = settings.output_dir / session_id / beat_id
 
     try:
+        from audiomind.processing.songstarter import BeatGenerator
+
         gen = BeatGenerator()
         result = gen.generate_beat(
             bpm=params.bpm,
