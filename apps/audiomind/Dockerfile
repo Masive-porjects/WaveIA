@@ -1,29 +1,33 @@
-FROM python:3.12-slim
+FROM python:3.11-alpine
 
-# Build amigable con poca RAM (Railway 1GB):
-# - Acquire::GzipIndexes=false: no descomprime los indices gzip de apt en memoria
-# - Acquire::Languages=none: no descarga los indices de idiomas (menos trafico y RAM)
-# - Acquire::http::Pipeline-Depth=0: procesa un paquete a la vez (picos de RAM menores)
-RUN apt-get update \
-    -o Acquire::GzipIndexes=false \
-    -o Acquire::Languages=none \
-    -o Acquire::http::Pipeline-Depth=0 \
-    && apt-get install -y --no-install-recommends \
-    libatomic1 \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
+# apk con --no-cache: sin cache de indices ni de paquetes (menos RAM y disco).
+# libatomic: pedalboard necesita libatomic.so.1 (musl).
+# libsndfile: soundfile/librosa.
+# g++ gcc python3-dev musl-dev: toolchain por si algun wheel musllinux no existe y
+# pip tiene que compilar (muy probable con demucs-onnx/onnxruntime en Alpine).
+RUN apk add --no-cache \
+    libatomic \
+    libsndfile \
+    g++ \
+    gcc \
+    python3-dev \
+    musl-dev
 
 WORKDIR /app
 
 # Capa cacheable de SOLO dependencias (sin el codigo, sin cache de pip).
-# tomllib lee la lista en build time: si cambian las deps, esta capa se invalida sola.
-# setuptools+wheel se necesitan para el editable final con --no-build-isolation.
+# tomllib lee la lista del pyproject en build time: si cambian las deps,
+# esta capa se invalida sola. Instalar `pip install .` aca (sin src/) fallaria
+# porque el paquete es src-layout ([tool.setuptools.packages.find] where=["src"]).
+# setuptools+wheel: necesarios para el editable final con --no-build-isolation.
 COPY pyproject.toml .
 RUN pip install --no-cache-dir $(python -c "import tomllib;d=tomllib.load(open('pyproject.toml','rb'))['project']['dependencies'];print(' '.join(d))") \
     && pip install --no-cache-dir setuptools wheel
 
 # Codigo: instalar el paquete editable SIN re-bajar ni resolver dependencias.
-# Editable es obligatorio: config.py resuelve uploads/outputs con Path(__file__).parent*3.
+# Editable es obligatorio: config.py resuelve uploads/outputs con Path(__file__).parent*3
+# y APUNTA A /app/src/audiomind/... — si instalaras en modo normal (pip install .),
+# __file__ estaria en site-packages y las rutas de archivos se romperian.
 COPY src/ src/
 RUN pip install --no-cache-dir --no-deps --no-build-isolation -e .
 
