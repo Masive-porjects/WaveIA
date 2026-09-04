@@ -485,7 +485,19 @@ export default function Home() {
         setCurrentView("mastering");
         setCurrentTab("modules");
       })
-      .catch(() => localStorage.removeItem("waveai-session"));
+      .catch((err) => {
+        localStorage.removeItem("waveai-session");
+        // 404 definitivo: la sesión murió con un restart del backend (y sin
+        // volume persistente no hay forma de recuperarla). Mostralo para que
+        // no parezca un bug — el usuario sabe que debe volver a subir.
+        if (err instanceof ApiError && err.status === 404) {
+          setErrorModal({
+            title: "Tu sesión anterior expiró",
+            message:
+              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recargá de nuevo; si no, subí el audio otra vez — es lo único que falta.",
+          });
+        }
+      });
   }, []);
 
   // Ambient float for the upload card — keeps the first screen alive.
