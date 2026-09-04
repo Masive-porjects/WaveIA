@@ -1,3 +1,4 @@
+# v3 — slim/glibc (onnxruntime solo tiene wheels manylinux; musl falla con ResolutionImpossible)
 FROM python:3.11-slim
 
 # Build amigable con poca RAM (Railway 1GB):
