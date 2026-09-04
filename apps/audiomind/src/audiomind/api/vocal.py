@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 
 from audiomind.config import settings
-from audiomind.api.upload import sessions
+from audiomind.api.upload import sessions, save_sessions
 from audiomind.api.license import require_license
 from audiomind.models.audio import ProcessingStatus
 
@@ -71,6 +71,7 @@ def process_vocal_endpoint(
         session.mastered_path = result["output_path"]
         session.status = ProcessingStatus.COMPLETED
         session.progress = 1.0
+        save_sessions(sessions)
 
         return {
             "session_id": session_id,

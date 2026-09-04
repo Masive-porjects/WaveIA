@@ -158,7 +158,10 @@ async function waitForAnalysis(
     try {
       const s = await getSession(sessionId);
       if (s.analysis) return s;
-    } catch {
+    } catch (err) {
+      // Session gone (server restarted) — stop waiting right away. A 404
+      // here means the in-memory session died; keep polling is pointless.
+      if (err instanceof ApiError && err.status === 404) return null;
       // Backend hiccup — keep polling
     }
     await new Promise((r) => setTimeout(r, 500));
@@ -172,6 +175,7 @@ function useProcessingProgress(
   enabled: boolean,
   sessionId: string | null,
   onComplete?: () => void,
+  onError?: () => void,
 ) {
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
@@ -180,11 +184,17 @@ function useProcessingProgress(
   const pollingRef = useRef(false);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
 
   // Keep the completion callback current without touching refs during render
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  // Same for the session-expired callback
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const clearTimers = useCallback(() => {
     if (intervalRef.current) {
@@ -232,7 +242,15 @@ function useProcessingProgress(
             onCompleteRef.current?.();
           }, 1200);
         }
-      } catch {
+      } catch (err) {
+        // Session expired (backend restarted) — STOP polling instead of
+        // flooding the server with 404s, and let the page tell the user.
+        if (err instanceof ApiError && err.status === 404) {
+          completedRef.current = true;
+          clearTimers();
+          onErrorRef.current?.();
+          return;
+        }
         // Best-effort: keep the last known value
       } finally {
         pollingRef.current = false;
@@ -429,6 +447,15 @@ export default function Home() {
     processing,
     session?.session_id ?? null,
     () => setProcessing(false),
+    () => {
+      // Session expired mid-poll: close the overlay and stop the 404 flood
+      setProcessing(false);
+      setErrorModal({
+        title: "El servidor se reinició",
+        message:
+          "La sesión se perdió mientras se procesaba. Recargá la página: si la sesión no se recupera sola, subí el audio de nuevo.",
+      });
+    },
   );
 
   // Fire the note burst over the waveform every time a master lands
@@ -548,6 +575,13 @@ export default function Home() {
               setErrorModal({
                 title: "Formato no soportado",
                 message: "Solo aceptamos WAV o MP3. ¡Verificá el formato de tu archivo!",
+              });
+              break;
+            case 404:
+              setErrorModal({
+                title: "El servidor se reinició",
+                message:
+                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recargá y debería recuperarse; si no, subí el audio de nuevo.",
               });
               break;
             default:

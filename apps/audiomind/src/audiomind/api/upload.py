@@ -6,11 +6,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from audiomind.config import settings
 from audiomind.models.audio import SessionData, ProcessingStatus
+from audiomind.session_store import load_sessions, save_sessions
 
 router = APIRouter()
 
-# In-memory session store (Phase 1)
-sessions: dict[str, SessionData] = {}
+# Session store — restored from disk so sessions survive restarts/redeploys
+# when a Railway volume is mounted at /app/uploads.
+sessions: dict[str, SessionData] = load_sessions()
 
 # Strong references to background analysis tasks so they are never GC'd
 _background_tasks: set[asyncio.Future] = set()
@@ -62,6 +64,7 @@ async def upload_audio(file: UploadFile = File(...)):
     # Auto-analyze the uploaded audio in the background so the upload
     # returns immediately and the event loop never blocks on librosa.
     session.status = ProcessingStatus.ANALYZING
+    save_sessions(sessions)
     loop = asyncio.get_running_loop()
 
     def _analyze() -> None:
@@ -85,6 +88,8 @@ async def upload_audio(file: UploadFile = File(...)):
                     )
                 except Exception:
                     pass  # Pre-render is best-effort; never break upload
+            # Persist analysis + status so a restart doesn't lose the work
+            save_sessions(sessions)
 
     task = loop.run_in_executor(None, _analyze)
     _background_tasks.add(task)
@@ -101,6 +106,7 @@ async def create_session(data: dict | None = None):
         session_id=session_id,
         status=ProcessingStatus.UPLOADED,
     )
+    save_sessions(sessions)
     return {"session_id": session_id}
 
 

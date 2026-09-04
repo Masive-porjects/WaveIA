@@ -141,7 +141,7 @@ export async function uploadAudio(
 
 export async function getSession(sessionId: string): Promise<SessionData> {
   const res = await fetch(`${API_BASE}/session/${sessionId}`);
-  if (!res.ok) throw new Error("Session not found");
+  if (!res.ok) throw new ApiError("Session not found", res.status);
   return res.json();
 }
 
@@ -152,7 +152,7 @@ export interface ProcessingProgress {
 
 export async function getProcessingProgress(sessionId: string): Promise<ProcessingProgress> {
   const res = await fetch(`${API_BASE}/session/${sessionId}`);
-  if (!res.ok) throw new Error(`Progress fetch failed: ${res.status}`);
+  if (!res.ok) throw new ApiError(`Progress fetch failed: ${res.status}`, res.status);
   const data = (await res.json()) as SessionData;
   return { progress: data.progress ?? 0, status: data.status ?? "" };
 }

@@ -22,7 +22,7 @@ from audiomind.models.audio import (
     SessionData,
     ValidationReport,
 )
-from audiomind.api.upload import sessions
+from audiomind.api.upload import sessions, save_sessions
 # Heavy DSP modules (librosa/pedalboard) are imported lazily inside the
 # functions that use them so FastAPI startup stays light and fast on
 # low-memory deployments (Railway 1GB) — see OOM/timeout mitigation.
@@ -34,11 +34,13 @@ router = APIRouter()
 
 # Thread pool for CPU-bound DSP — keeps the FastAPI event loop free
 # so progress polling and other requests remain responsive during processing.
-_dsp_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dsp")
+_dsp_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="dsp")
 
 # Separate executor for pre-rendering all presets in parallel after upload.
 # Uses 8 workers (one per preset) so all presets process concurrently.
-_prerender_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="prerender")
+# 1 worker: DSP jobs are heavy (librosa + pedalboard + 8x/16x oversampling)
+# and Railway demos run on 1GB RAM — parallel presets risk OOM.
+_prerender_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="prerender")
 
 # Engine's default proportional-processing intensity (see
 # ``process_audio`` signature). The Layer 2 auto-retry scales it down once.
@@ -372,6 +374,7 @@ async def process_session(
                         session.validation = ValidationReport(**verdict)
                 except Exception:
                     session.validation = None  # never break a cache hit
+            save_sessions(sessions)
             return session
 
     # ── Pre-render cache: serve dynamically pre-rendered master ── */
@@ -392,6 +395,7 @@ async def process_session(
                 session.error = None
                 session.master_result = entry.get("master_result")
                 session.validation = entry.get("validation")
+                save_sessions(sessions)
                 return session
 
     # Use background analysis if already done; skip re-analysis entirely
@@ -477,6 +481,7 @@ async def process_session(
         session.error = f"Processing failed: {str(e)}"
         raise HTTPException(status_code=500, detail=session.error)
 
+    save_sessions(sessions)
     return session
 
 
@@ -530,6 +535,7 @@ async def trigger_prerender(session_id: str, _=Depends(require_license)):
         input_path=session.original_path,
         analysis=session.analysis,
     )
+    save_sessions(sessions)
 
     return {
         "session_id": session_id,
