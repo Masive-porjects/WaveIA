@@ -21,6 +21,7 @@ from pedalboard.io import AudioFile
 from audiomind.models.audio import MasteringParameters, AnalysisResult
 from audiomind.processing.mono import enforce_mono_compatibility
 from audiomind.processing.clipper import soft_clip
+from audiomind.processing.io_write import write_output
 from audiomind.processing.loudness import measure_lra
 from audiomind.processing.truepeak import (
     true_peak_limit,
@@ -106,24 +107,6 @@ def _resample_audio(audio: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
     return soxr.resample(
         x.T.astype(np.float64), src_sr, dst_sr, quality=quality
     ).T
-
-
-def _write_pcm_wav(
-    audio: np.ndarray, out_path: str | Path, sr: int, bit_depth: int = 24
-) -> None:
-    """Write ``audio`` (channels-first) as an explicit PCM-subtype WAV.
-
-    soundfile maps the bit depth to the exact subtype (PCM_16/PCM_24/
-    PCM_32) so the delivered file honors the requested depth — the
-    pedalboard ``AudioFile`` writer silently downconverts to 16-bit.
-    """
-    subtype = {16: "PCM_16", 24: "PCM_24", 32: "PCM_32"}.get(bit_depth)
-    if subtype is None:
-        raise ValueError(
-            f"Unsupported bit depth: {bit_depth} (expected 16, 24 or 32)"
-        )
-    blocks = audio.T if audio.ndim == 2 else audio
-    sf.write(str(out_path), blocks, sr, subtype=subtype)
 
 
 def gain_stage(
@@ -755,7 +738,7 @@ def _process_transparent(
     report(85)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _write_pcm_wav(audio, output_path, sr, params.output_bit_depth)
+    write_output(audio, output_path, sr, params.output_bit_depth)
     report(95)
 
     # Measure output metrics at the (possibly resampled) output rate.
@@ -1195,7 +1178,7 @@ def process_audio(
     # Write output — explicit PCM subtype (honors output_bit_depth; the
     # pedalboard AudioFile writer silently downconverts to 16-bit PCM).
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _write_pcm_wav(effected, output_path, sr, params.output_bit_depth)
+    write_output(effected, output_path, sr, params.output_bit_depth)
 
     report(95)
 
