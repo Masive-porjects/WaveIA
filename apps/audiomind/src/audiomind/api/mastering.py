@@ -16,6 +16,7 @@ import soundfile as sf
 from audiomind.config import settings
 from audiomind.models.audio import (
     MasteringParameters,
+    MasteringReport,
     MasterResultMetrics,
     ProcessingStatus,
     ReferenceRenderResult,
@@ -186,6 +187,25 @@ def _master_result_from_engine(result: dict) -> MasterResultMetrics:
         duration_seconds=result.get("duration_seconds"),
         sample_rate=result.get("sample_rate"),
         output_bit_depth=result.get("output_bit_depth"),
+    )
+
+
+def _mastering_report_from_engine(result: dict) -> MasteringReport:
+    """Build the delivery compliance report from an engine result dict.
+
+    Same ``.get()`` discipline as ``_master_result_from_engine``: stubbed
+    or partial engine results yield an all-null report, never a raise.
+    """
+    return MasteringReport(
+        input_sr=result.get("input_sr"),
+        output_sr=result.get("output_sr"),
+        output_bit_depth=result.get("output_bit_depth"),
+        lufs_i=result.get("integrated_lufs"),
+        true_peak_dbtp=result.get("true_peak_db"),
+        lra=result.get("lra"),
+        crest_factor_db=result.get("crest_factor_db"),
+        target_lufs=result.get("target_lufs"),
+        warnings=result.get("warnings", []),
     )
 
 
@@ -470,6 +490,10 @@ async def process_session(
         else:
             session.master_result = _master_result_from_engine(result)
 
+        # Delivery compliance report (Compliance Phase 1) — same engine
+        # result mapped onto the report model.
+        session.mastering_report = _mastering_report_from_engine(result)
+
         session.parameters = params
         session.status = ProcessingStatus.COMPLETED
         session.progress = 1.0
@@ -477,6 +501,14 @@ async def process_session(
     try:
         await asyncio.get_running_loop().run_in_executor(_dsp_executor, _run_processing)
     except Exception as e:
+        from audiomind.processing.engine import InputQcError
+
+        if isinstance(e, InputQcError):
+            # Strict-mode input QC rejection — a REQUEST rejection, not a
+            # processing failure: the session keeps its current state and
+            # the client gets a 422 with the strict-mode reason. The
+            # generic 500 below stays for real DSP failures.
+            raise HTTPException(status_code=422, detail=str(e)) from e
         session.status = ProcessingStatus.ERROR
         session.error = f"Processing failed: {str(e)}"
         raise HTTPException(status_code=500, detail=session.error)
@@ -952,9 +984,16 @@ async def master_stateless(
         )
     except Exception as e:
         input_path.unlink(missing_ok=True)
+        from audiomind.processing.engine import InputQcError
+
+        if isinstance(e, InputQcError):
+            # Strict-mode input QC rejection: 422 (request rejection), not
+            # the generic processing-failure 500 below.
+            raise HTTPException(status_code=422, detail=str(e)) from e
         raise HTTPException(status_code=500, detail=f"Mastering failed: {e}")
 
     return {
         "audio": result.get("output_path", str(output_path)),
         "metrics": _master_result_from_engine(result),
+        "mastering_report": _mastering_report_from_engine(result),
     }

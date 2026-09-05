@@ -76,6 +76,55 @@ from audiomind.analysis.analyzer import (
 CLIPPER_HEADROOM_DB = 1.5
 
 
+class InputQcError(Exception):
+    """Input failed the pre-processing QC gate (``strict_mode`` rejection).
+
+    Raised by the engine BEFORE any DSP runs when the source material
+    shows hard clipping or a true peak at/above -0.3 dBTP. The API maps
+    it to HTTP 422 (a request rejection) instead of the generic 500
+    (a processing failure).
+    """
+
+
+def _strict_reject_message(hard_clip_count: int, input_true_peak: float) -> str:
+    """Spanish (Rioplatense) rejection detail surfaced by the API as a 422."""
+    issues: list[str] = []
+    if hard_clip_count > 0:
+        issues.append(f"clipping duro ({hard_clip_count} samples)")
+    if input_true_peak >= -0.3:
+        issues.append("true peak >= -0.3 dBTP")
+    return "Entrada rechazada por strict_mode: " + " y ".join(issues) + "."
+
+
+def _run_input_qc(
+    audio: np.ndarray, sr: int, strict_mode: bool
+) -> list[str]:
+    """Analyze the in-memory input and enforce the ``strict_mode`` gate.
+
+    Returns delivery warnings (Spanish, professional). Raises
+    :class:`InputQcError` when ``strict_mode`` is set and the source shows
+    hard clipping or a high true peak.
+    """
+    sample_peak_db = 20.0 * np.log10(
+        max(float(np.max(np.abs(audio))), 1e-12)
+    )
+    input_true_peak = measure_true_peak(audio, sr)
+    hard_clip_count = int(np.sum(np.abs(audio) >= 1.0 - 1e-9))
+
+    warnings: list[str] = []
+    if hard_clip_count > 0:
+        warnings.append(
+            f"Entrada con clipping duro: {hard_clip_count} samples "
+            f"(pico {sample_peak_db:.1f} dBFS)"
+        )
+    if input_true_peak >= -0.3:
+        warnings.append("True peak de entrada alto (>= -0.3 dBTP)")
+
+    if strict_mode and (hard_clip_count > 0 or input_true_peak >= -0.3):
+        raise InputQcError(_strict_reject_message(hard_clip_count, input_true_peak))
+    return warnings
+
+
 def _resolve_output_sr(output_sr: str | int, input_sr: int) -> int:
     """Normalize the ``output_sr`` parameter to an int sample rate.
 
@@ -650,6 +699,7 @@ def _process_transparent(
     output_path: Path,
     already_mastered: bool,
     report: Callable[[float], None],
+    warnings: list[str],
 ) -> dict:
     """Transparent delivery mode — no tone shaping whatsoever.
 
@@ -739,7 +789,7 @@ def _process_transparent(
         "input_sr": input_sr,
         "output_sr": sr,
         "target_lufs": params.target_lufs_db if did_loudness else None,
-        "warnings": [],
+        "warnings": warnings,
         "lra": round(lra, 2) if lra is not None else None,
     }
 
@@ -782,6 +832,13 @@ def process_audio(
         sr = f.samplerate
     input_sr = sr
 
+    # ── Input QC (Compliance Phase 1) ─────────────────────────────────
+    # Analyze the in-memory audio right after reading (both modes). The
+    # strict_mode gate rejects clipped/hot sources BEFORE any DSP runs; the
+    # warnings ride along in every result so the API can surface them in
+    # the delivery report.
+    warnings = _run_input_qc(audio, sr, params.strict_mode)
+
     # Reduce intensity for already-mastered audio (only kicks in at score ≥ 0.8)
     already_mastered = (
         analysis_result.is_already_mastered if analysis_result else False
@@ -794,7 +851,7 @@ def process_audio(
     # below is left untouched for existing clients.
     if params.processing_mode == "transparent":
         return _process_transparent(
-            audio, sr, params, output_path, already_mastered, report
+            audio, sr, params, output_path, already_mastered, report, warnings
         )
 
     # ── Sample-rate conversion ──────────────────────────────────────
@@ -855,7 +912,7 @@ def process_audio(
             "input_sr": input_sr,
             "output_sr": sr,
             "target_lufs": params.target_lufs_db,
-            "warnings": [],
+            "warnings": warnings,
             "lra": round(lra, 2) if lra is not None else None,
         }
 
@@ -1179,7 +1236,7 @@ def process_audio(
         "input_sr": input_sr,
         "output_sr": sr,
         "target_lufs": target_lufs_val,
-        "warnings": [],
+        "warnings": warnings,
         "lra": round(lra, 2) if lra is not None else None,
     }
 
