@@ -1,10 +1,6 @@
 <div align="center">
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="72" height="72" role="img" aria-label="Brikmaster ghost">
-  <path d="M20 4C11 4 5 11.5 5 20v13c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v3c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4.5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v4c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v4c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4.5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v3c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v5c0 .8.5 1.5 1.3 1.5S35 33.8 35 33V20C35 11.5 29 4 20 4z" fill="#D6C9A9"/>
-  <circle cx="15.3" cy="17.2" r="2.1" fill="#1E1E1E"/>
-  <circle cx="24.7" cy="17.2" r="2.1" fill="#1E1E1E"/>
-</svg>
+<img src="apps/studio/public/brand/BrikMasters.png" alt="Brikmaster — el fantasma beige con la lágrima-nota" width="160">
 
 # Brikmaster
 
