@@ -34,23 +34,20 @@ const GENRE_LABELS: Record<string, string> = {
   jazz: "jazz",
   pop: "pop",
   rock: "rock",
+  other: "otro",
 };
 
-/** El backend devuelve una ruta; al usuario le importa el nombre. */
-function fileName(path?: string | null): string {
-  if (!path) return "Tu track";
-  const base = path.split(/[\\/]/).pop() ?? path;
-  return base.replace(/\.[^.]+$/, "");
-}
-
 export default function TrackChip({
-  originalPath,
   genre,
   disabled = false,
   onChangeTrack,
 }: TrackChipProps) {
   const [confirming, setConfirming] = useState(false);
-  const label = genre ? GENRE_LABELS[genre] : undefined;
+  // El backend guarda el archivo como {session_id}.wav — un UUID inentendible
+  // para el usuario. El chip muestra el género detectado por el análisis.
+  const label = genre
+    ? GENRE_LABELS[genre] ?? genre.charAt(0).toUpperCase() + genre.slice(1)
+    : undefined;
 
   return (
     <motion.div
@@ -70,18 +67,11 @@ export default function TrackChip({
         style={{ color: "var(--accent-primary)" }}
       />
 
-      <span className="flex min-w-0 items-baseline gap-1.5">
-        <span
-          className="max-w-[10rem] truncate text-xs font-medium tracking-tight"
-          style={{ color: "var(--text-primary)" }}
-        >
-          {fileName(originalPath)}
-        </span>
-        {label && (
-          <span className="hidden text-[10px] sm:inline" style={{ color: "var(--text-muted)" }}>
-            {label}
-          </span>
-        )}
+      <span
+        className="max-w-[10rem] truncate text-xs font-medium tracking-tight"
+        style={{ color: "var(--text-primary)" }}
+      >
+        {label ?? "Tu track"}
       </span>
 
       <AnimatePresence mode="wait" initial={false}>
