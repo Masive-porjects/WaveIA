@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/studio/public/brand/BrikMasters.png" alt="Brikmaster — el fantasma beige con la lágrima-nota" width="160">
+<img src="apps/studio/public/brand/mascota.png" alt="Brikmaster — el fantasma beige con la lágrima-nota" width="160">
 
 # Brikmaster
 
