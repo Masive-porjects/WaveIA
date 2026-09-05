@@ -1,93 +1,126 @@
-# 🎛️ midiMastering
+<div align="center">
 
-**Mastering asistido por IA + Live Engine controlado por gestos.**
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="72" height="72" role="img" aria-label="Brikmaster ghost">
+  <path d="M20 4C11 4 5 11.5 5 20v13c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v3c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4.5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v4c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v4c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-4.5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v3c0 .8.5 1.5 1.3 1.5s1.3-.7 1.3-1.5v-5c0-.8.5-1.5 1.3-1.5s1.3.7 1.3 1.5v5c0 .8.5 1.5 1.3 1.5S35 33.8 35 33V20C35 11.5 29 4 20 4z" fill="#D6C9A9"/>
+  <circle cx="15.3" cy="17.2" r="2.1" fill="#1E1E1E"/>
+  <circle cx="24.7" cy="17.2" r="2.1" fill="#1E1E1E"/>
+</svg>
 
-Unión de dos proyectos:
-1. **WaveAI** — estudio de mastering IA (Next.js + FastAPI): subís WAV/MP3 → el backend analiza (loudness, espectro, tempo, género) → corre una cadena DSP proporcional → master WAV/MP3 con player A/B.
+# Brikmaster
+
+**Estudio de mastering asistido por IA + Live Engine controlado por gestos.**
+
+<sub>Anteriormente *WaveAI* — rebrand a **Brikmaster** (el fantasma beige `#D6C9A9` es la mascota y el favicon de la app).</sub>
+
+</div>
+
+---
+
+## Qué es
+
+Brikmaster (antes WaveAI) une dos proyectos en una sola interfaz:
+
+1. **Studio de mastering IA** — subís un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
 2. **HumanMidi** — app Python que convierte gestos de la mano (MediaPipe) en MIDI en tiempo real.
 
-**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con cadena de FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python escucha el puerto MIDI virtual de HumanMidi y traduce los gestos (CC) a `LiveParams` que envía por WebSocket al navegador. Todo en una misma interfaz (pestaña "Live" del studio).
+**La unión:** Brikmaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce los gestos (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
 
 ```
-Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio) → Knobs / Meters / Audio
+Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother)
+        → WS :8765 → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
 ```
 
-## Estructura del monorepo
+## Mapa del repo
 
-```
-midiMastering/
-├── apps/
-│   ├── studio/          # Next.js (App Router + TS + Tailwind) — mastering UI + pestaña Live
-│   ├── humanmidi/       # Python — visión + gestos → MIDI (entry: run.py)
-│   ├── bridge/          # Python — MIDI → LiveParams → WebSocket :8765
-│   └── audiomind/       # Python/FastAPI — backend DSP de mastering (AudioMind)
-├── packages/
-│   └── contracts/       # live_params.schema.json (fuente de verdad) + generador de tipos
-├── simulator/           # emisor de LiveParams sintéticos (desarrollo/demo sin cámara)
-├── e2e/                 # Playwright — master → live
-└── docs/
-    ├── INTEGRATION_REPORT.md    # reporte del bloque de integración
-    └── hackaton-specs/          # specs 01–08 (diseño, backend, live engine, implementación)
-```
+| Ruta | Stack | Rol |
+|---|---|---|
+| `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
+| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
+| `apps/humanmidi/` | Python 3.12, MediaPipe | Visión + gestos → MIDI CC |
+| `apps/bridge/` | Python, websockets, rtmidi | MIDI → `LiveParams` → WS :8765 |
+| `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
+| `simulator/` | Python | Emisor de `LiveParams` sintéticos |
+| `e2e/` | Playwright | master → live |
+| `docs/` | Markdown | Especificaciones, setup, reportes de integración |
 
-## Quickstart
+## Compliance Phase 1 (feature destacada)
 
-### 1. Backend mastering (apps/audiomind) — puerto 8000
+Documentada en detalle en [`docs/COMPLIANCE_PHASE1.md`](docs/COMPLIANCE_PHASE1.md). Agrega al motor y a la UI:
+
+- **Modo Transparente** (`processing_mode: "transparent"`): passthrough bit-exacto — si ningún parámetro cambia el audio, el master es idéntico al original (regla "neutral = bypass").
+- **`platform_target`**: `spotify`, `apple_music`, `youtube`, `tidal`, `custom` — aplica defaults de loudness/ceiling (Spotify → −14 LUFS / −1.0 dBTP, Apple Music → −16 / −1.0, etc.) con espejo en la UI vía `PLATFORM_DEFAULTS`.
+- **`output_sr` / `output_bit_depth`**: `same_as_input`, `44100`, `48000`, `96000` y bits (default 24). Round-trip 48k → 44.1k verificado.
+- **`strict_mode`**: si el material viene dañado (clipping / true peak ≥ −0.3 dBTP) el backend rechaza con HTTP 422 y el frontend muestra el detalle (antes lo perdía).
+
+### UI del studio
+
+- **8 presets de carácter**: Pulido, Brutal, Cristalino, Vintage, Crudo, Envolvente, Épico, Muro — cada uno con género, descripción y tooltip; la cache de masters por preset hace instantáneo volver a uno ya escuchado (se limpia automáticamente al cambiar de track — fix `f25f7e8`).
+- **Panel de entrega flotante**: FAB "Entrega" (abajo a la derecha) → modo/plataforma/SR/bits/QC estricto en un sheet que no ensucia el lienzo.
+- **Reporte del motor flotante**: píldora compacta abajo a la izquierda con `LUFS · dBTP · SR · bits` que se expande a la tarjeta completa (`MasteringReportCard`).
+- **Chip de track con género**: en la navbar muestra el **género detectado** (reggaetón, pop, rock…) en vez del UUID interno del archivo.
+- **Marca Brikmaster**: rebrand completo de los textos visibles (navbar, login, drawer, licencia, guía, compartir) — los assets `public/brand/BrikMaster.svg` y `BrikMasters.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
+
+## Cómo correr localmente
+
+Seguí literal `docs/SETUP.md` si el entorno no está levantado (venv, bun, stack local, pitfalls reales).
 
 ```bash
-cd apps/audiomind
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn audiomind.main:app --port 8000
-# verify: curl localhost:8000/health
+# Backend (DSP de mastering)
+cd apps/audiomind && uvicorn audiomind.main:app --port 8000
+# → http://localhost:8000/health = {"status":"ok","service":"AudioMind"}
+
+# Frontend (studio)
+cd apps/studio && bun install && bun run dev
+# → http://localhost:3000
+
+# Bridge (Live Engine, opcional para gestos)
+cd apps/bridge && python main.py                 # WS :8765
+
+# HumanMidi (opcional — SIEMPRE por run.py)
+cd apps/humanmidi && python run.py --list-midi
 ```
 
-### 2. Studio (apps/studio) — puerto 3000
+## Verificación
 
 ```bash
-cd apps/studio
-npm install
-npm run dev        # http://localhost:3000 — subir WAV → masterizar → pestaña Live
+# Backend
+cd apps/audiomind && pytest tests/ -q
+uvicorn audiomind.main:app --port 8000           # → curl localhost:8000/health
+
+# Bridge
+cd apps/bridge && pytest tests/ -q
+
+# HumanMidi
+cd apps/humanmidi && pytest tests/ -v
+
+# Studio (lint + build)
+cd apps/studio && npm run lint && npm run build
+
+# Integral
+python -m simulator.main --mode server --scenario sweep   # desde la raíz
+npm run e2e                                               # desde apps/studio
 ```
 
-### 3. Bridge (apps/bridge) — WS :8765
+> Nota lint: existen 2 errores pre-existentes conocidos (`page.tsx` y `useRole.ts`) — no fueron introducidos por el trabajo de compliance/rebrand.
 
-```bash
-cd apps/bridge
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python main.py     # escucha MIDI + WS :8765
-```
+## Reglas no negociables
 
-### 4. Simulador (sin cámara, para la demo)
+- **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo — regenerá tipos con `packages/contracts/scripts/gen_types.sh`, nunca edites los generados a mano.
+- **Neutral = bypass**: parámetro neutral = audio idéntico (bit-exacto en backend, defaults del schema en Live Engine).
+- **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado; mensajes completos, el último estado gana.
+- **`setTargetAtTime` siempre** (nunca asignación directa en Web Audio — anti-zipper).
+- **`mediapipe==0.10.14` pinned**; entry point de HumanMidi SIEMPRE `run.py`.
+- **Microcopy en español rioplatense** (voseo): "Subí", "Ajustá", "Probá de nuevo".
+- **Commits semánticos** (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), sin atribución AI.
 
-```bash
-python -m simulator.main --mode server --scenario presets   # desde la raíz
-```
+## Advertencias operativas (importantes)
 
-### 5. HumanMidi (apps/humanmidi) — requiere webcam + puerto MIDI virtual
+- **Sesiones en memoria** (dict + `SessionCache`): se pierden al reiniciar el backend, salvo el espejo best-effort a `uploads/sessions.json`. En Railway solo sobreviven si hay volume montado en `/app/uploads`.
+- **`outputs/` NO está en el volume**: los masters generados (`{session_id}_mastered.wav`) se pierden en un redeploy aunque los uploads sobrevivan. Pendiente de decisión: historial/retención de sesiones.
+- **Frontend** restaura 1 sola sesión desde `localStorage` (`waveai-session`); si el backend no la tiene → aviso "Tu sesión anterior expiró".
 
-```bash
-cd apps/humanmidi
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python run.py --list-midi
-python run.py --mode studio      # gestos → CC 74/92/71/73/16 + palmadas → fx_preset
-```
+## Convenciones
 
-## Tests
-
-```bash
-cd apps/audiomind && pytest tests/ -q        # DSP + API
-cd apps/bridge   && pytest tests/ -q         # bridge
-cd apps/humanmidi && pytest tests/ -v        # gestos → MIDI
-npm run e2e                                   # playwright (desde apps/studio)
-```
-
-## Docs
-
-- `docs/hackaton-specs/08_implementacion_llm.md` — el prompt de implementación completo (fases, valores DSP exactos, criterios de éxito, pitfalls). **LEERLO ANTES DE TOCAR CÓDIGO.**
-- `docs/hackaton-specs/01..07` — visión unificada, HumanMidi, backend mastering, sistema de diseño, live engine, roadmap, estrategia de equipo.
-- `docs/INTEGRATION_REPORT.md` — estado del bloque de integración (WaveAI × midiMastering).
-
-> AGENTS.md en la raíz tiene las reglas no negociables para agentes de código. Respetalas.
+- Commits semánticos; tests junto al código; no romper la suite existente.
+- Backend: `pyproject` con ruff + mypy strict.
+- WAV/MP3 de prueba van a `uploads/`/`outputs/` (gitignored) o se generan con `apps/audiomind/scripts/generate_samples.py` y `e2e/fixtures/generate_fixture.py`.
