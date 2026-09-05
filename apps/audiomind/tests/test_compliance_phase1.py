@@ -15,6 +15,7 @@ synthetic numpy WAVs into ``tmp_path``, ``soundfile`` round-trips,
 ``TestClient(app)`` for the API path.
 """
 import sys
+
 sys.path.insert(0, "src")
 
 import inspect
@@ -25,8 +26,8 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from audiomind.main import app
 from audiomind.config import settings
+from audiomind.main import app
 from audiomind.models.audio import MasteringParameters
 from audiomind.processing.engine import InputQcError, process_audio
 from audiomind.processing.io_write import write_output
@@ -272,13 +273,10 @@ def test_strict_mode_api_422(tmp_path, monkeypatch):
 
 def test_tp_oversample_shared_constant():
     """TP_OVERSAMPLE == 8 and loudness metering defaults to it."""
-    from audiomind.processing.loudness import (
-        LoudnessMeter,
-        true_peak_db as loudness_true_peak_db,
-    )
+    from audiomind.processing.loudness import LoudnessMeter, true_peak_db
 
     assert TP_OVERSAMPLE == 8
-    params = inspect.signature(loudness_true_peak_db).parameters
+    params = inspect.signature(true_peak_db).parameters
     assert params["oversample"].default == TP_OVERSAMPLE
     params = inspect.signature(LoudnessMeter.true_peak).parameters
     assert params["oversample"].default == TP_OVERSAMPLE

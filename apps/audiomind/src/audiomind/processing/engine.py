@@ -783,7 +783,9 @@ def _process_transparent(
         "true_peak_db": round(true_peak, 2),
         "integrated_lufs": round(integrated_lufs, 2),
         "crest_factor_db": round(crest, 2),
-        "limiter_ceiling_db": round(safe_ceiling, 2) if safe_ceiling is not None else None,
+        "limiter_ceiling_db": (
+            round(safe_ceiling, 2) if safe_ceiling is not None else None
+        ),
         "output_bit_depth": params.output_bit_depth,
         "codec_pre_matching": codec_pre_matching,
         "input_sr": input_sr,
