@@ -46,8 +46,10 @@ from scipy.ndimage import maximum_filter1d
 
 from .oversample import oversample_up, oversample_down
 
-#: Oversampling factor used for true-peak detection and limiting.
-OVERSAMPLE = 8
+#: Canonical true-peak oversampling factor (matches the 8x limiter).
+TP_OVERSAMPLE = 8
+#: Alias kept for backward compatibility with internal references.
+OVERSAMPLE = TP_OVERSAMPLE
 #: Lookahead of the fast stage in milliseconds (Sprint 2 spec: 3-5 ms).
 LOOKAHEAD_MS = 4.0
 #: Release time of the fast stage in milliseconds.
@@ -125,8 +127,13 @@ def true_peak_limit(
         y_up, sr_up, ceiling, FAST_STAGE_RELEASE_MS, lookahead_up
     )
 
-    # Hard clipper at 0 dBFS — final safety net (no-op for ceiling < 0 dB).
-    y_up = np.clip(y_up, -1.0, 1.0)
+    # Streaming-safe route never hard-clips at 0 dBFS. Instead the final
+    # safety net clamps at the REQUESTED ceiling level: for ceiling == 0 dB
+    # this is identical to the old 0 dBFS clip; for negative ceilings it
+    # enforces the requested ceiling (never 0 dBFS) so the delivered audio
+    # cannot exceed the target dBTP.
+    ceiling_lin = 10.0 ** (ceiling_db / 20.0)
+    y_up = np.clip(y_up, -ceiling_lin, ceiling_lin)
 
     min_gain = min(float(np.min(g1)), float(np.min(g2)))
     if min_gain >= 1.0 - BYPASS_GAIN_EPS:

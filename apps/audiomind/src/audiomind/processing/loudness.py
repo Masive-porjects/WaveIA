@@ -32,6 +32,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import resample_poly, sosfilt
 
+from .truepeak import TP_OVERSAMPLE
+
 # ── BS.1770-4 constants ────────────────────────────────────────────────
 
 # K-weighting filter parameters (BS.1770-4, Table/Annex 2)
@@ -227,7 +229,9 @@ def measure_lra(audio: np.ndarray, sr: float) -> float | None:
     return float(max(1.5, p95 - p10))
 
 
-def true_peak_db(audio: np.ndarray, sr: float, oversample: int = 4) -> float:
+def true_peak_db(
+    audio: np.ndarray, sr: float, oversample: int = TP_OVERSAMPLE
+) -> float:
     """True-peak level (dBTP) via oversampling; ``-inf`` for silence."""
     x = _to_2d(audio)
     if x.size == 0:
@@ -284,5 +288,7 @@ class LoudnessMeter:
     def short_term(self, audio: np.ndarray, hop_s: float = 0.1) -> np.ndarray:
         return short_term_loudness(audio, self.sr, hop_s=hop_s)
 
-    def true_peak(self, audio: np.ndarray, oversample: int = 4) -> float:
+    def true_peak(
+        self, audio: np.ndarray, oversample: int = TP_OVERSAMPLE
+    ) -> float:
         return true_peak_db(audio, self.sr, oversample=oversample)
