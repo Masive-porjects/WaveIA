@@ -536,6 +536,10 @@ export default function Home() {
         // Fire the musical note burst the moment the upload lands
         setUploadBurst((n) => n + 1);
         setSession(result);
+        // Nueva pista = cache de masters por preset INVALIDADA: los entries
+        // guardan el SessionData del track anterior y devolverían el audio
+        // equivocado al elegir un preset.
+        presetCacheRef.current.clear();
 
         // The studio view will be revealed only when the track is fully
         // processed, keeping the overlay as the only visible surface.
@@ -820,6 +824,9 @@ export default function Home() {
     setOverMasterWarning(null);
     setParams(DEFAULT_PARAMS);
     setStemState(createDefaultStemState());
+    // Volver a subir = cambiar de track: la cache de masters por preset
+    // pertenece a la sesión anterior.
+    presetCacheRef.current.clear();
   }, []);
 
   /* ── Over-master warning: user confirms processing ── */
