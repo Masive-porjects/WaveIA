@@ -23,6 +23,7 @@ from audiomind.processing.mono import enforce_mono_compatibility
 from audiomind.processing.clipper import soft_clip
 from audiomind.processing.io_write import write_output
 from audiomind.processing.loudness import measure_lra
+from audiomind.processing.resample import resample_audio
 from audiomind.processing.truepeak import (
     true_peak_limit,
     measure_true_peak,
@@ -84,29 +85,6 @@ def _resolve_output_sr(output_sr: str | int, input_sr: int) -> int:
     if output_sr == "same_as_input":
         return input_sr
     return int(output_sr)
-
-
-def _resample_audio(audio: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
-    """Resample channels-first audio with libsoxr at VHQ quality.
-
-    soxr operates channel-last (or 1D); transposing around it keeps the
-    channel data separate. Fails loudly when the binding is missing —
-    never silently falls back.
-    """
-    try:
-        import soxr
-    except ImportError as exc:  # pragma: no cover — defensive
-        raise RuntimeError(
-            "output_sr resampling requires 'soxr>=1.0.0' (libsoxr binding)"
-        ) from exc
-
-    quality = "VHQ"
-    x = np.asarray(audio)
-    if x.ndim == 1:
-        return soxr.resample(x.astype(np.float64), src_sr, dst_sr, quality=quality)
-    return soxr.resample(
-        x.T.astype(np.float64), src_sr, dst_sr, quality=quality
-    ).T
 
 
 def gain_stage(
@@ -693,7 +671,7 @@ def _process_transparent(
     input_sr = sr
     resolved_sr = _resolve_output_sr(params.output_sr, input_sr)
     if resolved_sr != input_sr:
-        audio = _resample_audio(audio, input_sr, resolved_sr)
+        audio = resample_audio(audio, input_sr, resolved_sr)
         sr = resolved_sr
         # Filter ringing can push a hair beyond [-1, 1] after SRC; trim
         # that tiny overshoot without otherwise touching the samples.
@@ -825,7 +803,7 @@ def process_audio(
     # measured at the output rate too.
     resolved_sr = _resolve_output_sr(params.output_sr, input_sr)
     if resolved_sr != input_sr:
-        audio = _resample_audio(audio, input_sr, resolved_sr)
+        audio = resample_audio(audio, input_sr, resolved_sr)
         sr = resolved_sr
     report(8)
 
