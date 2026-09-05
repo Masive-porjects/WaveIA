@@ -13,7 +13,7 @@ interface ProcessingOverlayProps {
 
 function getSubtext(progress: number, phase: Phase = "process"): string {
   if (phase === "upload") {
-    if (progress < 100) return "Subiendo tu track a WaveAI...";
+    if (progress < 100) return "Subiendo tu track a Brikmaster...";
     return "Subido — preparando el análisis...";
   }
   if (progress < 30) return "Analizando espectro y aplicando Gain Staging...";
