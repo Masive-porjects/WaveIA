@@ -21,6 +21,9 @@ from pedalboard.io import AudioFile
 from audiomind.models.audio import MasteringParameters, AnalysisResult
 from audiomind.processing.mono import enforce_mono_compatibility
 from audiomind.processing.clipper import soft_clip
+from audiomind.processing.io_write import write_output
+from audiomind.processing.loudness import measure_lra
+from audiomind.processing.resample import resample_audio
 from audiomind.processing.truepeak import (
     true_peak_limit,
     measure_true_peak,
@@ -71,6 +74,66 @@ from audiomind.analysis.analyzer import (
 #: this margin of the ceiling; below the resulting knee it is exactly linear
 #: (bit-stable), so the default stays neutral for non-peak material.
 CLIPPER_HEADROOM_DB = 1.5
+
+
+class InputQcError(Exception):
+    """Input failed the pre-processing QC gate (``strict_mode`` rejection).
+
+    Raised by the engine BEFORE any DSP runs when the source material
+    shows hard clipping or a true peak at/above -0.3 dBTP. The API maps
+    it to HTTP 422 (a request rejection) instead of the generic 500
+    (a processing failure).
+    """
+
+
+def _strict_reject_message(hard_clip_count: int, input_true_peak: float) -> str:
+    """Spanish (Rioplatense) rejection detail surfaced by the API as a 422."""
+    issues: list[str] = []
+    if hard_clip_count > 0:
+        issues.append(f"clipping duro ({hard_clip_count} samples)")
+    if input_true_peak >= -0.3:
+        issues.append("true peak >= -0.3 dBTP")
+    return "Entrada rechazada por strict_mode: " + " y ".join(issues) + "."
+
+
+def _run_input_qc(
+    audio: np.ndarray, sr: int, strict_mode: bool
+) -> list[str]:
+    """Analyze the in-memory input and enforce the ``strict_mode`` gate.
+
+    Returns delivery warnings (Spanish, professional). Raises
+    :class:`InputQcError` when ``strict_mode`` is set and the source shows
+    hard clipping or a high true peak.
+    """
+    sample_peak_db = 20.0 * np.log10(
+        max(float(np.max(np.abs(audio))), 1e-12)
+    )
+    input_true_peak = measure_true_peak(audio, sr)
+    hard_clip_count = int(np.sum(np.abs(audio) >= 1.0 - 1e-9))
+
+    warnings: list[str] = []
+    if hard_clip_count > 0:
+        warnings.append(
+            f"Entrada con clipping duro: {hard_clip_count} samples "
+            f"(pico {sample_peak_db:.1f} dBFS)"
+        )
+    if input_true_peak >= -0.3:
+        warnings.append("True peak de entrada alto (>= -0.3 dBTP)")
+
+    if strict_mode and (hard_clip_count > 0 or input_true_peak >= -0.3):
+        raise InputQcError(_strict_reject_message(hard_clip_count, input_true_peak))
+    return warnings
+
+
+def _resolve_output_sr(output_sr: str | int, input_sr: int) -> int:
+    """Normalize the ``output_sr`` parameter to an int sample rate.
+
+    'same_as_input' (or an explicit rate equal to the source) keeps the
+    input rate; explicit rates (int or str literals) pass through.
+    """
+    if output_sr == "same_as_input":
+        return input_sr
+    return int(output_sr)
 
 
 def gain_stage(
@@ -629,6 +692,110 @@ def _adjust_for_already_mastered(
     return adjusted
 
 
+def _process_transparent(
+    audio: np.ndarray,
+    sr: int,
+    params: MasteringParameters,
+    output_path: Path,
+    already_mastered: bool,
+    report: Callable[[float], None],
+    warnings: list[str],
+) -> dict:
+    """Transparent delivery mode — no tone shaping whatsoever.
+
+    Compliance Phase 1 (BandLab/LANDR-like delivery). ONLY these stages
+    run, and each ONLY when explicitly requested:
+
+      * SRC to ``output_sr`` (never automatic);
+      * loudness match + the streaming-safe limiter tail (codec-safe
+        ceiling, soft-clip, true-peak limit) when ``target_lufs_db`` is
+        set — explicitly or by a platform preset;
+      * dither at 16-bit output only;
+      * safety normalize ONLY when the loudness/limiter path ran.
+
+    ``target_lufs`` is NEVER derived automatically here: a default request
+    is a pure passthrough (samples untouched beyond the PCM quantization
+    of the writer). Output always goes through the explicit-subtype PCM
+    writer (default 24-bit).
+    """
+    input_sr = sr
+    resolved_sr = _resolve_output_sr(params.output_sr, input_sr)
+    if resolved_sr != input_sr:
+        audio = resample_audio(audio, input_sr, resolved_sr)
+        sr = resolved_sr
+        # Filter ringing can push a hair beyond [-1, 1] after SRC; trim
+        # that tiny overshoot without otherwise touching the samples.
+        audio = np.clip(audio, -1.0, 1.0)
+    report(30)
+
+    safe_ceiling: float | None = None
+    user_ceiling: float | None = None
+    codec_pre_matching = False
+    did_loudness = False
+    if params.target_lufs_db is not None:
+        audio = target_lufs(audio, sr, params.target_lufs_db)
+        report(55)
+
+        crest_factor_db = calculate_crest_factor(audio)
+        user_ceiling = _user_limiter_ceiling(
+            params.limiter_ceiling_db, already_mastered
+        )
+        safe_ceiling = compute_codec_safe_ceiling(
+            target_lufs=params.target_lufs_db,
+            crest_factor_db=crest_factor_db,
+            default_ceiling_db=user_ceiling,
+        )
+        clipper_threshold_db = safe_ceiling - CLIPPER_HEADROOM_DB
+        audio = soft_clip(audio, sr, threshold_db=clipper_threshold_db)
+        audio = final_limit(audio, sr, ceiling_db=safe_ceiling)
+        codec_pre_matching = safe_ceiling < user_ceiling
+
+        # Streaming-safe guard (only after loudness processing): never
+        # deliver a sample above 0 dBFS.
+        max_val = np.max(np.abs(audio))
+        if max_val > 1.0:
+            audio = audio / max_val * 0.99
+        did_loudness = True
+        report(75)
+
+    if params.output_bit_depth == 16:
+        audio = apply_dither_noise_shaping(
+            audio, target_bit_depth=16, sample_rate=sr
+        )
+
+    report(85)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_output(audio, output_path, sr, params.output_bit_depth)
+    report(95)
+
+    # Measure output metrics at the (possibly resampled) output rate.
+    true_peak = measure_true_peak(audio, sr)
+    integrated_lufs = measure_lufs(audio, sr)
+    crest = calculate_crest_factor(audio)
+    lra = measure_lra(audio, sr)
+
+    return {
+        "output_path": str(output_path),
+        "sample_rate": sr,
+        "channels": audio.shape[0],
+        "duration_seconds": audio.shape[1] / sr,
+        "true_peak_db": round(true_peak, 2),
+        "integrated_lufs": round(integrated_lufs, 2),
+        "crest_factor_db": round(crest, 2),
+        "limiter_ceiling_db": (
+            round(safe_ceiling, 2) if safe_ceiling is not None else None
+        ),
+        "output_bit_depth": params.output_bit_depth,
+        "codec_pre_matching": codec_pre_matching,
+        "input_sr": input_sr,
+        "output_sr": sr,
+        "target_lufs": params.target_lufs_db if did_loudness else None,
+        "warnings": warnings,
+        "lra": round(lra, 2) if lra is not None else None,
+    }
+
+
 def process_audio(
     input_path: str | Path,
     output_path: str | Path,
@@ -665,12 +832,39 @@ def process_audio(
     with AudioFile(str(input_path)) as f:
         audio = f.read(f.frames)
         sr = f.samplerate
+    input_sr = sr
+
+    # ── Input QC (Compliance Phase 1) ─────────────────────────────────
+    # Analyze the in-memory audio right after reading (both modes). The
+    # strict_mode gate rejects clipped/hot sources BEFORE any DSP runs; the
+    # warnings ride along in every result so the API can surface them in
+    # the delivery report.
+    warnings = _run_input_qc(audio, sr, params.strict_mode)
 
     # Reduce intensity for already-mastered audio (only kicks in at score ≥ 0.8)
     already_mastered = (
         analysis_result.is_already_mastered if analysis_result else False
     )
     am_factor = 0.8 if already_mastered else 1.0
+
+    # ── Transparent delivery mode (Compliance Phase 1) ───────────────
+    # Early dedicated branch BEFORE any DSP: no gain staging, no EQ, no
+    # dynamics, no saturation, no automatic loudness. The master path
+    # below is left untouched for existing clients.
+    if params.processing_mode == "transparent":
+        return _process_transparent(
+            audio, sr, params, output_path, already_mastered, report, warnings
+        )
+
+    # ── Sample-rate conversion ──────────────────────────────────────
+    # In master mode the normal path (no fast-path) runs at the target
+    # rate so ALL SR-dependent DSP operates on the output grid; metrics are
+    # measured at the output rate too.
+    resolved_sr = _resolve_output_sr(params.output_sr, input_sr)
+    if resolved_sr != input_sr:
+        audio = resample_audio(audio, input_sr, resolved_sr)
+        sr = resolved_sr
+    report(8)
 
     # ── Neutral fast-path ──────────────────────────────────────────────
     # Contract (AGENTS.md + approved PLAN): MasteringParameters() with all
@@ -704,6 +898,7 @@ def process_audio(
             crest_factor_db=crest_factor_db,
             default_ceiling_db=user_ceiling,
         )
+        lra = measure_lra(audio, sr)
 
         return {
             "output_path": str(output_path),
@@ -716,6 +911,11 @@ def process_audio(
             "limiter_ceiling_db": round(safe_ceiling, 2),
             "output_bit_depth": params.output_bit_depth,
             "codec_pre_matching": safe_ceiling < user_ceiling,
+            "input_sr": input_sr,
+            "output_sr": sr,
+            "target_lufs": params.target_lufs_db,
+            "warnings": warnings,
+            "lra": round(lra, 2) if lra is not None else None,
         }
 
     # 1. Gain staging — normalize to consistent headroom
@@ -1012,16 +1212,17 @@ def process_audio(
     if input_dr > 0 and output_dr / input_dr < 0.8:
         pass  # Log warning — more than 20% DR reduction detected
 
-    # Write output
+    # Write output — explicit PCM subtype (honors output_bit_depth; the
+    # pedalboard AudioFile writer silently downconverts to 16-bit PCM).
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with AudioFile(str(output_path), "w", sr, num_channels=effected.shape[0]) as f:
-        f.write(effected)
+    write_output(effected, output_path, sr, params.output_bit_depth)
 
     report(95)
 
     # Measure output metrics
     true_peak = measure_true_peak(effected, sr)
     integrated_lufs = measure_lufs(effected, sr)
+    lra = measure_lra(effected, sr)
 
     return {
         "output_path": str(output_path),
@@ -1034,6 +1235,11 @@ def process_audio(
         "limiter_ceiling_db": round(safe_ceiling, 2),
         "output_bit_depth": params.output_bit_depth,
         "codec_pre_matching": safe_ceiling < user_ceiling,
+        "input_sr": input_sr,
+        "output_sr": sr,
+        "target_lufs": target_lufs_val,
+        "warnings": warnings,
+        "lra": round(lra, 2) if lra is not None else None,
     }
 
 

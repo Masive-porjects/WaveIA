@@ -40,6 +40,21 @@ export interface ValidationReport {
   note?: string | null;
 }
 
+/** Delivery compliance report (Compliance Phase 1) — what the engine
+ *  actually did to the delivered file. Nullable metrics stay null when
+ *  they were never measured (pure passthrough, pre-built cache hits). */
+export interface MasteringReport {
+  input_sr: number | null; // SR del archivo subido
+  output_sr: number | null; // SR entregado (después de SRC)
+  output_bit_depth: number | null;
+  lufs_i: number | null; // loudness integrada medida del entregado
+  true_peak_dbtp: number | null;
+  lra: number | null;
+  crest_factor_db: number | null;
+  target_lufs: number | null; // target REAL usado (null = no se aplicó loudness)
+  warnings: string[]; // en español rioplatense
+}
+
 export interface SessionData {
   session_id: string;
   status: "uploaded" | "analyzing" | "processing" | "completed" | "error";
@@ -50,6 +65,7 @@ export interface SessionData {
   parameters: MasteringParameters;
   master_result?: MasterResultMetrics | null;
   validation?: ValidationReport | null;
+  mastering_report?: MasteringReport | null;
   error: string | null;
 }
 
@@ -82,6 +98,12 @@ export interface MasteringParameters {
   haas_delay_ms: number;
   output_bit_depth: number;
   target_lufs_db?: number;
+  /* ── Delivery / Compliance (Phase 1) ── defaults mirror the backend
+     (models/audio.py) so an untouched form stays byte-identical neutral. */
+  processing_mode: "master" | "transparent";
+  platform_target?: "spotify" | "apple_music" | "youtube" | "tidal" | "custom";
+  output_sr: "same_as_input" | "44100" | "48000" | "96000";
+  strict_mode: boolean;
 }
 
 export const DEFAULT_PARAMS: MasteringParameters = {
@@ -95,6 +117,9 @@ export const DEFAULT_PARAMS: MasteringParameters = {
   stereo_width: 1.0,
   haas_delay_ms: 0.0,
   output_bit_depth: 24,
+  processing_mode: "master",
+  output_sr: "same_as_input",
+  strict_mode: false,
 };
 
 export async function uploadAudio(
@@ -173,7 +198,12 @@ export async function processAudio(
     body: JSON.stringify(parameters),
     signal,
   });
-  if (!res.ok) throw new Error("Processing failed");
+  if (!res.ok) {
+    // Surface the backend's detail (e.g. strict_mode 422 rejection) the
+    // same way uploadAudio does — never swallow the message.
+    const err = await res.json().catch(() => ({ detail: "Processing failed" }));
+    throw new Error(err.detail || "Processing failed");
+  }
   return res.json();
 }
 

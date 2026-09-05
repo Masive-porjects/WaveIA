@@ -15,6 +15,7 @@ import {
   Music2,
   Zap,
   GripVertical,
+  Info,
 } from "lucide-react";
 import PresetTooltip from "@/components/PresetTooltip";
 
@@ -554,7 +555,32 @@ export default function ModulePanel({
         </summary>
 
         <div className="px-4 pb-5 pt-1">
-          <div className="flex flex-wrap gap-5 justify-center items-start">
+          {/* Transparent mode: the creative knobs are inert (delivery-only).
+              Banner + visual disable, layout untouched. */}
+          {params.processing_mode === "transparent" && (
+            <div
+              className="mb-3 flex items-start gap-2 p-2.5 rounded-lg text-[10px] leading-relaxed"
+              style={{
+                background: "rgba(98, 126, 132, 0.08)",
+                border: "1px solid rgba(98, 126, 132, 0.2)",
+                color: "var(--accent-primary)",
+              }}
+            >
+              <Info size={12} className="shrink-0 mt-0.5" />
+              <span>
+                Modo transparente: las perillas creativas no se aplican — solo
+                entrega (loudness / SRC / bit depth).
+              </span>
+            </div>
+          )}
+
+          <div
+            className={`flex flex-wrap gap-5 justify-center items-start ${
+              params.processing_mode === "transparent"
+                ? "opacity-40 pointer-events-none select-none"
+                : ""
+            }`}
+          >
             {/* Clarity */}
             <Knob3D
               label="Reverb"

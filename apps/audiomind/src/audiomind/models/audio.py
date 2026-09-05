@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
 
@@ -114,6 +114,47 @@ class MasteringParameters(BaseModel):
     output_bit_depth: int = Field(
         24, ge=16, le=32,
         description="Output bit depth. 16 applies noise-shaped dithering; 24+ is transparent.",
+    )
+
+    # ── Delivery / Compliance (Phase 1 — BandLab/LANDR-like delivery) ──
+    # Backward-compatible defaults keep the engine's neutral fast-path
+    # byte-identical: existing requests (no new fields) behave exactly as
+    # today because every default matches the pristine model.
+    processing_mode: Literal["master", "transparent"] = Field(
+        "master",
+        description=(
+            "Processing mode. 'master' = the full adaptive chain (gain "
+            "staging, HPF, match EQ, compression, saturation, automatic "
+            "loudness). 'transparent' = delivery-only: optional SRC, "
+            "optional explicit loudness + limiter, dither at 16-bit — no "
+            "tone shaping and no automatic loudness target."
+        ),
+    )
+    platform_target: Literal["spotify", "apple_music", "youtube", "tidal", "custom"] | None = Field(
+        None,
+        description=(
+            "Delivery platform preset. Sets the loudness target and limiter "
+            "ceiling: spotify -14 LUFS / -1.0 dBTP, apple_music -16 / -1.0, "
+            "youtube -14 / -1.0 (YouTube also accepts -13 LUFS for louder "
+            "masters — set target_lufs_db explicitly to use it), tidal "
+            "-14 / -1.0. 'custom' keeps the sent values; None = no platform "
+            "defaults applied."
+        ),
+    )
+    output_sr: Literal["same_as_input", "44100", "48000", "96000", 44100, 48000, 96000] = Field(
+        "same_as_input",
+        description=(
+            "Output sample rate. 'same_as_input' keeps the source rate; an "
+            "explicit rate (int or str) resamples with libsoxr at VHQ "
+            "quality. Accepted rates: 44100, 48000, 96000."
+        ),
+    )
+    strict_mode: bool = Field(
+        False,
+        description=(
+            "Reject the request (HTTP 422) when the input shows hard "
+            "clipping or a true peak >= -0.3 dBTP, before any DSP runs."
+        ),
     )
 
     # ── Loudness target (Sprint 1b) ────────────────────────────────────
@@ -423,6 +464,30 @@ class MasteringParameters(BaseModel):
         description="Reverb room size / decay. 0.1 = small room, 1.0 = huge hall",
     )
 
+    @model_validator(mode="after")
+    def _apply_platform_defaults(self) -> "MasteringParameters":
+        """Apply platform delivery defaults for known targets.
+
+        Only runs when ``platform_target`` is an explicit known platform;
+        ``custom`` (and None) leave the sent values untouched so user
+        settings always win. Backward compatible by construction: the
+        pristine default model keeps ``platform_target=None``, so the
+        engine's neutral fast-path equality check is unaffected and
+        existing requests behave exactly as today.
+        """
+        if self.platform_target is None or self.platform_target == "custom":
+            return self
+        _platform_loudness: dict[str, tuple[float, float]] = {
+            "spotify": (-14.0, -1.0),
+            "apple_music": (-16.0, -1.0),
+            "youtube": (-14.0, -1.0),
+            "tidal": (-14.0, -1.0),
+        }
+        lufs_db, ceiling_db = _platform_loudness[self.platform_target]
+        self.target_lufs_db = lufs_db
+        self.limiter_ceiling_db = ceiling_db
+        return self
+
 
 class MasterResultMetrics(BaseModel):
     """Measured metrics of the final master output.
@@ -438,6 +503,36 @@ class MasterResultMetrics(BaseModel):
     duration_seconds: float | None = None
     sample_rate: int | None = None
     output_bit_depth: int | None = None
+
+
+class MasteringReport(BaseModel):
+    """Delivery compliance report (Compliance Phase 1).
+
+    Nullable fields by design: unmeasured values (pure passthrough renders
+    without a loudness target, pre-built cache hits that never re-measure)
+    stay None so the report never invents numbers.
+
+    Fields:
+        input_sr: Source sample rate of the uploaded file.
+        output_sr: Delivered sample rate (after SRC, if any).
+        output_bit_depth: Delivered PCM bit depth.
+        lufs_i: Measured integrated loudness of the delivered file.
+        true_peak_dbtp: Measured true peak of the delivered file.
+        lra: Approximate Loudness Range (EBU 3342-style) in LU.
+        crest_factor_db: Measured crest factor of the delivered file.
+        target_lufs: The ACTUAL loudness target used (None = none applied).
+        warnings: Input QC / delivery warnings, in Spanish (Rioplatense).
+    """
+
+    input_sr: int | None = None
+    output_sr: int | None = None
+    output_bit_depth: int | None = None
+    lufs_i: float | None = None
+    true_peak_dbtp: float | None = None
+    lra: float | None = None
+    crest_factor_db: float | None = None
+    target_lufs: float | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ValidationIssue(BaseModel):
@@ -487,6 +582,7 @@ class SessionData(BaseModel):
     analysis: AnalysisResult | None = None
     parameters: MasteringParameters = MasteringParameters()
     master_result: MasterResultMetrics | None = None
+    mastering_report: MasteringReport | None = None
     validation: ValidationReport | None = None
     error: str | None = None
 

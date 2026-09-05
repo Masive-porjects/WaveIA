@@ -16,6 +16,7 @@ import soundfile as sf
 from audiomind.config import settings
 from audiomind.models.audio import (
     MasteringParameters,
+    MasteringReport,
     MasterResultMetrics,
     ProcessingStatus,
     ReferenceRenderResult,
@@ -29,6 +30,34 @@ from audiomind.api.upload import sessions, save_sessions
 from audiomind.processing.presets import PRESET_CHAINS
 from audiomind.processing.validation import validate_master
 from audiomind.api.license import require_license
+
+# Lazy module-level names for the heavy DSP entry points.
+#
+# ``process_audio`` and ``analyze_audio`` ARE real module attributes,
+# bound to thin wrappers that import the actual implementation on FIRST
+# CALL. This keeps the historic namespace contract — call sites and tests
+# reference ``mastering_mod.process_audio`` / ``analyze_audio``, and
+# monkeypatched names at either level take effect:
+#   * patching ``mastering_mod.process_audio`` replaces the wrapper itself,
+#   * patching ``audiomind.analysis.analyzer.analyze_audio`` (the source
+#     module) is seen by the stateless wrapper, which late-binds on every
+#     call (importlib on an already-loaded module is a dict lookup).
+# Importing this module still never pulls in librosa/pedalboard/engine —
+# only an actual DSP call does (preserves the lazy-load OOM mitigation).
+def _lazy_dsp_call(module_name: str, attr: str):
+    """Return a wrapper that late-imports ``module_name.attr`` per call."""
+
+    def wrapper(*args, **kwargs):
+        import importlib
+
+        impl = getattr(importlib.import_module(module_name), attr)
+        return impl(*args, **kwargs)
+
+    return wrapper
+
+
+process_audio = _lazy_dsp_call("audiomind.processing.engine", "process_audio")
+analyze_audio = _lazy_dsp_call("audiomind.analysis.analyzer", "analyze_audio")
 
 router = APIRouter()
 
@@ -87,8 +116,6 @@ def _prerender_single_preset(
 
     Runs inside _prerender_executor — one thread per preset.
     """
-    from audiomind.processing.engine import process_audio
-
     cache = _prerender_cache.get(session_id, {})
     entry = cache.get(preset_id, {})
     entry["status"] = "processing"
@@ -189,6 +216,25 @@ def _master_result_from_engine(result: dict) -> MasterResultMetrics:
     )
 
 
+def _mastering_report_from_engine(result: dict) -> MasteringReport:
+    """Build the delivery compliance report from an engine result dict.
+
+    Same ``.get()`` discipline as ``_master_result_from_engine``: stubbed
+    or partial engine results yield an all-null report, never a raise.
+    """
+    return MasteringReport(
+        input_sr=result.get("input_sr"),
+        output_sr=result.get("output_sr"),
+        output_bit_depth=result.get("output_bit_depth"),
+        lufs_i=result.get("integrated_lufs"),
+        true_peak_dbtp=result.get("true_peak_db"),
+        lra=result.get("lra"),
+        crest_factor_db=result.get("crest_factor_db"),
+        target_lufs=result.get("target_lufs"),
+        warnings=result.get("warnings", []),
+    )
+
+
 def _measure_master_file(path: Path) -> MasterResultMetrics:
     """Best-effort measured metrics for a cached/pre-built master.
 
@@ -275,8 +321,6 @@ def _retry_once_on_lufs_miss(
     closest to the preset LUFS target wins. Hard cap: ONE retry.
     Returns ``(final_result, retried)``.
     """
-    from audiomind.processing.engine import process_audio
-
     target_lufs = preset_entry.get("target_lufs")
     if target_lufs is None:
         return result, False
@@ -404,8 +448,6 @@ async def process_session(
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         session.status = ProcessingStatus.ANALYZING
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -423,8 +465,6 @@ async def process_session(
 
     def _run_processing():
         """CPU-bound work executed in a thread so the event loop stays free."""
-        from audiomind.processing.engine import process_audio
-
         result = process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -470,6 +510,10 @@ async def process_session(
         else:
             session.master_result = _master_result_from_engine(result)
 
+        # Delivery compliance report (Compliance Phase 1) — same engine
+        # result mapped onto the report model.
+        session.mastering_report = _mastering_report_from_engine(result)
+
         session.parameters = params
         session.status = ProcessingStatus.COMPLETED
         session.progress = 1.0
@@ -477,6 +521,14 @@ async def process_session(
     try:
         await asyncio.get_running_loop().run_in_executor(_dsp_executor, _run_processing)
     except Exception as e:
+        from audiomind.processing.engine import InputQcError
+
+        if isinstance(e, InputQcError):
+            # Strict-mode input QC rejection — a REQUEST rejection, not a
+            # processing failure: the session keeps its current state and
+            # the client gets a 422 with the strict-mode reason. The
+            # generic 500 below stays for real DSP failures.
+            raise HTTPException(status_code=422, detail=str(e)) from e
         session.status = ProcessingStatus.ERROR
         session.error = f"Processing failed: {str(e)}"
         raise HTTPException(status_code=500, detail=session.error)
@@ -521,8 +573,6 @@ async def trigger_prerender(session_id: str, _=Depends(require_license)):
     # Reuse existing analysis; compute only when missing
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -653,8 +703,6 @@ async def render_reference(
     # already running in the background — same policy as process_session.
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -663,8 +711,6 @@ async def render_reference(
 
     def _run_reference():
         """CPU-bound work executed in a thread so the event loop stays free."""
-        from audiomind.processing.engine import process_audio
-
         process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -935,9 +981,6 @@ async def master_stateless(
 
     def _run_pipeline():
         """Analyze + process on the DSP executor; the event loop stays free."""
-        from audiomind.analysis.analyzer import analyze_audio
-        from audiomind.processing.engine import process_audio
-
         analysis = analyze_audio(input_path)
         return process_audio(
             input_path=input_path,
@@ -952,9 +995,16 @@ async def master_stateless(
         )
     except Exception as e:
         input_path.unlink(missing_ok=True)
+        from audiomind.processing.engine import InputQcError
+
+        if isinstance(e, InputQcError):
+            # Strict-mode input QC rejection: 422 (request rejection), not
+            # the generic processing-failure 500 below.
+            raise HTTPException(status_code=422, detail=str(e)) from e
         raise HTTPException(status_code=500, detail=f"Mastering failed: {e}")
 
     return {
         "audio": result.get("output_path", str(output_path)),
         "metrics": _master_result_from_engine(result),
+        "mastering_report": _mastering_report_from_engine(result),
     }

@@ -211,7 +211,7 @@ export default function LicenseGuard({ children }: LicenseGuardProps) {
           className="text-xl font-semibold text-[var(--text-primary)] mb-2 relative z-10"
           style={{ letterSpacing: "-0.02em" }}
         >
-          WaveAI Studio
+          Brikmaster Studio
         </h1>
 
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 relative z-10">
@@ -266,7 +266,7 @@ export default function LicenseGuard({ children }: LicenseGuardProps) {
 
         {/* Credits */}
         <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed relative z-10">
-          WaveAI Studio © {new Date().getFullYear()}
+          Brikmaster Studio © {new Date().getFullYear()}
           <br />
           Creado por Waveman Paul Morales
         </p>

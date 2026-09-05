@@ -9,7 +9,9 @@ import { API_BASE } from "@/adapters/api/config";
 import DropZone from "@/components/DropZone";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ModulePanel, { PRESETS } from "@/components/ModulePanel";
-import PlatformSelector from "@/components/PlatformSelector";
+import { PLATFORM_DEFAULTS } from "@/components/DeliveryPanel";
+import FloatingDeliveryPanel from "@/components/FloatingDeliveryPanel";
+import FloatingReportCard from "@/components/FloatingReportCard";
 import GenreGuide from "@/components/GenreGuide";
 import MasteringGuide from "@/components/MasteringGuide";
 import FloatingNotes from "@/components/FloatingNotes";
@@ -673,12 +675,40 @@ export default function Home() {
     async (presetParams: MasteringParameters, presetId?: string) => {
       if (!session) return;
 
-      setParams(presetParams);
+      // Los presets no conocen los campos de entrega (modo, plataforma, SR,
+      // QC estricto): conservá los que el usuario ya eligió. El preset dicta
+      // el carácter; la entrega sigue siendo decisión del usuario. Si hay una
+      // plataforma conocida, re-aplicá su loudness/ceiling para que la UI siga
+      // mostrando lo que el backend va a aplicar después del merge.
+      const platform = params.platform_target;
+      const platformDelivery =
+        platform && platform !== "custom" ? PLATFORM_DEFAULTS[platform] : undefined;
+
+      const merged: MasteringParameters = {
+        ...presetParams,
+        processing_mode: params.processing_mode,
+        output_sr: params.output_sr,
+        strict_mode: params.strict_mode,
+        ...(platform !== undefined ? { platform_target: platform } : {}),
+        ...(platformDelivery
+          ? {
+              target_lufs_db: platformDelivery.lufs,
+              limiter_ceiling_db: platformDelivery.ceiling,
+            }
+          : {}),
+      };
+
+      setParams(merged);
       setActivePresetId(presetId ?? null);
       setError(null);
 
-      // Ya se proceso este preset para este track: no se vuelve al backend.
-      const cached = presetId ? presetCacheRef.current.get(presetId) : undefined;
+      // La caché por preset solo vale en modo creativo: en modo transparente
+      // la cadena del preset no se aplica (todos rinden igual) y devolver el
+      // master cacheado de otro preset sería incorrecto — siempre se procesa.
+      const cached =
+        presetId && params.processing_mode !== "transparent"
+          ? presetCacheRef.current.get(presetId)
+          : undefined;
       if (cached) {
         abortRef.current?.abort();
         abortRef.current = null;
@@ -698,7 +728,7 @@ export default function Home() {
       try {
         const result = await processAudio(
           session.session_id,
-          presetParams,
+          merged,
           controller.signal,
           presetId,  // enables pre-built lookup on the backend
         );
@@ -721,7 +751,7 @@ export default function Home() {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [session, completeProgress],
+    [session, completeProgress, params],
   );
 
   /* ── Reset modules to defaults ──────────────────── */
@@ -765,7 +795,7 @@ export default function Home() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `waveai_${session.session_id}.${format}`;
+        a.download = `brikmaster_${session.session_id}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -885,11 +915,6 @@ export default function Home() {
               onChange={setParams}
               disabled={processing}
               onPresetSelect={handlePresetSelect}
-            />
-
-            <PlatformSelector
-              value={params.target_lufs_db}
-              onChange={(t) => setParams((prev) => ({ ...prev, target_lufs_db: t }))}
             />
 
             {/* Process button */}
@@ -1014,6 +1039,20 @@ export default function Home() {
         onConfirm={handleOverMasterConfirm}
         onCancel={handleOverMasterCancel}
       />
+
+      {/* Floating overlays — la entrega y el reporte viven en elementos
+          fijos colapsables (FAB derecho + píldora izquierda) para que el
+          lienzo del estudio no se llene: nada crece, todo es overlay. */}
+      {currentView === "mastering" && (
+        <FloatingDeliveryPanel params={params} onChange={setParams} />
+      )}
+      {currentView === "mastering" && session?.mastering_report && (
+        <FloatingReportCard
+          report={session.mastering_report}
+          mode={session.parameters?.processing_mode ?? "master"}
+          platform={session.parameters?.platform_target ?? null}
+        />
+      )}
       {/* Background watermark layer: strictly BELOW all content (z-0 < z-[1]),
           heavily dimmed so notes never compete with card text. */}
       <FloatingNotes zIndex={0} className="opacity-25" />
@@ -1024,7 +1063,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <div className="rounded-full px-4 py-2 glass">
             <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-              Wave<span className="text-[var(--accent-primary)]">AI</span>
+              Brik<span className="text-[var(--accent-primary)]">master</span>
             </span>
           </div>
 
@@ -1204,7 +1243,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          WaveAI Studio
+                          Brikmaster Studio
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>

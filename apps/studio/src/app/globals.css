@@ -459,3 +459,9 @@ input[type="range"]::-moz-range-thumb {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* -- Ghost icon (favicon / breathing room) ----------- */
+.mi-icono {
+  --ghost-fill: #ffffff;
+}
+

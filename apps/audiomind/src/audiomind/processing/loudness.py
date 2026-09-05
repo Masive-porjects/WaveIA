@@ -32,6 +32,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import resample_poly, sosfilt
 
+from .truepeak import TP_OVERSAMPLE
+
 # ── BS.1770-4 constants ────────────────────────────────────────────────
 
 # K-weighting filter parameters (BS.1770-4, Table/Annex 2)
@@ -205,7 +207,31 @@ def _sliding_loudness(audio: np.ndarray, sr: float, window_s: float, hop_s: floa
     return _block_loudness(z_block)
 
 
-def true_peak_db(audio: np.ndarray, sr: float, oversample: int = 4) -> float:
+def measure_lra(audio: np.ndarray, sr: float) -> float | None:
+    """Approximate Loudness Range (EBU 3342-style) in LU.
+
+    This is NOT a full EBU 3342 implementation: the standard integrates
+    over a sliding 3 s short-term series with an 10th/95th percentile
+    spread. This approximation reuses the 400 ms momentary block-loudness
+    series already computed by the meter (P95 - P10, floored at 1.5 LU per
+    the EBU 3342 floor), which is a pragmatic and stable surrogate for
+    delivery reports.
+
+    Returns None for silence or when fewer than two non-silent blocks
+    exist (no measurable dynamics).
+    """
+    blocks = momentary_loudness(audio, sr, hop_s=0.1)
+    blocks = blocks[np.isfinite(blocks)]
+    blocks = blocks[blocks > GATE_ABS_DB]
+    if blocks.size < 2:
+        return None
+    p10, p95 = np.percentile(blocks, [10.0, 95.0])
+    return float(max(1.5, p95 - p10))
+
+
+def true_peak_db(
+    audio: np.ndarray, sr: float, oversample: int = TP_OVERSAMPLE
+) -> float:
     """True-peak level (dBTP) via oversampling; ``-inf`` for silence."""
     x = _to_2d(audio)
     if x.size == 0:
@@ -262,5 +288,7 @@ class LoudnessMeter:
     def short_term(self, audio: np.ndarray, hop_s: float = 0.1) -> np.ndarray:
         return short_term_loudness(audio, self.sr, hop_s=hop_s)
 
-    def true_peak(self, audio: np.ndarray, oversample: int = 4) -> float:
+    def true_peak(
+        self, audio: np.ndarray, oversample: int = TP_OVERSAMPLE
+    ) -> float:
         return true_peak_db(audio, self.sr, oversample=oversample)

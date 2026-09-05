@@ -1,7 +1,7 @@
 import LoginScreen from "@/presentation/components/auth/LoginScreen";
 
 export const metadata = {
-  title: "Iniciar sesión — WaveAI",
+  title: "Iniciar sesión — Brikmaster",
   description: "Accedé a tu estudio de mastering",
 };
 
