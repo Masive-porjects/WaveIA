@@ -31,32 +31,33 @@ from audiomind.processing.presets import PRESET_CHAINS
 from audiomind.processing.validation import validate_master
 from audiomind.api.license import require_license
 
-# Lazy module-level names for the heavy DSP entry points (PEP 562).
+# Lazy module-level names for the heavy DSP entry points.
 #
-# ``process_audio`` and ``analyze_audio`` ARE module attributes, resolved
-# through ``__getattr__`` on first access and then cached in the module
-# globals. This keeps the historic namespace contract (call sites and
-# tests reference ``mastering_mod.process_audio`` / ``analyze_audio``)
-# while preserving the lazy load: importing this module never pulls in
-# librosa/pedalboard/engine — only an actual DSP call does.
-_LAZY_DSP_NAMES = {
-    "process_audio": ("audiomind.processing.engine", "process_audio"),
-    "analyze_audio": ("audiomind.analysis.analyzer", "analyze_audio"),
-}
+# ``process_audio`` and ``analyze_audio`` ARE real module attributes,
+# bound to thin wrappers that import the actual implementation on FIRST
+# CALL. This keeps the historic namespace contract — call sites and tests
+# reference ``mastering_mod.process_audio`` / ``analyze_audio``, and
+# monkeypatched names at either level take effect:
+#   * patching ``mastering_mod.process_audio`` replaces the wrapper itself,
+#   * patching ``audiomind.analysis.analyzer.analyze_audio`` (the source
+#     module) is seen by the stateless wrapper, which late-binds on every
+#     call (importlib on an already-loaded module is a dict lookup).
+# Importing this module still never pulls in librosa/pedalboard/engine —
+# only an actual DSP call does (preserves the lazy-load OOM mitigation).
+def _lazy_dsp_call(module_name: str, attr: str):
+    """Return a wrapper that late-imports ``module_name.attr`` per call."""
+
+    def wrapper(*args, **kwargs):
+        import importlib
+
+        impl = getattr(importlib.import_module(module_name), attr)
+        return impl(*args, **kwargs)
+
+    return wrapper
 
 
-def __getattr__(name: str) -> object:
-    """Resolve lazy DSP names on first attribute access (PEP 562)."""
-    spec = _LAZY_DSP_NAMES.get(name)
-    if spec is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    module_name, attr = spec
-    import importlib
-
-    impl = getattr(importlib.import_module(module_name), attr)
-    globals()[name] = impl  # cache — later accesses skip __getattr__
-    return impl
-
+process_audio = _lazy_dsp_call("audiomind.processing.engine", "process_audio")
+analyze_audio = _lazy_dsp_call("audiomind.analysis.analyzer", "analyze_audio")
 
 router = APIRouter()
 
