@@ -31,6 +31,33 @@ from audiomind.processing.presets import PRESET_CHAINS
 from audiomind.processing.validation import validate_master
 from audiomind.api.license import require_license
 
+# Lazy module-level names for the heavy DSP entry points (PEP 562).
+#
+# ``process_audio`` and ``analyze_audio`` ARE module attributes, resolved
+# through ``__getattr__`` on first access and then cached in the module
+# globals. This keeps the historic namespace contract (call sites and
+# tests reference ``mastering_mod.process_audio`` / ``analyze_audio``)
+# while preserving the lazy load: importing this module never pulls in
+# librosa/pedalboard/engine — only an actual DSP call does.
+_LAZY_DSP_NAMES = {
+    "process_audio": ("audiomind.processing.engine", "process_audio"),
+    "analyze_audio": ("audiomind.analysis.analyzer", "analyze_audio"),
+}
+
+
+def __getattr__(name: str) -> object:
+    """Resolve lazy DSP names on first attribute access (PEP 562)."""
+    spec = _LAZY_DSP_NAMES.get(name)
+    if spec is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr = spec
+    import importlib
+
+    impl = getattr(importlib.import_module(module_name), attr)
+    globals()[name] = impl  # cache — later accesses skip __getattr__
+    return impl
+
+
 router = APIRouter()
 
 # Thread pool for CPU-bound DSP — keeps the FastAPI event loop free
@@ -88,8 +115,6 @@ def _prerender_single_preset(
 
     Runs inside _prerender_executor — one thread per preset.
     """
-    from audiomind.processing.engine import process_audio
-
     cache = _prerender_cache.get(session_id, {})
     entry = cache.get(preset_id, {})
     entry["status"] = "processing"
@@ -295,8 +320,6 @@ def _retry_once_on_lufs_miss(
     closest to the preset LUFS target wins. Hard cap: ONE retry.
     Returns ``(final_result, retried)``.
     """
-    from audiomind.processing.engine import process_audio
-
     target_lufs = preset_entry.get("target_lufs")
     if target_lufs is None:
         return result, False
@@ -424,8 +447,6 @@ async def process_session(
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         session.status = ProcessingStatus.ANALYZING
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -443,8 +464,6 @@ async def process_session(
 
     def _run_processing():
         """CPU-bound work executed in a thread so the event loop stays free."""
-        from audiomind.processing.engine import process_audio
-
         result = process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -553,8 +572,6 @@ async def trigger_prerender(session_id: str, _=Depends(require_license)):
     # Reuse existing analysis; compute only when missing
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -685,8 +702,6 @@ async def render_reference(
     # already running in the background — same policy as process_session.
     if not session.analysis and session.status != ProcessingStatus.ANALYZING:
         try:
-            from audiomind.analysis.analyzer import analyze_audio
-
             session.analysis = await asyncio.get_running_loop().run_in_executor(
                 _dsp_executor, analyze_audio, session.original_path
             )
@@ -695,8 +710,6 @@ async def render_reference(
 
     def _run_reference():
         """CPU-bound work executed in a thread so the event loop stays free."""
-        from audiomind.processing.engine import process_audio
-
         process_audio(
             input_path=session.original_path,
             output_path=output_path,
@@ -967,9 +980,6 @@ async def master_stateless(
 
     def _run_pipeline():
         """Analyze + process on the DSP executor; the event loop stays free."""
-        from audiomind.analysis.analyzer import analyze_audio
-        from audiomind.processing.engine import process_audio
-
         analysis = analyze_audio(input_path)
         return process_audio(
             input_path=input_path,
