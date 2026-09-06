@@ -158,42 +158,6 @@ def gain_stage(
     return audio * gain_linear, gain_db
 
 
-# ── Frequency Analysis ────────────────────────────────────────────────
-
-
-def analyze_band_energy(
-    audio: np.ndarray, sample_rate: int, center_freq: float
-) -> float:
-    """
-    Measure relative energy at a frequency band (1-octave width).
-    Returns 0.0 (very weak) to 1.0 (very strong). 0.5 = average.
-
-    After gain staging, all audio has consistent peak level,
-    so relative band energy directly reflects tonal balance.
-    """
-    mono = np.mean(audio, axis=0) if audio.ndim == 2 else audio
-    n = len(mono)
-
-    fft_mag = np.abs(np.fft.rfft(mono))
-    freqs = np.fft.rfftfreq(n, 1.0 / sample_rate)
-
-    # 1-octave band around center frequency
-    low = max(1.0, center_freq / 1.414)
-    high = min(sample_rate / 2 - 1, center_freq * 1.414)
-    mask = (freqs >= low) & (freqs <= high)
-
-    if not np.any(mask):
-        return 0.5
-
-    band_rms = np.sqrt(np.mean(fft_mag[mask] ** 2))
-    if band_rms <= 0:
-        return 0.0
-
-    band_db = 20 * np.log10(band_rms + 1e-20)
-    # After gain staging to -6 dBFS, typical band levels range -50 to -15 dB
-    return max(0.0, min(1.0, (band_db + 50) / 35))
-
-
 # ── Match EQ (Genre Target Profiles) ──────────────────────────────────
 
 
@@ -329,80 +293,6 @@ def build_match_eq(
         )
 
     return plugins
-
-
-def _build_dynamic_eq_fallback(
-    audio: np.ndarray, sample_rate: int, eq_bands: list[dict]
-) -> list:
-    """Original proportional EQ fallback — used when no genre data exists.
-
-    Scales preset gains inversely to measured band energy.
-    """
-    plugins = []
-    for band in eq_bands:
-        energy = analyze_band_energy(audio, sample_rate, band["freq"])
-        gain = calculate_proportional_gain(band["max_gain_db"], energy)
-        if abs(gain) >= 0.1:
-            plugins.append(
-                PeakFilter(
-                    cutoff_frequency_hz=band["freq"],
-                    gain_db=gain,
-                    q=band.get("q", 1.0),
-                )
-            )
-    return plugins
-
-
-def calculate_proportional_gain(
-    target_gain_db: float, band_energy: float
-) -> float:
-    """
-    Scale target gain inversely to band energy.
-
-    - Strong band (0.8+): apply ~20% of target (it doesn't need help)
-    - Medium band (0.5): apply ~55% of target
-    - Weak band (0.2-): apply ~85% of target (it needs the boost)
-    """
-    scaling = max(0.15, 1.0 - band_energy * 0.85)
-    return target_gain_db * scaling
-
-
-# ── Dynamic Processing ───────────────────────────────────────────────
-
-
-def build_proportional_compressor(
-    audio: np.ndarray, sample_rate: int, preset: dict
-) -> list:
-    """
-    Compressor with threshold calculated from input RMS.
-
-    Preset defines CHARACTER (ratio, attack/release timing).
-    Threshold is derived from the input dynamics:
-      - Higher ratio → threshold closer to RMS → more compression
-      - Lower ratio → threshold further below RMS → gentler
-    """
-    comp = preset["compressor"]
-    ratio = comp["ratio"]
-    attack_ms = comp.get("attack_ms", 30)
-    release_ms = comp.get("release_ms", 200)
-
-    input_rms = np.sqrt(np.mean(audio**2))
-    input_rms_db = 20 * np.log10(input_rms) if input_rms > 0 else -60
-
-    # Proportional to ratio: 8/ratio gives offset below RMS
-    # ratio 1.5 → offset 5.3 dB (gentle), ratio 6.0 → offset 1.3 dB (aggressive)
-    offset = 8.0 / ratio
-    threshold_db = input_rms_db - offset
-    threshold_db = max(-30, min(-4, threshold_db))
-
-    return [
-        Compressor(
-            threshold_db=threshold_db,
-            ratio=ratio,
-            attack_ms=attack_ms,
-            release_ms=release_ms,
-        )
-    ]
 
 
 # ── Final Stages ──────────────────────────────────────────────────────
@@ -677,36 +567,6 @@ def _deesser_params_from_mastering(p: MasteringParameters) -> DeesserParams:
         amount_db=p.deesser_amount_db,
         threshold_db=p.deesser_threshold_db,
     )
-
-
-def _adjust_for_already_mastered(
-    preset: dict, analysis_result: AnalysisResult | None
-) -> dict:
-    """Reduce processing intensity for already-mastered audio."""
-    if not analysis_result or not analysis_result.is_already_mastered:
-        return preset
-
-    adjusted = preset.copy()
-
-    # Commercial-grade: preserve 80% of processing power even for mastered tracks.
-    # Only the most dynamically-restricted, hyper-compressed audio gets reduced.
-    if "eq_bands" in adjusted:
-        adjusted["eq_bands"] = [
-            {**band, "max_gain_db": band["max_gain_db"] * 0.8}
-            for band in adjusted["eq_bands"]
-        ]
-
-    if "compressor" in adjusted:
-        comp = adjusted["compressor"].copy()
-        comp["ratio"] = max(1.0, comp["ratio"] * 0.8)
-        adjusted["compressor"] = comp
-
-    if adjusted.get("saturation"):
-        sat = adjusted["saturation"].copy()
-        sat["drive_max"] = sat.get("drive_max", 0) * 0.8
-        adjusted["saturation"] = sat
-
-    return adjusted
 
 
 def _process_transparent(
