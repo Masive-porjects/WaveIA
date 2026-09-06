@@ -612,6 +612,54 @@ class ReferenceRenderResult(BaseModel):
     source_preset_id: str
 
 
+class ReferenceComparison(BaseModel):
+    """External-reference comparison (Phase C, P1-1).
+
+    Measurement-only metadata contrasting the mastered output against an
+    uploaded external reference file. No DSP processing runs here: every
+    value is a measurement of one of the two files or a
+    ``reference − master`` delta, so the neutral contract (comparison
+    never changes the master) holds by construction.
+
+    Deltas are ``reference − master``: a positive ``band_deltas_db``
+    entry means the reference has MORE energy in that band (a "too quiet
+    here" hint for the master). All fields are nullable by design so a
+    partial measurement never breaks the payload.
+
+    ``status`` is ``"ready"`` after a successful full comparison, or one
+    of ``"no_master"`` / ``"no_reference"`` / ``"error"`` for partial
+    states (with ``message`` explaining why).
+    """
+
+    status: Literal["ready"] | str = "ready"
+    message: str | None = None
+    reference_filename: str | None = None
+    target_bands_hz: list[int] | None = None
+    master_band_levels_db: list[float] | None = None
+    reference_band_levels_db: list[float] | None = None
+    band_deltas_db: list[float] | None = None
+    biggest_increase_band_hz: float | None = None
+    biggest_decrease_band_hz: float | None = None
+    master_lufs_db: float | None = None
+    reference_lufs_db: float | None = None
+    lufs_delta_db: float | None = None
+    master_crest_db: float | None = None
+    reference_crest_db: float | None = None
+    crest_delta_db: float | None = None
+    master_correlation: float | None = None
+    reference_correlation: float | None = None
+    master_lra_lu: float | None = None
+    reference_lra_lu: float | None = None
+    lra_delta_lu: float | None = None
+
+
+class ReferenceUploadResult(BaseModel):
+    """Result of uploading an external reference file for a session."""
+
+    reference_path: str
+    reference_filename: str
+
+
 class ValidationReport(BaseModel):
     """Post-master validation verdict (Layer 2 gate).
 
@@ -633,6 +681,9 @@ class SessionData(BaseModel):
     progress: float = 0.0
     original_path: str | None = None
     original_filename: str | None = None
+    reference_path: str | None = None
+    reference_filename: str | None = None
+    reference_comparison: ReferenceComparison | None = None
     mastered_path: str | None = None
     analysis: AnalysisResult | None = None
     parameters: MasteringParameters = MasteringParameters()

@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import numpy as np
@@ -19,7 +19,9 @@ from audiomind.models.audio import (
     MasteringReport,
     MasterResultMetrics,
     ProcessingStatus,
+    ReferenceComparison,
     ReferenceRenderResult,
+    ReferenceUploadResult,
     SessionData,
     ValidationReport,
 )
@@ -58,6 +60,9 @@ def _lazy_dsp_call(module_name: str, attr: str):
 
 process_audio = _lazy_dsp_call("audiomind.processing.engine", "process_audio")
 analyze_audio = _lazy_dsp_call("audiomind.analysis.analyzer", "analyze_audio")
+compare_tracks = _lazy_dsp_call(
+    "audiomind.analysis.reference_compare", "compare_tracks"
+)
 
 router = APIRouter()
 
@@ -758,6 +763,169 @@ async def get_reference_audio(session_id: str, preset_id: str):
         )
 
     return FileResponse(str(path), media_type="audio/wav", filename=path.name)
+
+
+# ── External reference (Phase C, P1-1) ─────────────────────────────────
+# Distinct surface from the Crudo ``/reference/{preset_id}`` re-render:
+# the user uploads a REAL mastered reference file and the comparison is
+# pure measurement (spectral diff + loudness/brightness profile). No DSP
+# runs — the neutral contract is preserved by construction. Routes live
+# on the ``reference-file`` prefix so they never collide with the Crudo
+# ``/reference/{preset_id}`` paths; the playback route below MUST stay
+# registered before ``/audio/{audio_type}`` (literal beats parameter).
+
+
+def _validate_reference_upload(filename: str, content: bytes) -> str:
+    """Validate an external reference upload (suffix + size).
+
+    Same rules as ``upload.upload_audio`` so the two upload surfaces
+    behave identically; kept here because the endpoint lives in the
+    mastering router and upload.py exposes no reusable validator.
+    """
+    suffix = Path(filename).suffix.lower()
+    if suffix not in (".wav", ".mp3"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported format '{suffix}'. Only WAV and MP3 are supported.",
+        )
+    size_mb = len(content) / (1024 * 1024)
+    if size_mb > settings.max_file_size_mb:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"File too large ({size_mb:.1f}MB). Maximum is "
+                f"{settings.max_file_size_mb}MB."
+            ),
+        )
+    return suffix
+
+
+@router.post(
+    "/session/{session_id}/reference-file",
+    response_model=ReferenceUploadResult,
+)
+async def upload_reference_file(
+    session_id: str,
+    file: UploadFile = File(...),
+    _=Depends(require_license),
+):
+    """Upload an external mastered reference file for this session.
+
+    REPLACE semantics: a second upload overwrites the previous reference
+    and drops the stale comparison. The file lands in the upload dir as
+    ``{session_id}_reference{suffix}`` and the session gains
+    ``reference_path``/``reference_filename`` (the original uploaded
+    name, mirroring ``original_filename``).
+    """
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    filename = file.filename
+    if not filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    content = await file.read()
+    suffix = _validate_reference_upload(filename, content)
+
+    reference_path = (
+        settings.upload_dir / f"{session_id}_reference{suffix}"
+    ).resolve()
+    reference_path.write_bytes(content)
+
+    # Replace semantics: drop the stale comparison and remove the previous
+    # reference file when the suffix changed (e.g. .wav -> .mp3).
+    previous = session.reference_path
+    if previous and Path(previous).resolve() != reference_path:
+        Path(previous).unlink(missing_ok=True)
+    session.reference_path = str(reference_path)
+    session.reference_filename = filename
+    session.reference_comparison = None
+    save_sessions(sessions)
+
+    return ReferenceUploadResult(
+        reference_path=str(reference_path),
+        reference_filename=filename,
+    )
+
+
+@router.post(
+    "/session/{session_id}/compare-reference",
+    response_model=ReferenceComparison,
+)
+async def compare_reference(session_id: str, _=Depends(require_license)):
+    """Compare the mastered output against the uploaded external reference.
+
+    Pure measurement (spectral diff + loudness/brightness profile); no
+    DSP runs. Cached per session like the Crudo reference render: once
+    ``reference_comparison`` exists it is returned without re-measuring
+    (re-uploading the reference clears the cache). Files that fail to
+    decode surface as ``status="error"`` in the payload rather than a
+    hard failure.
+    """
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.reference_path or not Path(session.reference_path).exists():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No reference file uploaded for this session. "
+                "POST /session/{id}/reference-file first."
+            ),
+        )
+    if not session.mastered_path or not Path(session.mastered_path).exists():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No mastered audio available. "
+                "POST /session/{id}/process first."
+            ),
+        )
+
+    if session.reference_comparison is not None:
+        return session.reference_comparison
+
+    try:
+        comparison = await asyncio.get_running_loop().run_in_executor(
+            _dsp_executor, compare_tracks, session.mastered_path, session.reference_path
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Reference comparison failed: {str(e)}"
+        ) from e
+
+    # The stored path is session-scoped; the payload carries the ORIGINAL
+    # uploaded filename, mirroring ``original_filename``.
+    comparison.reference_filename = session.reference_filename
+    session.reference_comparison = comparison
+    save_sessions(sessions)
+    return comparison
+
+
+@router.get("/session/{session_id}/audio/reference-file")
+async def get_reference_file_audio(session_id: str):
+    """Serve the uploaded external reference file for playback."""
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.reference_path or not Path(session.reference_path).exists():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No reference file uploaded for this session. "
+                "POST /session/{id}/reference-file first."
+            ),
+        )
+
+    path = Path(session.reference_path).resolve()
+    media_type = "audio/mpeg" if path.suffix.lower() == ".mp3" else "audio/wav"
+    return FileResponse(
+        str(path),
+        media_type=media_type,
+        filename=session.reference_filename or path.name,
+    )
 
 
 @router.get("/session/{session_id}/audio/{audio_type}")
