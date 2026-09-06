@@ -111,6 +111,27 @@ class MasteringParameters(BaseModel):
         description="Force low frequencies below this to mono center. 0 = off.",
     )
 
+    # ── Side-channel HPF (Phase B — B1) — M/S low-end clean ────────────
+    # Optional side high-pass below ~100 Hz: removes sub-bass room mud from
+    # the DECORRELATED signal only (the mid/low-end weight stays). Disabled
+    # by default (bit-exact bypass), so existing masters are unchanged; the
+    # corner anchors between the corrective 30 Hz master HPF and the 120 Hz
+    # mono-compat collapse.
+    side_hpf_enabled: bool = Field(
+        False,
+        description=(
+            "Enable the side-channel high-pass filter (sub-bass mud in the "
+            "stereo decorrelation). False = bit-exact bypass."
+        ),
+    )
+    side_hpf_hz: float = Field(
+        100.0, ge=20.0, le=400.0,
+        description=(
+            "Side-channel high-pass corner in Hz. Sits below the 120 Hz "
+            "mono-compat collapse and above the 30 Hz corrective master HPF."
+        ),
+    )
+
     output_bit_depth: int = Field(
         24, ge=16, le=32,
         description="Output bit depth. 16 applies noise-shaped dithering; 24+ is transparent.",
@@ -464,6 +485,37 @@ class MasteringParameters(BaseModel):
         description="Reverb room size / decay. 0.1 = small room, 1.0 = huge hall",
     )
 
+    # ── Dynamic De-Esser (Phase B — B2) — sibilance 3-8 kHz ─────────────
+    # Dynamic sibilance taming in the MASTER chain (the legacy static
+    # de-esser lives only in the /vocal path). The 3-8 kHz band is
+    # attenuated only while it is a dominant spectral region, with
+    # attack/release smoothing. Disabled by default (bit-exact bypass);
+    # enabling with amount 0.0 is STILL a bit-exact no-op, and material
+    # below the detector threshold passes through bit-exactly too.
+    deesser_enabled: bool = Field(
+        False,
+        description=(
+            "Enable the dynamic de-esser for sibilance (3-8 kHz). "
+            "False = bit-exact bypass."
+        ),
+    )
+    deesser_amount_db: float = Field(
+        0.0, ge=0.0, le=12.0,
+        description=(
+            "Maximum gain reduction in the sibilance band at full detector "
+            "drive. 0 = neutral (bit-exact bypass even when enabled)."
+        ),
+    )
+    deesser_threshold_db: float = Field(
+        -4.0, ge=-12.0, le=0.0,
+        description=(
+            "Sibilance detector threshold in dB: the 3-8 kHz band must "
+            "exceed this ratio over the broadband level before reduction "
+            "starts. Matches the module anchor (audiomind.processing."
+            "deesser.DEESSER_THRESHOLD_DB)."
+        ),
+    )
+
     @model_validator(mode="after")
     def _apply_platform_defaults(self) -> "MasteringParameters":
         """Apply platform delivery defaults for known targets.
@@ -503,6 +555,8 @@ class MasterResultMetrics(BaseModel):
     duration_seconds: float | None = None
     sample_rate: int | None = None
     output_bit_depth: int | None = None
+    stereo_correlation: float | None = None
+    lra: float | None = None
 
 
 class MasteringReport(BaseModel):
@@ -531,6 +585,7 @@ class MasteringReport(BaseModel):
     true_peak_dbtp: float | None = None
     lra: float | None = None
     crest_factor_db: float | None = None
+    stereo_correlation: float | None = None
     target_lufs: float | None = None
     warnings: list[str] = Field(default_factory=list)
 

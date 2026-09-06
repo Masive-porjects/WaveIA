@@ -4,7 +4,15 @@ Handles M/S encoding, per-preset spatial effects on the Side channel,
 and phase correlation safety enforcement.
 """
 import numpy as np
-from pedalboard import Pedalboard, HighpassFilter, LowpassFilter, PeakFilter, Reverb
+from pedalboard import HighpassFilter, LowpassFilter, PeakFilter, Pedalboard, Reverb
+from scipy.signal import butter, sosfilt
+
+#: Default side-channel high-pass corner (Hz) — Phase B (B1) anchor: sits
+#: BELOW the engine's 120 Hz mono-compat collapse (stage 9) and ABOVE the
+#: corrective 30 Hz master HPF (stage 2). Side content below ~100 Hz is
+#: almost never musical — room/ambience mud that the width/reverb stages
+#: would otherwise spread — and the mono collapse would mono-ize it anyway.
+SIDE_HPF_DEFAULT_HZ = 100.0
 
 
 def mid_side_encode(audio: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -52,6 +60,35 @@ def mid_side_decode(mid: np.ndarray, side: np.ndarray) -> np.ndarray:
     left = (mid + side) / np.sqrt(2)
     right = (mid - side) / np.sqrt(2)
     return np.stack([left, right])
+
+
+def apply_side_hpf(
+    side: np.ndarray, sr: int, cutoff_hz: float = SIDE_HPF_DEFAULT_HZ
+) -> np.ndarray:
+    """High-pass the SIDE channel (M/S low-end clean, Phase B — B1).
+
+    Removes sub-bass mud below ``cutoff_hz`` from the decorrelated signal
+    ONLY — the mid channel is never touched, so the low-end weight of the
+    master stays. 4th-order Butterworth (24 dB/oct — steep enough to be
+    effective at one octave below the corner), the same high-pass topology
+    the engine's mono-compat stage uses for its lows (``mono.py``).
+
+    Complementary to — never competing with — the <120 Hz mono collapse:
+    that stage forces L/R below 120 Hz to mono center (side → 0) anyway;
+    this stage cleans the side EARLY so the spatial processing (reverb,
+    Haas, width) never spreads the room rumble, while the late mono
+    collapse still guarantees mono compatibility.
+
+    The engine gates this stage (``side_hpf_enabled``), so this pure
+    filter has no neutral branch: when the gate is off the function is
+    never called and the signal passes through untouched (bit-exact).
+    """
+    corner = float(cutoff_hz) / (float(sr) / 2.0)
+    sos = butter(4, corner, btype="high", output="sos")
+    # Cast back to the input dtype: sosfilt promotes to the coefficient
+    # dtype (float64), but the stage contract is shape/dtype preservation
+    # (the same convention the de-esser and multiband stages follow).
+    return sosfilt(sos, side, axis=-1).astype(side.dtype, copy=False)
 
 
 def apply_claridad_spatial(side: np.ndarray, sr: int) -> np.ndarray:
@@ -103,8 +140,6 @@ def apply_cinematico_spatial(side: np.ndarray, sr: int) -> np.ndarray:
     2. HPF @ 400Hz on Side
     3. Large room reverb (room_size=0.6, wet ~2.5%, decay ~1.5s)
     """
-    side_1ch = side.reshape(1, -1).astype(np.float32)
-
     # Phase decorrelation: 10ms micro-delay
     delay_samples = int(sr * 0.010)
     delayed = np.pad(side[:-delay_samples], (delay_samples, 0))
@@ -141,6 +176,37 @@ def check_phase_correlation(audio: np.ndarray) -> float:
     right = audio[1]
     norm = np.linalg.norm(left) * np.linalg.norm(right) + 1e-10
     return float(np.dot(left, right) / norm)
+
+
+def measure_stereo_correlation(
+    audio: np.ndarray, frame_size: int = 4096, hop_size: int = 1024
+) -> float | None:
+    """Windowed-average L/R Pearson correlation of a stereo master.
+
+    A single full-signal correlation hides local phase drift (a reversed
+    section between two correlated sections averages out), so this measures
+    the correlation per overlapping frame and averages the per-frame
+    values — the delivery-report statistic for mono-compat safety.
+
+    Returns None for non-stereo input (mono has no correlation to judge);
+    the values sit in [-1, 1], where 1.0 = identical channels and < 0
+    = polarity inversion.
+    """
+    if audio.ndim != 2 or audio.shape[0] != 2 or audio.shape[1] < 2:
+        return None
+    left = audio[0].astype(np.float64)
+    right = audio[1].astype(np.float64)
+    n = left.shape[0]
+    frame_size = max(64, min(frame_size, n))
+    frame_corrs: list[float] = []
+    for start in range(0, n - frame_size + 1, hop_size):
+        lf = left[start : start + frame_size]
+        rf = right[start : start + frame_size]
+        norm = np.linalg.norm(lf) * np.linalg.norm(rf) + 1e-10
+        frame_corrs.append(float(np.dot(lf, rf) / norm))
+    if not frame_corrs:
+        return check_phase_correlation(audio)
+    return float(np.mean(frame_corrs))
 
 
 def safety_enforce_correlation(audio: np.ndarray, sr: int) -> np.ndarray:
