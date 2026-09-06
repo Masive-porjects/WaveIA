@@ -11,8 +11,9 @@ Program-dependent threshold:
 
   where ``RMS_program`` is a causal sliding-window RMS (the "windowed
   program loudness") and ``offset`` is the calibrated margin BELOW that
-  loudness (dead-code semantics: ``build_proportional_compressor`` used
-  ``threshold_db = input_rms_db − 8/ratio``). The threshold therefore tracks
+  loudness (the legacy proportional compressor's
+  ``threshold_db = input_rms_db − 8/ratio`` rule was replaced by this).
+  The threshold therefore tracks
   the real dynamics of the material instead of a fixed number, and the
   resulting threshold is clamped to ``[threshold_min_db, threshold_max_db]``
   (roadmap clamp [−30, −4] dB FS). A quiet passage lowers the threshold with

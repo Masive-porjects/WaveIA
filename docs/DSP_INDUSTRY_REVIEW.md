@@ -59,10 +59,13 @@ close the engine gets.
 
 ## P2 — dead code (low priority)
 
-Confirmed still present (2026-09-05):
-- `build_proportional_compressor` (engine L371) — nominal path replaced by adaptive compressor.
-- `_build_dynamic_eq_fallback` (engine L332) + `analyze_band_energy` (engine L162) — fallback/legacy helpers.
-- Suggested: remove after C/D or when a real consumer exists; keep only if tests rely on them.
+✅ **FIXED** (2026-09-05, `chore/dsp-p2-cleanup`): removed from `engine.py` —
+`build_proportional_compressor` (replaced by the adaptive compressor),
+`_build_dynamic_eq_fallback` + `calculate_proportional_gain` (fallback/legacy
+helpers unreachable since `build_match_eq` replaced `build_dynamic_eq`),
+`analyze_band_energy` (only used by the fallback), and the orphan
+`_adjust_for_already_mastered` (zero call-sites). Dedicated dead-code tests
+removed from `test_engine_smoke.py`; `adaptive_comp.py` docstring updated.
 
 ---
 
@@ -118,6 +121,5 @@ Suite after all four: **321 passed** (`cd apps/audiomind && python -m pytest tes
 
 ## Remaining
 
-- Phases A+B merged into `main` via integration branch (`2f95925`); Phase C on `feature/dsp-phase-c`; Phase D on `feature/dsp-phase-d` (to merge after review).
-- P2 cleanup (dead code in engine).
+- Phases A+B merged into `main` via integration branch (`2f95925`); C/D/P2 ready to merge.
 - End-to-end smoke with a real track once servers are running.
