@@ -32,6 +32,7 @@ from audiomind.processing.truepeak import (
     compute_codec_safe_ceiling,
 )
 from audiomind.processing.dither import apply_dither_noise_shaping
+from audiomind.processing.deesser import DeesserParams, deesser
 from audiomind.processing.multiband import (
     BandParams,
     MultibandParams,
@@ -662,6 +663,20 @@ def _stereo_imaging_params_from_mastering(
     )
 
 
+def _deesser_params_from_mastering(p: MasteringParameters) -> DeesserParams:
+    """Map the MasteringParameters de-esser fields onto the DSP stage config.
+
+    The band edges use the module anchors (3-8 kHz); only the max reduction
+    and the detector threshold are exposed. The neutral default (amount 0.0)
+    keeps the stage a bit-exact no-op even when enabled, so the engine skips
+    the processing pass entirely and leaves the signal untouched.
+    """
+    return DeesserParams(
+        amount_db=p.deesser_amount_db,
+        threshold_db=p.deesser_threshold_db,
+    )
+
+
 def _adjust_for_already_mastered(
     preset: dict, analysis_result: AnalysisResult | None
 ) -> dict:
@@ -922,6 +937,19 @@ def process_audio(
     audio, _ = gain_stage(audio, target_peak_db=-6.0)
     report(5)
 
+    # 1a. Dynamic de-esser (Phase B — B2) — sibilance 3-8 kHz tamed BEFORE
+    #     the tonal/dynamics chain. Ordering rationale: (1) the detector
+    #     reads the UNCOMPRESSED transient, where sibilance is most visible;
+    #     (2) the 8 kHz clarity shelf then brightens already-de-essed
+    #     material instead of re-emphasizing the harshness (the stages do
+    #     not fight each other); (3) the compressors never pump on sibilant
+    #     drive. NEUTRAL (disabled, or enabled with amount 0.0) = bit-exact
+    #     bypass; material below the detector threshold also passes through
+    #     bit-exactly (deesser_gain stays at exactly 0 dB).
+    deesser_params = _deesser_params_from_mastering(params)
+    if params.deesser_enabled and not deesser_params.is_neutral():
+        audio = deesser(audio, sr, deesser_params)
+
     # ── Build Pedalboard chain ──────────────────────────────────────
     board = Pedalboard()
 
@@ -1020,6 +1048,7 @@ def process_audio(
 
     # ── Spatial Processing: M/S with Reverb + Haas + Width ──────────
     from .spatial import (
+        apply_side_hpf,
         mid_side_encode,
         mid_side_decode,
         check_phase_correlation,
@@ -1028,7 +1057,8 @@ def process_audio(
 
     if (params.clarity_wet > 0
             or (params.stereo_width != 1.0 and not params.stereo_imaging_enabled)
-            or params.haas_delay_ms > 0):
+            or params.haas_delay_ms > 0
+            or params.side_hpf_enabled):
         mid, side = mid_side_encode(effected)
 
         # 7a. Reverb on Side (Clarity module)
@@ -1058,6 +1088,16 @@ def process_audio(
                 delayed[delay_samples:] = side[:-delay_samples]
                 mix = min(0.5, params.haas_delay_ms / 80.0)
                 side = side * (1 - mix) + delayed * mix
+
+        # 7b'. Side low-end clean (Phase B — B1): high-pass the SIDE below
+        #      ~100 Hz (sub-bass room mud). Complementary to — never
+        #      competing with — the <120 Hz mono collapse (stage 9): the
+        #      HPF cleans the decorrelated sub-bass BEFORE the width stage
+        #      can spread it, while the late collapse still forces the lows
+        #      to mono center. Cutoff anchor: below mono-compat's 120 Hz,
+        #      above the corrective 30 Hz master HPF (stage 2).
+        if params.side_hpf_enabled:
+            side = apply_side_hpf(side, sr, cutoff_hz=params.side_hpf_hz)
 
         # 7c. Stereo width (M/S gain) — legacy broadband width. Skipped when
         #     the per-band stereo imaging stage (Sprint 9) is enabled, which
