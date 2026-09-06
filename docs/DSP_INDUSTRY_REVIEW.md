@@ -1,6 +1,6 @@
 # DSP Industry Review — Mastering Chain vs Professional Practice
 
-> Status: 2026-09-05. Phases A, B and C landed (merged into `main`); Phase D and P2 items remain open.
+> Status: 2026-09-05. Phases A, B, C and D landed; P2 items remain open.
 > Companion: `docs/COMPLIANCE_PHASE1.md` (delivery contract), `docs/INTEGRATION_REPORT.md` (integration state).
 
 ## Purpose
@@ -34,7 +34,7 @@ close the engine gets.
 | 12 | Check dynamic range collapse | ❌ was missing → **FIXED (Phase A)** | DR validation was a silent `pass`; now real check (absolute floor + collapse ratio) |
 | 13 | Decide per-track, not per-preset-blindly | ❌ was missing → **FIXED (Phase A)** | smart gate is analysis-driven, conservative with engaged signatures |
 | 14 | Compare against an external reference while mastering | ✅ FIXED Phase C | `POST /session/{id}/reference-file` uploads a real reference; `POST /session/{id}/compare-reference` returns spectral diff + loudness/brightness profile |
-| 15 | Master an album/EP toward a relative target | ❌ open (P1 Phase D) | No batch mode with a common relative target |
+| 15 | Master an album/EP toward a relative target | ✅ FIXED Phase D | `POST /api/album/negotiate` (measure LRA per track) + `POST /api/album/process` (per-track negotiated `target_lufs_db` through the existing single-track pipeline) |
 | 16 | Integrity/QC gate that can reject bad sources | ✅ complies | `strict_mode` → HTTP 422 with parsed detail for hard-clipped / hot sources |
 | 17 | Keep the tonal character the artist chose | ⚠️ partial | preset characters are preserved; smart gate uses conservative tier when a signature is engaged (see design note) |
 
@@ -55,7 +55,7 @@ close the engine gets.
 | # | Gap | Plan |
 |---|---|---|
 | P1-1 | External reference mode: `/reference/{preset_id}` re-renders the same track; there is no way to compare against a real master reference file | ✅ **FIXED** Phase C: `reference-file` upload/replace + `compare-reference` (spectral diff per 8-band profile, LUFS/crest/correlation/LRA deltas, biggest increase/decrease hints) — measurement-only, neutral contract preserved |
-| P1-2 | Album/EP mode: no batch mastering toward a common relative target | Phase D — batch API + relative LUFS/DR negotiation |
+| P1-2 | Album/EP mode: no batch mastering toward a common relative target | ✅ **FIXED** Phase D: `POST /api/album/negotiate` (per-track input LUFS + EBU 3342-style LRA, negotiation table) + `POST /api/album/process` (masters IN ORDER overriding only `target_lufs_db` per track) — additive, no DSP change |
 
 ## P2 — dead code (low priority)
 
@@ -96,6 +96,13 @@ Confirmed still present (2026-09-05):
 - Hints: `biggest_increase_band_hz` (reference has MORE energy → "too quiet here") / `biggest_decrease_band_hz` ("too loud here").
 - Neutral: comparison never touches audio; same master with/without a reference is bit-identical (feature-level identity test: file vs itself → all deltas ≈ 0).
 
+### Album/EP relative target negotiation design (Phase D)
+- Pure negotiation module (`processing/album.py`): `target = round(base + clamp((lra − album_median) × 0.25, ±2.0), 1)`; `base` is the album-wide target (default −14.0 LUFS); LRA is the EBU 3342-style `measure_lra` of the INPUT track. Tracks without a measurable LRA keep the base unchanged.
+- Model (TC Electronic / Nugen-style "relative loudness"): perceptual uniformity in sequence — a track with MORE dynamic range has lower energy density, so it needs a slightly HIGHER integrated-LUFS target to feel equally loud next to denser tracks; a dense track gets a LOWER target.
+- Endpoints (`api/batch.py`): `POST /api/album/negotiate` (measurement-only) and `POST /api/album/process` (masters in order, overriding ONLY `target_lufs_db` per track through the existing `process_audio`; replaces session state like the single-track endpoint; `save_sessions` once after all tracks).
+- Failure semantics: guards fail fast (empty → 400, unknown session → 404, missing file → 400); per-track failures never abort the album — the track is marked (null metrics, `within_tolerance=False`, original exception type in `warnings`) and the rest continues.
+- Report: per-track `lufs_deviation_db = output − target`, `within_tolerance` when |deviation| ≤ 1.5 dB (same tolerance as `validation.py`); warnings in Spanish (Rioplatense) for out-of-tolerance tracks, consistent with the engine surfaces.
+
 ---
 
 ## Shipped phases
@@ -105,11 +112,12 @@ Confirmed still present (2026-09-05):
 | A | smart gating + final correlation QC + real DR validation | `feature/dsp-phase-a` | `tests/test_phase_a.py` (11) |
 | B | side HPF <100 Hz + dynamic de-esser 3-8 kHz | `feature/dsp-phase-b` | `tests/test_deesser.py` (25) + `tests/test_spatial.py` (+7) |
 | C | external reference comparison (spectral diff + loudness/brightness profile), measurement-only | `feature/dsp-phase-c` | `tests/test_reference_external.py` (21) |
+| D | album/EP batch mastering with relative LUFS/DR target negotiation, additive-only | `feature/dsp-phase-d` | `tests/test_album.py` (19) |
 
-Suite after all three: **302 passed** (`cd apps/audiomind && python -m pytest tests/ -q`).
+Suite after all four: **321 passed** (`cd apps/audiomind && python -m pytest tests/ -q`).
 
 ## Remaining
 
-- Phases A+B merged into `main` via integration branch (`2f95925`); Phase C on `feature/dsp-phase-c`.
-- Phase D (album/EP batch), P2 cleanup.
+- Phases A+B merged into `main` via integration branch (`2f95925`); Phase C on `feature/dsp-phase-c`; Phase D on `feature/dsp-phase-d` (to merge after review).
+- P2 cleanup (dead code in engine).
 - End-to-end smoke with a real track once servers are running.

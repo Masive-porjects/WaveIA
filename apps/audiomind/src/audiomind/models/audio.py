@@ -710,3 +710,84 @@ class BeatData(BaseModel):
     stems: dict[str, str] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict = Field(default_factory=dict)
+
+
+# ── Album / EP batch mastering (Phase D, P1-2) ───────────────────────────
+# Relative LUFS/DR target negotiation across several sessions. Purely
+# additive and backward-compatible by design: every request field defaults
+# to the album defaults (None → -14.0 LUFS base, list → empty) and every
+# result field is nullable so partial measurements never break the payload.
+# The batch surface only COMPUTES ``target_lufs_db`` numbers and feeds them
+# through the existing single-track pipeline — no new DSP, no audio
+# mutation — preserving the neutral = bypass contract.
+
+
+class AlbumNegotiateRequest(BaseModel):
+    """Body for POST /api/album/negotiate (measurement-only)."""
+
+    session_ids: list[str] = Field(default_factory=list)
+    target_lufs_db: float | None = None  # album base; None -> -14.0
+
+
+class AlbumProcessRequest(BaseModel):
+    """Body for POST /api/album/process (master toward relative targets)."""
+
+    session_ids: list[str] = Field(default_factory=list)
+    target_lufs_db: float | None = None  # album base; None -> -14.0
+    parameters: MasteringParameters = MasteringParameters()
+
+
+class AlbumNegotiationTrack(BaseModel):
+    """Per-track negotiation result (measurement-only, no DSP).
+
+    Nullable by design: tracks whose file could not be loaded keep their
+    metrics null and receive the album base unchanged, so the negotiation
+    never fails the whole album for one bad track.
+    """
+
+    session_id: str
+    original_filename: str | None = None
+    input_lufs_db: float | None = None
+    input_lra_lu: float | None = None
+    negotiated_target_lufs_db: float | None = None
+    offset_db: float | None = None
+
+
+class AlbumNegotiationResult(BaseModel):
+    """Result of POST /api/album/negotiate."""
+
+    target_base_lufs_db: float
+    lra_median_lu: float | None = None
+    tracks: list[AlbumNegotiationTrack] = Field(default_factory=list)
+
+
+class AlbumProcessTrack(BaseModel):
+    """Per-track album mastering result.
+
+    ``lufs_deviation_db`` is ``output_lufs_db − negotiated_target_lufs_db``
+    (positive = louder than the negotiated target). ``within_tolerance`` is
+    True when the deviation falls inside ±ALBUM_LUFS_TOLERANCE_DB (1.5 dB);
+    a track that FAILED to process keeps all metrics null, carries the
+    error in ``warnings`` (exception type + message, preserving
+    IOError/InputQcError verbatim) and is marked ``within_tolerance=False``
+    so consumers can filter failures — the album never aborts mid-way.
+    """
+
+    session_id: str
+    original_filename: str | None = None
+    negotiated_target_lufs_db: float | None = None
+    output_lufs_db: float | None = None
+    output_lra_lu: float | None = None
+    output_crest_db: float | None = None
+    output_true_peak_dbtp: float | None = None
+    lufs_deviation_db: float | None = None  # output − target (+ = louder)
+    within_tolerance: bool = True
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AlbumProcessResult(BaseModel):
+    """Result of POST /api/album/process."""
+
+    target_base_lufs_db: float
+    lra_median_lu: float | None = None
+    tracks: list[AlbumProcessTrack] = Field(default_factory=list)

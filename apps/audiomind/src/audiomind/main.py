@@ -8,6 +8,7 @@ from audiomind.api.license import router as license_router
 from audiomind.api.splitter import router as splitter_router
 from audiomind.api.vocal import router as vocal_router
 from audiomind.api.songstarter import router as songstarter_router
+from audiomind.api.batch import router as batch_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -34,6 +35,7 @@ app.include_router(license_router, prefix="/api")
 app.include_router(splitter_router, prefix="/api")
 app.include_router(vocal_router, prefix="/api")
 app.include_router(songstarter_router, prefix="/api")
+app.include_router(batch_router, prefix="/api")
 
 
 @app.get("/health")
