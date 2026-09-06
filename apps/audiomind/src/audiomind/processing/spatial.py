@@ -4,7 +4,7 @@ Handles M/S encoding, per-preset spatial effects on the Side channel,
 and phase correlation safety enforcement.
 """
 import numpy as np
-from pedalboard import Pedalboard, HighpassFilter, LowpassFilter, PeakFilter, Reverb
+from pedalboard import HighpassFilter, LowpassFilter, PeakFilter, Pedalboard, Reverb
 
 
 def mid_side_encode(audio: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -141,6 +141,37 @@ def check_phase_correlation(audio: np.ndarray) -> float:
     right = audio[1]
     norm = np.linalg.norm(left) * np.linalg.norm(right) + 1e-10
     return float(np.dot(left, right) / norm)
+
+
+def measure_stereo_correlation(
+    audio: np.ndarray, frame_size: int = 4096, hop_size: int = 1024
+) -> float | None:
+    """Windowed-average L/R Pearson correlation of a stereo master.
+
+    A single full-signal correlation hides local phase drift (a reversed
+    section between two correlated sections averages out), so this measures
+    the correlation per overlapping frame and averages the per-frame
+    values — the delivery-report statistic for mono-compat safety.
+
+    Returns None for non-stereo input (mono has no correlation to judge);
+    the values sit in [-1, 1], where 1.0 = identical channels and < 0
+    = polarity inversion.
+    """
+    if audio.ndim != 2 or audio.shape[0] != 2 or audio.shape[1] < 2:
+        return None
+    left = audio[0].astype(np.float64)
+    right = audio[1].astype(np.float64)
+    n = left.shape[0]
+    frame_size = max(64, min(frame_size, n))
+    frame_corrs: list[float] = []
+    for start in range(0, n - frame_size + 1, hop_size):
+        lf = left[start : start + frame_size]
+        rf = right[start : start + frame_size]
+        norm = np.linalg.norm(lf) * np.linalg.norm(rf) + 1e-10
+        frame_corrs.append(float(np.dot(lf, rf) / norm))
+    if not frame_corrs:
+        return check_phase_correlation(audio)
+    return float(np.mean(frame_corrs))
 
 
 def safety_enforce_correlation(audio: np.ndarray, sr: int) -> np.ndarray:

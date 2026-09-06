@@ -213,6 +213,8 @@ def _master_result_from_engine(result: dict) -> MasterResultMetrics:
         duration_seconds=result.get("duration_seconds"),
         sample_rate=result.get("sample_rate"),
         output_bit_depth=result.get("output_bit_depth"),
+        stereo_correlation=result.get("stereo_correlation"),
+        lra=result.get("lra"),
     )
 
 
@@ -230,6 +232,7 @@ def _mastering_report_from_engine(result: dict) -> MasteringReport:
         true_peak_dbtp=result.get("true_peak_db"),
         lra=result.get("lra"),
         crest_factor_db=result.get("crest_factor_db"),
+        stereo_correlation=result.get("stereo_correlation"),
         target_lufs=result.get("target_lufs"),
         warnings=result.get("warnings", []),
     )
@@ -245,6 +248,7 @@ def _measure_master_file(path: Path) -> MasterResultMetrics:
     """
     try:
         from audiomind.processing.loudness import measure_lufs
+        from audiomind.processing.spatial import measure_stereo_correlation
 
         audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
         mono = audio.mean(axis=1)
@@ -253,10 +257,16 @@ def _measure_master_file(path: Path) -> MasterResultMetrics:
         true_peak_db = 20 * np.log10(max(peak, 1e-10))
         rms = float(np.sqrt(np.mean(mono**2)))
         crest = 20 * np.log10(peak / rms) if rms > 0 else 0.0
+        corr = (
+            measure_stereo_correlation(audio.T)
+            if audio.shape[1] == 2
+            else None
+        )
         return MasterResultMetrics(
             integrated_lufs=round(float(lufs), 1),
             true_peak_db=round(true_peak_db, 1),
             crest_factor_db=round(crest, 1),
+            stereo_correlation=round(corr, 3) if corr is not None else None,
         )
     except Exception:
         return MasterResultMetrics()

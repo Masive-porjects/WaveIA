@@ -8,63 +8,65 @@ Instead of applying fixed preset values, this engine:
 """
 from collections.abc import Callable
 from pathlib import Path
+
 import numpy as np
 import soundfile as sf
 from pedalboard import (
-    Pedalboard,
+    Compressor,
     HighpassFilter,
     PeakFilter,
-    Compressor,
+    Pedalboard,
 )
 from pedalboard.io import AudioFile
 
-from audiomind.models.audio import MasteringParameters, AnalysisResult
-from audiomind.processing.mono import enforce_mono_compatibility
+from audiomind.analysis.analyzer import (
+    TARGET_BANDS_HZ,
+    analyze_band_energies,
+    get_genre_target_profile,
+)
+from audiomind.models.audio import AnalysisResult, MasteringParameters
+from audiomind.processing.adaptive_comp import (
+    AdaptiveCompParams,
+    adaptive_compress,
+)
 from audiomind.processing.clipper import soft_clip
-from audiomind.processing.io_write import write_output
-from audiomind.processing.loudness import measure_lra
-from audiomind.processing.resample import resample_audio
-from audiomind.processing.truepeak import (
-    true_peak_limit,
-    measure_true_peak,
-    measure_lufs,
-    calculate_crest_factor,
-    compute_codec_safe_ceiling,
-)
+from audiomind.processing.delay import DelayParams, delay_pass
 from audiomind.processing.dither import apply_dither_noise_shaping
-from audiomind.processing.multiband import (
-    BandParams,
-    MultibandParams,
-    multiband_compress,
-)
 from audiomind.processing.dyn_eq import (
     DynEqBandParams,
     DynEqParams,
     dynamic_eq,
 )
+from audiomind.processing.echo import EchoParams, echo_pass
 from audiomind.processing.exciter import (
     ExciterBandParams,
     ExciterParams,
     excite,
 )
-from audiomind.processing.tape import TapeParams, tape_saturate
+from audiomind.processing.io_write import write_output
+from audiomind.processing.loudness import measure_lra
+from audiomind.processing.mono import enforce_mono_compatibility
+from audiomind.processing.multiband import (
+    BandParams,
+    MultibandParams,
+    multiband_compress,
+)
+from audiomind.processing.resample import resample_audio
+from audiomind.processing.reverb import ReverbParams, reverb_pass
+from audiomind.processing.smart_gate import decide_smart_gate
+from audiomind.processing.spatial import measure_stereo_correlation
 from audiomind.processing.stereo_imaging import (
     StereoImagingParams,
     apply_stereo_imaging,
 )
-from audiomind.processing.adaptive_comp import (
-    AdaptiveCompParams,
-    adaptive_compress,
+from audiomind.processing.tape import TapeParams, tape_saturate
+from audiomind.processing.truepeak import (
+    calculate_crest_factor,
+    compute_codec_safe_ceiling,
+    measure_lufs,
+    measure_true_peak,
+    true_peak_limit,
 )
-from audiomind.processing.delay import DelayParams, delay_pass
-from audiomind.processing.echo import EchoParams, echo_pass
-from audiomind.processing.reverb import ReverbParams, reverb_pass
-from audiomind.analysis.analyzer import (
-    get_genre_target_profile,
-    analyze_band_energies,
-    TARGET_BANDS_HZ,
-)
-
 
 # ── Gain Staging ──────────────────────────────────────────────────────
 
@@ -774,6 +776,7 @@ def _process_transparent(
     integrated_lufs = measure_lufs(audio, sr)
     crest = calculate_crest_factor(audio)
     lra = measure_lra(audio, sr)
+    stereo_correlation = measure_stereo_correlation(audio)
 
     return {
         "output_path": str(output_path),
@@ -793,6 +796,9 @@ def _process_transparent(
         "target_lufs": params.target_lufs_db if did_loudness else None,
         "warnings": warnings,
         "lra": round(lra, 2) if lra is not None else None,
+        "stereo_correlation": (
+            round(stereo_correlation, 3) if stereo_correlation is not None else None
+        ),
     }
 
 
@@ -922,6 +928,23 @@ def process_audio(
     audio, _ = gain_stage(audio, target_peak_db=-6.0)
     report(5)
 
+    # ── Smart gate (Phase A — "menos es más") ────────────────────────
+    # Decides, from the INPUT analysis alone, which corrective tone-shaping
+    # stages can be bypassed because the source already meets the delivery
+    # targets. The gate NEVER touches delivery-critical stages (HPF,
+    # spatial, mono-compat, saturation, loudness, soft-clip, limiter,
+    # dither); signature modules engaged by the user are preserved via the
+    # module's tiers. When no analysis exists the gate stays inactive.
+    smart_gate = decide_smart_gate(
+        params,
+        analysis_result,
+        effective_ceiling_db=_user_limiter_ceiling(
+            params.limiter_ceiling_db, already_mastered
+        ),
+    )
+    gated_modules = set(smart_gate["gated_modules"])
+    smart_gate_active = bool(smart_gate["applied"])
+
     # ── Build Pedalboard chain ──────────────────────────────────────
     board = Pedalboard()
 
@@ -929,16 +952,23 @@ def process_audio(
     board.append(HighpassFilter(cutoff_frequency_hz=30))
 
     # 3. Match EQ — genre-aware spectral targeting via analysis result.
+    #    Gated when the source already matches the delivery targets (the
+    #    analysis-derived corrective is precisely the stage to skip).
     #    Uses empty eq_bands since module params provide per-band control.
-    eq_plugins = build_match_eq(
-        audio, sr, [], analysis_result,
-        intensity_multiplier=intensity_multiplier * am_factor,
-    )
+    eq_plugins = []
+    if not (smart_gate_active and "match_eq" in gated_modules):
+        eq_plugins = build_match_eq(
+            audio, sr, [], analysis_result,
+            intensity_multiplier=intensity_multiplier * am_factor,
+        )
     for p in eq_plugins:
         board.append(p)
 
     # 4. Module EQ: Claridad — Brilliance (8 kHz shelf)
-    if params.clarity_brightness_db != 0:
+    if (
+        params.clarity_brightness_db != 0
+        and not (smart_gate_active and "clarity_shelf" in gated_modules)
+    ):
         board.append(PeakFilter(
             cutoff_frequency_hz=8000,
             gain_db=params.clarity_brightness_db * am_factor,
@@ -946,7 +976,10 @@ def process_audio(
         ))
 
     # 5. Module EQ: Cinta — Warmth (high roll-off or air boost at 10 kHz)
-    if params.saturation_warmth_db != 0:
+    if (
+        params.saturation_warmth_db != 0
+        and not (smart_gate_active and "warmth_tilt" in gated_modules)
+    ):
         board.append(PeakFilter(
             cutoff_frequency_hz=10000,
             gain_db=params.saturation_warmth_db,
@@ -958,7 +991,10 @@ def process_audio(
     #    replaces the fixed pedalboard compressor with the real module
     #    (threshold tracks input RMS, crest-adaptive attack/release,
     #    sidechain + makeup). NEUTRAL (ratio 1.0) = bit-exact bypass; the
-    #    fixed stage is skipped entirely in that case too.
+    #    fixed stage is skipped entirely in that case too. The smart gate
+    #    may skip the fixed stage when the source is already deliverable
+    #    (its job is corrective/normalizing, and the adaptive module — a
+    #    signature — is NEVER gated).
     if params.adaptive_comp_enabled:
         adaptive_params = _adaptive_comp_params_from_mastering(params)
         adaptive_needs_board = True
@@ -967,19 +1003,21 @@ def process_audio(
         # else: the module runs on `effected` AFTER the board() call below
         # (like the 7b multiband stage): it needs the post-EQ signal.
     else:
+        fixed_comp_gated = smart_gate_active and "compressor" in gated_modules
         # Fixed proportional compression — threshold from input RMS.
         # Module: Fuego / Empuje — compression ratio + transient boost.
-        comp_threshold_db = -16 - (params.transient_boost_db * 1.5)
-        comp_ratio = params.compression_ratio * am_factor
-        comp_attack = max(3, 20 - params.transient_boost_db * 3)  # faster attack = more punch
-        board.append(
-            Compressor(
-                threshold_db=comp_threshold_db,
-                ratio=max(1.0, comp_ratio),
-                attack_ms=comp_attack,
-                release_ms=200,
+        if not fixed_comp_gated:
+            comp_threshold_db = -16 - (params.transient_boost_db * 1.5)
+            comp_ratio = params.compression_ratio * am_factor
+            comp_attack = max(3, 20 - params.transient_boost_db * 3)  # faster attack = more punch
+            board.append(
+                Compressor(
+                    threshold_db=comp_threshold_db,
+                    ratio=max(1.0, comp_ratio),
+                    attack_ms=comp_attack,
+                    release_ms=200,
+                )
             )
-        )
         adaptive_needs_board = False
 
     # 7. Process through Pedalboard (EQ, compression)
@@ -1020,9 +1058,9 @@ def process_audio(
 
     # ── Spatial Processing: M/S with Reverb + Haas + Width ──────────
     from .spatial import (
-        mid_side_encode,
-        mid_side_decode,
         check_phase_correlation,
+        mid_side_decode,
+        mid_side_encode,
         safety_enforce_correlation,
     )
 
@@ -1206,11 +1244,14 @@ def process_audio(
 
     report(88)
 
-    # 13. Dynamic range validation
-    input_dr = measure_dynamic_range(audio, sr)
-    output_dr = measure_dynamic_range(effected, sr)
-    if input_dr > 0 and output_dr / input_dr < 0.8:
-        pass  # Log warning — more than 20% DR reduction detected
+    # 13. Dynamic range validation (Phase A — A3)
+    #     Measured so the Layer 2 gate can judge the delivered master
+    #     against the input dynamics (absolute floor + collapse ratio).
+    input_dr_db = measure_dynamic_range(audio, sr)  # post-gain-staging input
+    output_dr_db = measure_dynamic_range(effected, sr)
+    dr_ratio = None
+    if input_dr_db > 0:
+        dr_ratio = output_dr_db / input_dr_db
 
     # Write output — explicit PCM subtype (honors output_bit_depth; the
     # pedalboard AudioFile writer silently downconverts to 16-bit PCM).
@@ -1223,6 +1264,7 @@ def process_audio(
     true_peak = measure_true_peak(effected, sr)
     integrated_lufs = measure_lufs(effected, sr)
     lra = measure_lra(effected, sr)
+    stereo_correlation = measure_stereo_correlation(effected)
 
     return {
         "output_path": str(output_path),
@@ -1240,6 +1282,11 @@ def process_audio(
         "target_lufs": target_lufs_val,
         "warnings": warnings,
         "lra": round(lra, 2) if lra is not None else None,
+        "stereo_correlation": (
+            round(stereo_correlation, 3) if stereo_correlation is not None else None
+        ),
+        "dr_ratio": round(dr_ratio, 3) if dr_ratio is not None else None,
+        "smart_gate": smart_gate if smart_gate_active else None,
     }
 
 

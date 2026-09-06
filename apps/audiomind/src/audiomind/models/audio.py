@@ -503,6 +503,8 @@ class MasterResultMetrics(BaseModel):
     duration_seconds: float | None = None
     sample_rate: int | None = None
     output_bit_depth: int | None = None
+    stereo_correlation: float | None = None
+    lra: float | None = None
 
 
 class MasteringReport(BaseModel):
@@ -531,6 +533,7 @@ class MasteringReport(BaseModel):
     true_peak_dbtp: float | None = None
     lra: float | None = None
     crest_factor_db: float | None = None
+    stereo_correlation: float | None = None
     target_lufs: float | None = None
     warnings: list[str] = Field(default_factory=list)
 
