@@ -1,6 +1,6 @@
 # DSP Industry Review — Mastering Chain vs Professional Practice
 
-> Status: 2026-09-05. Phase A and Phase B landed; Phase C/D and P2 items remain open.
+> Status: 2026-09-05. Phases A, B and C landed (merged into `main`); Phase D and P2 items remain open.
 > Companion: `docs/COMPLIANCE_PHASE1.md` (delivery contract), `docs/INTEGRATION_REPORT.md` (integration state).
 
 ## Purpose
@@ -33,7 +33,7 @@ close the engine gets.
 | 11 | Check the FINAL master for phase/correlation | ⚠️ partial → **FIXED (Phase A)** | Correlation was mid-chain only; now measured on final master + validation issue |
 | 12 | Check dynamic range collapse | ❌ was missing → **FIXED (Phase A)** | DR validation was a silent `pass`; now real check (absolute floor + collapse ratio) |
 | 13 | Decide per-track, not per-preset-blindly | ❌ was missing → **FIXED (Phase A)** | smart gate is analysis-driven, conservative with engaged signatures |
-| 14 | Compare against an external reference while mastering | ❌ open (P1 Phase C) | `/reference/{preset_id}` re-renders the same track (neutral Crudo), never an external file |
+| 14 | Compare against an external reference while mastering | ✅ FIXED Phase C | `POST /session/{id}/reference-file` uploads a real reference; `POST /session/{id}/compare-reference` returns spectral diff + loudness/brightness profile |
 | 15 | Master an album/EP toward a relative target | ❌ open (P1 Phase D) | No batch mode with a common relative target |
 | 16 | Integrity/QC gate that can reject bad sources | ✅ complies | `strict_mode` → HTTP 422 with parsed detail for hard-clipped / hot sources |
 | 17 | Keep the tonal character the artist chose | ⚠️ partial | preset characters are preserved; smart gate uses conservative tier when a signature is engaged (see design note) |
@@ -54,7 +54,7 @@ close the engine gets.
 
 | # | Gap | Plan |
 |---|---|---|
-| P1-1 | External reference mode: `/reference/{preset_id}` re-renders the same track; there is no way to compare against a real master reference file | Phase C — endpoint + comparative analysis (spectral diff, loudness/brightness profile) |
+| P1-1 | External reference mode: `/reference/{preset_id}` re-renders the same track; there is no way to compare against a real master reference file | ✅ **FIXED** Phase C: `reference-file` upload/replace + `compare-reference` (spectral diff per 8-band profile, LUFS/crest/correlation/LRA deltas, biggest increase/decrease hints) — measurement-only, neutral contract preserved |
 | P1-2 | Album/EP mode: no batch mastering toward a common relative target | Phase D — batch API + relative LUFS/DR negotiation |
 
 ## P2 — dead code (low priority)
@@ -90,6 +90,12 @@ Confirmed still present (2026-09-05):
 - `STEREO_CORRELATION_MINIMUM = 0.35` (correlation meter "red zone" ~0.3-0.4, Ozone/ITU-style mono-compat guidance).
 - `DR_COLLAPSE_RATIO = 0.5`, `DR_MINIMUM_LU = 3.0` (EBU 3342 percentile floor). Both warning-only.
 
+### External reference comparison design (Phase C)
+- Distinct surface from the Crudo `/reference/{preset_id}` re-render (same-track neutral). New prefix `reference-file`: `POST /session/{id}/reference-file` (upload/replace, validation mirrors `/api/upload`), `POST /session/{id}/compare-reference` (measurement, cached per session, cleared on re-upload), `GET /session/{id}/audio/reference-file` (playback; must be registered before `/audio/{audio_type}` — literal beats parameter).
+- `compare_tracks` is pure measurement (no DSP): 8-band spectral levels from `analyze_band_energies` on MONO; LUFS from `measure_lufs` (the same BS.1770 meter the engine uses for target matching); crest mono peak/RMS; correlation from `measure_stereo_correlation`; LRA from `measure_lra`. Deltas are always `reference − master` (1 decimal; correlation 3 decimals).
+- Hints: `biggest_increase_band_hz` (reference has MORE energy → "too quiet here") / `biggest_decrease_band_hz` ("too loud here").
+- Neutral: comparison never touches audio; same master with/without a reference is bit-identical (feature-level identity test: file vs itself → all deltas ≈ 0).
+
 ---
 
 ## Shipped phases
@@ -98,11 +104,12 @@ Confirmed still present (2026-09-05):
 |---|---|---|---|
 | A | smart gating + final correlation QC + real DR validation | `feature/dsp-phase-a` | `tests/test_phase_a.py` (11) |
 | B | side HPF <100 Hz + dynamic de-esser 3-8 kHz | `feature/dsp-phase-b` | `tests/test_deesser.py` (25) + `tests/test_spatial.py` (+7) |
+| C | external reference comparison (spectral diff + loudness/brightness profile), measurement-only | `feature/dsp-phase-c` | `tests/test_reference_external.py` (21) |
 
-Suite after both: **270 passed** (`cd apps/audiomind && python -m pytest tests/ -q`).
+Suite after all three: **302 passed** (`cd apps/audiomind && python -m pytest tests/ -q`).
 
 ## Remaining
 
-- Merge/review `feature/dsp-phase-a` and `feature/dsp-phase-b` into `main`.
-- Phase C (external reference), Phase D (album/EP batch), P2 cleanup.
+- Phases A+B merged into `main` via integration branch (`2f95925`); Phase C on `feature/dsp-phase-c`.
+- Phase D (album/EP batch), P2 cleanup.
 - End-to-end smoke with a real track once servers are running.
