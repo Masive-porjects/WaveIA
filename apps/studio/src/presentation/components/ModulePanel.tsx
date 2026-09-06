@@ -25,6 +25,7 @@ interface ModulePanelProps {
   params: MasteringParameters;
   onChange: (params: MasteringParameters) => void;
   disabled?: boolean;
+  activePresetId?: string | null;
   onPresetSelect?: (params: MasteringParameters, presetId: string) => void;
 }
 
@@ -467,10 +468,10 @@ export default function ModulePanel({
   params,
   onChange,
   disabled,
+  activePresetId,
   onPresetSelect,
 }: ModulePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activePreset, setActivePreset] = useState<string | null>(null);
   const [fineTuneOpen, setFineTuneOpen] = useState(false);
 
   /* Staggered entry animation for the card grid */
@@ -494,7 +495,6 @@ export default function ModulePanel({
   const handlePresetClick = useCallback(
     (preset: MacroPreset) => {
       if (disabled) return;
-      setActivePreset(preset.id);
       // If onPresetSelect is provided, use it (sets params + auto-processes)
       if (onPresetSelect) {
         onPresetSelect(preset.params, preset.id);
@@ -521,7 +521,7 @@ export default function ModulePanel({
           <MacroCard
             key={preset.id}
             preset={preset}
-            active={activePreset === preset.id}
+            active={activePresetId === preset.id}
             onClick={() => handlePresetClick(preset)}
             disabled={disabled}
           />

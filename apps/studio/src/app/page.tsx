@@ -921,6 +921,7 @@ export default function Home() {
               params={params}
               onChange={setParams}
               disabled={processing}
+              activePresetId={activePresetId}
               onPresetSelect={handlePresetSelect}
             />
 
