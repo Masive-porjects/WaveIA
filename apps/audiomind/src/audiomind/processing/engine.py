@@ -6,6 +6,7 @@ Instead of applying fixed preset values, this engine:
 3. Applies proportional processing based on what the input NEEDS
 4. Targets final loudness per preset character
 """
+import gc
 from collections.abc import Callable
 from pathlib import Path
 
@@ -644,6 +645,9 @@ def _process_transparent(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_output(audio, output_path, sr, params.output_bit_depth)
+    # Free the Numpy/Soundfile buffers immediately after the WAV export so
+    # the transient DSP arrays don't linger in RAM on small deployments.
+    gc.collect()
     report(95)
 
     # Measure output metrics at the (possibly resampled) output rate.
@@ -765,6 +769,9 @@ def process_audio(
         sf.write(str(output_path), sample_blocks, sr, subtype="FLOAT")
 
         report(100)
+        # Best-effort immediate release of the read/roundtrip buffers; the
+        # neutral fast-path would otherwise pin the full buffer set in RAM.
+        gc.collect()
 
         true_peak = measure_true_peak(audio, sr)
         integrated_lufs = measure_lufs(audio, sr)
@@ -1158,6 +1165,12 @@ def process_audio(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_output(effected, output_path, sr, params.output_bit_depth)
 
+    # Release the DSP buffers (input read, each stage's intermediate arrays,
+    # the final output grid) immediately after the WAV export. On the 1GB
+    # Railway node uncollected Numpy buffers across sequential presets can
+    # push the container toward OOM; a single forced collection right after
+    # the write reclaims the big transient arrays deterministically.
+    gc.collect()
     report(95)
 
     # Measure output metrics

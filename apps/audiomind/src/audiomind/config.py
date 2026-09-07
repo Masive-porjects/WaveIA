@@ -26,7 +26,14 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS: local dev origins + the production Studio (Railway). The railway
+    # origin is in the default so a deployment that doesn't override these is
+    # never blocked — a CORS-silent 502 makes the frontend "freeze" mid-master.
+    cors_origins: list[str] = [
+        "https://studio-production-f546.up.railway.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ]
 
     # License
     license_key: str = ""  # AUDIOMIND_LICENSE_KEY env var

@@ -199,10 +199,31 @@ export async function processAudio(
     signal,
   });
   if (!res.ok) {
-    // Surface the backend's detail (e.g. strict_mode 422 rejection) the
-    // same way uploadAudio does — never swallow the message.
-    const err = await res.json().catch(() => ({ detail: "Processing failed" }));
-    throw new Error(err.detail || "Processing failed");
+    const detail = await res
+      .json()
+      .catch(() => ({ detail: undefined }))
+      .then((b) => (b as { detail?: unknown }).detail);
+    // Surfacing strategy for transient/infrastructure failures on /process:
+    // the backend raw detail for a 502 (gateway/timeout) or 404 (in-memory
+    // session lost to a restart) is not actionable — the fix is to re-upload
+    // the file. Detect those and show a clear retry prompt instead of a raw
+    // backend string, so the app never dies silently mid-master.
+    const retryUpload = (reason: string) =>
+      new Error(
+        `${reason} El servidor no pudo completar el procesamiento. Reintentá la subida del archivo para volver a empezar.`,
+      );
+    switch (res.status) {
+      case 502:
+        throw retryUpload("El servidor de audio no respondió (502).");
+      case 404:
+        throw retryUpload("La sesión expiró (404).");
+      default:
+        // Surface the backend's detail (e.g. strict_mode 422 rejection) the
+        // same way uploadAudio does — never swallow the message.
+        throw new Error(
+          (detail as string | undefined) || "Processing failed",
+        );
+    }
   }
   return res.json();
 }
