@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Knob3D } from './Knob3D';
 import { GestureBadge } from './GestureBadge';
-import { FX_PRESETS, FX_PRESET_ORDER, FxPresetName } from '@/lib/live/fxPresets';
+import { FX_PRESETS, FX_PRESET_ORDER, FxPresetName } from '@/adapters/live/fxPresets';
 import type { LiveParams } from '@/lib/live/liveParams.gen';
 
 interface FxSlotPanelProps {

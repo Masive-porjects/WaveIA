@@ -1,7 +1,7 @@
 "use client";
 
 import type { AnalysisResult, MasterResultMetrics } from "@/lib/api";
-import { DEFAULT_PRESET_COLOR, PRESET_INFO } from "@/lib/presets";
+import { DEFAULT_PRESET_COLOR, PRESET_INFO } from "@/core/presets";
 
 /* ── Share card ────────────────────────────────────────
    Renders a 1200×630 promo card of the finished master on an

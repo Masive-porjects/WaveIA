@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as Tone from "tone";
-import { audioEngine } from "@/lib/audio/engine";
+import { audioEngine } from "@/adapters/audio/engine";
 
 /* ── Module-level analyser tap ──────────────────────────
    Exactly ONE Waveform analyser per JS context, connected to

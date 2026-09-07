@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { motion } from "framer-motion";
-import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/lib/presets";
+import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/core/presets";
 import { type MasteringParameters, DEFAULT_PARAMS } from "@/lib/api";
 import {
   Sparkles,

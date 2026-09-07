@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
 import type { MasteringParameters } from "@/lib/api";
-import { useSignalChain } from "@/hooks/useSignalChain";
+import { useSignalChain } from "@/application/hooks/useSignalChain";
 
 /* ── Signal Chain Visualizer ───────────────────────────────
    Renders the 4 processing blocks as a horizontal chain.

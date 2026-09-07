@@ -3,7 +3,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Radio } from "lucide-react";
-import { useStereoField } from "@/hooks/useStereoField";
+import { useStereoField } from "@/application/hooks/useStereoField";
 
 /* ── Stereo Field Visualizer ────────────────────────────────
    Canvas-based goniometer (Lissajous figure) + correlation

@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import type { AnalysisResult, MasterResultMetrics, ValidationReport } from "@/lib/api";
-import { DEFAULT_PRESET_COLOR, PRESET_INFO, type PresetInfo } from "@/lib/presets";
+import { DEFAULT_PRESET_COLOR, PRESET_INFO, type PresetInfo } from "@/core/presets";
 
 interface AnalysisPanelProps {
   analysis: AnalysisResult | null;

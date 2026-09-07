@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { type UserRole, DEFAULT_ROLE } from "@/core/roles";
 
 const ROLE_KEY = "waveai-role";
@@ -11,14 +11,11 @@ export interface UseRoleReturn {
 }
 
 export function useRole(): UseRoleReturn {
-  const [role, setRoleState] = useState<UserRole>(DEFAULT_ROLE);
-
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? (localStorage.getItem(ROLE_KEY) as UserRole | null) : null;
-    if (saved === "basic" || saved === "premium") {
-      setRoleState(saved);
-    }
-  }, []);
+  const [role, setRoleState] = useState<UserRole>(() => {
+    if (typeof window === "undefined") return DEFAULT_ROLE;
+    const saved = localStorage.getItem(ROLE_KEY) as UserRole | null;
+    return saved === "basic" || saved === "premium" ? saved : DEFAULT_ROLE;
+  });
 
   const setRole = (next: UserRole) => {
     if (typeof window !== "undefined") {

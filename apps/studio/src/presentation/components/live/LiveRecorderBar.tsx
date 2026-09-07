@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { RecorderState } from '@/lib/live/recorder';
+import type { RecorderState } from '@/adapters/live/recorder';
 
 interface LiveRecorderBarProps {
   recorderState: RecorderState;

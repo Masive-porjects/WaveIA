@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/lib/presets";
+import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/core/presets";
 import { type MasteringParameters, DEFAULT_PARAMS } from "@/lib/api";
 import {
   Sparkles,

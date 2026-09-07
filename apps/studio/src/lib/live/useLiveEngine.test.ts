@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useLiveEngine } from './useLiveEngine';
+import { useLiveEngine } from '@/adapters/live/useLiveEngine';
 
 // Hoisted mocks para poder espiar desde los factories de vi.mock
 const { createAudioGraphMock, liveSocketConfigs } = vi.hoisted(() => ({

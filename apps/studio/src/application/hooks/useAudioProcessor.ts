@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { AudioProcessor } from "@/lib/audio-processor";
+import { AudioProcessor } from "@/adapters/audio/AudioProcessor";
 
 export function useAudioProcessor() {
   const processorRef = useRef<AudioProcessor | null>(null);

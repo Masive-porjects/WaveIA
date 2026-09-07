@@ -5,7 +5,7 @@
  *  - PONG a tiempo → nunca 'stale'
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createLiveSocket, ConnectionState } from './liveSocket';
+import { createLiveSocket, ConnectionState } from '@/adapters/live/liveSocket';
 
 class MockWebSocket {
   static OPEN = 1;

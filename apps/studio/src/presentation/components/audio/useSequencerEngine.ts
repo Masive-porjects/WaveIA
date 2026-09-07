@@ -12,7 +12,7 @@ import {
   audioEngine,
   createSequencerResources,
   type SequencerResources,
-} from "@/lib/audio/engine";
+} from "@/adapters/audio/engine";
 
 /* ── Shared sequencer contract ─────────────────────── */
 

@@ -97,7 +97,7 @@ python -m simulator.main --mode server --scenario sweep   # desde la raíz
 npm run e2e                                               # desde apps/studio
 ```
 
-> Nota lint: existen 2 errores pre-existentes conocidos (`page.tsx` y `useRole.ts`) — no fueron introducidos por el trabajo de compliance/rebrand.
+> Nota lint: `eslint src` reporta 0 errores (34 warnings no-funcionales). Los 2 errores históricos (`page.tsx`, `useRole.ts`) fueron corregidos con el patrón de ajuste de estado durante render / lazy init.
 
 ## Reglas no negociables
 

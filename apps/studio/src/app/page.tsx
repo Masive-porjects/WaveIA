@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
-import { VIEW_TRANSITION, fadeUp } from "@/lib/motion";
+import { VIEW_TRANSITION, fadeUp } from "@/shared/motion";
 import { API_BASE } from "@/adapters/api/config";
 import DropZone from "@/components/DropZone";
 import AnalysisPanel from "@/components/AnalysisPanel";
@@ -34,7 +34,7 @@ import ShareCard from "@/components/ShareCard";
 import ErrorModal from "@/components/ErrorModal";
 import OverMasterWarning from "@/components/OverMasterWarning";
 import MobileDrawer from "@/components/MobileDrawer";
-import { useIsMobile } from "@/lib/useIsMobile";
+import { useIsMobile } from "@/shared/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import AuthGuard from "@/components/auth/AuthGuard";
 import TrackChip from "@/presentation/components/TrackChip";
@@ -419,14 +419,19 @@ export default function Home() {
   // Right panel collapse state — hidden by default until the user opens a tab
   // that needs it (analysis, stereo or live).
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const playerScaleRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const needsRightPanel =
-      currentTab === "analysis" ||
-      currentTab === "stereo" ||
-      currentTab === "live";
+  // Último tab que sincronizó el panel. Patrón oficial React de ajuste de
+  // estado durante render (en vez de setState en un effect): el colapso
+  // manual del usuario queda intacto, y solo se reabre cuando cambia el tab.
+  const [panelSyncTab, setPanelSyncTab] = useState<MasteringTab | null>(null);
+  const needsRightPanel =
+    currentTab === "analysis" ||
+    currentTab === "stereo" ||
+    currentTab === "live";
+  if (currentTab !== panelSyncTab) {
+    setPanelSyncTab(currentTab);
     setRightPanelOpen(needsRightPanel);
-  }, [currentTab]);
+  }
+  const playerScaleRef = useRef<HTMLDivElement>(null);
 
   /* ── Player stretch/reposition when a dock tab is toggled */
   useEffect(() => {

@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLiveEngine } from '@/lib/live/useLiveEngine';
+import { useLiveEngine } from '@/adapters/live/useLiveEngine';
 import { FxSlotPanel } from './FxSlotPanel';
 import { CameraOverlay } from './CameraOverlay';
 import { LiveMeters } from './LiveMeters';

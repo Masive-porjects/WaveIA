@@ -5,7 +5,7 @@ import { Pause, Play } from "lucide-react";
 import StepGrid from "./StepGrid";
 import { GENRE_PRESETS, parsePresetGrid } from "./genrePresets";
 import { SEQUENCER_TRACK_NAMES, useSequencerEngine } from "./useSequencerEngine";
-import { audioEngine } from "@/lib/audio/engine";
+import { audioEngine } from "@/adapters/audio/engine";
 
 // Matches the SongStarter stem palette so both sections read as one instrument.
 const TRACK_COLORS: readonly string[] = [

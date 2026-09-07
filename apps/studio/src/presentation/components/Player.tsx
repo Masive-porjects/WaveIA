@@ -7,9 +7,9 @@ import gsap from "gsap";
 import WaveSurfer from "wavesurfer.js";
 
 import AudioSpectrum from "@/presentation/components/AudioSpectrum";
-import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/lib/presets";
+import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/core/presets";
 import { renderReference, getReferenceAudioUrl } from "@/lib/api";
-import { useCrossfade } from "@/lib/useCrossfade";
+import { useCrossfade } from "@/shared/useCrossfade";
 
 /** Listening sources for the fair A/B (Original / Referencia / Master). */
 type SourceKind = "original" | "reference" | "mastered";
