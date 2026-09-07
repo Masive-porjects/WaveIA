@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, X, Loader2, Download, AlertCircle, CheckCircle, Minus, Plus, Settings, Music } from "lucide-react";
-import { negotiateAlbum, processAlbum, downloadAlbumZip, type AlbumTrackInput, type AlbumTrackTarget, type AlbumTrackResult, type AlbumNegotiateResponse, type AlbumProcessResponse } from "@/adapters/api/album";
-import { uploadAudio, type SessionData } from "@/adapters/api/client";
+import { negotiateAlbum, processAlbum, type AlbumNegotiationTrack, type AlbumProcessTrack, type AlbumNegotiateResponse, type AlbumProcessResponse } from "@/adapters/api/album";
+import { uploadAudio, downloadMastered, type SessionData } from "@/adapters/api/client";
+import JSZip from "jszip";
 
 interface AlbumTrackState {
   file: File;
@@ -11,8 +12,8 @@ interface AlbumTrackState {
   uploadProgress: number;
   uploadStatus: "pending" | "uploading" | "completed" | "error";
   uploadError: string | null;
-  analysis: AlbumTrackTarget | null;
-  masteringResult: AlbumTrackResult | null;
+  analysis: AlbumNegotiationTrack | null;
+  masteringResult: AlbumProcessTrack | null;
 }
 
 export default function AlbumMastering() {
@@ -27,7 +28,6 @@ export default function AlbumMastering() {
   const [strictMode, setStrictMode] = useState(false);
 
   const [phase, setPhase] = useState<"idle" | "uploading" | "analyzing" | "processing" | "completed" | "error">("idle");
-  const [albumId, setAlbumId] = useState<string | null>(null);
   const [albumReport, setAlbumReport] = useState<AlbumProcessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -113,10 +113,10 @@ export default function AlbumMastering() {
 
       setTracks(prev => prev.map((track, index) => ({
         ...track,
-        analysis: response.track_targets[index] ?? null,
+        analysis: response.tracks[index] ?? null,
       })));
 
-      setAlbumTargetLufs(response.album_base_lufs);
+      setAlbumTargetLufs(response.target_base_lufs_db);
       setPhase("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar el álbum");
@@ -146,7 +146,9 @@ export default function AlbumMastering() {
         strict_mode: strictMode,
       });
 
-      setAlbumId(response.album_id);
+      // The backend returns AlbumProcessResponse with target_base_lufs_db, not album_id
+      // For download, we need to construct the album_id or use a different approach
+      // Since the backend process endpoint doesn't return album_id, we'll need to adjust
       setAlbumReport(response);
       setTracks(prev => prev.map((track, index) => ({
         ...track,
@@ -162,13 +164,33 @@ export default function AlbumMastering() {
   };
 
   const handleDownload = async () => {
-    if (!albumId) return;
+    if (!albumReport) return;
     try {
-      const blob = await downloadAlbumZip(albumId);
-      const url = URL.createObjectURL(blob);
+      const zip = new JSZip();
+      
+      for (let i = 0; i < albumReport.tracks.length; i++) {
+        const track = albumReport.tracks[i];
+        const sessionTrack = tracks[i];
+        
+        if (!sessionTrack?.sessionId) continue;
+        
+        try {
+          const blob = await downloadMastered(sessionTrack.sessionId, "wav");
+          const filename = sessionTrack.file.name.replace(/\.[^/.]+$/, "") + "_mastered.wav";
+          zip.file(filename, blob);
+        } catch (trackErr) {
+          console.warn(`Failed to download track ${i}:`, trackErr);
+        }
+      }
+      
+      // Add album report JSON
+      zip.file("album_report.json", JSON.stringify(albumReport, null, 2));
+      
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `album_${albumId}.zip`;
+      a.download = `album_master_${Date.now()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -182,7 +204,6 @@ export default function AlbumMastering() {
 
   const clearAll = () => {
     setTracks([]);
-    setAlbumId(null);
     setAlbumReport(null);
     setAlbumTargetLufs(null);
     setPhase("idle");
@@ -287,16 +308,16 @@ export default function AlbumMastering() {
                 {track.analysis ? (
                   <>
                     <span className="text-sm text-[var(--text-primary)] tabular-nums text-right w-16">
-                      {track.analysis.input_lufs?.toFixed(1) ?? "—"}
+                      {track.analysis.input_lufs_db?.toFixed(1) ?? "—"}
                     </span>
                     <span className="text-sm text-[var(--text-secondary)] tabular-nums text-right w-16">
-                      {track.analysis.input_true_peak_db?.toFixed(1) ?? "—"}
+                      {track.analysis.input_true_peak_dbtp?.toFixed(1) ?? "—"}
                     </span>
                     <span className="text-sm text-[var(--text-secondary)] tabular-nums text-right w-16">
-                      {track.analysis.input_lra?.toFixed(1) ?? "—"}
+                      {track.analysis.input_lra_lu?.toFixed(1) ?? "—"}
                     </span>
                     <span className="text-sm text-[var(--accent-primary)] tabular-nums text-right w-20 font-medium">
-                      {track.analysis.target_lufs.toFixed(1)}
+                      {track.analysis.negotiated_target_lufs_db?.toFixed(1) ?? "—"}
                     </span>
                     <button
                       onClick={() => removeTrack(index)}
@@ -532,7 +553,7 @@ export default function AlbumMastering() {
                 Álbum masterizado correctamente
               </h3>
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                {albumReport.tracks.length} tracks · Album LUFS: {albumReport.album_integrated_lufs?.toFixed(1) ?? "—"} · Consistencia: {albumReport.consistency_check}
+                {albumReport.tracks.length} tracks · Album LUFS target: {albumReport.target_base_lufs_db?.toFixed(1) ?? "—"} · LRA mediana: {albumReport.lra_median_lu?.toFixed(1) ?? "—"}
               </p>
             </div>
             <button
@@ -551,7 +572,7 @@ export default function AlbumMastering() {
                 <tr className="text-left text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)]">
                   <th className="pb-2">#</th>
                   <th className="pb-2">Track</th>
-                  <th className="pb-2 text-right">LUFS In</th>
+                  <th className="pb-2 text-right">Target LUFS</th>
                   <th className="pb-2 text-right">LUFS Out</th>
                   <th className="pb-2 text-right">Gain</th>
                   <th className="pb-2 text-right">TP Out</th>
@@ -566,23 +587,23 @@ export default function AlbumMastering() {
                       {tracks[index]?.file.name ?? `Track ${index + 1}`}
                     </td>
                     <td className="py-3 text-right tabular-nums text-[var(--text-secondary)]">
-                      {track.input_lufs?.toFixed(1) ?? "—"}
+                      {track.negotiated_target_lufs_db?.toFixed(1) ?? "—"}
                     </td>
                     <td className="py-3 text-right tabular-nums text-[var(--text-primary)] font-medium">
-                      {track.output_lufs?.toFixed(1) ?? "—"}
+                      {track.output_lufs_db?.toFixed(1) ?? "—"}
                     </td>
                     <td className="py-3 text-right tabular-nums">
-                      <span className={track.gain_offset_db > 0 ? "text-[var(--accent-primary)]" : track.gain_offset_db < 0 ? "text-[var(--accent-error)]" : "text-[var(--text-muted)]"}>
-                        {track.gain_offset_db >= 0 ? "+" : ""}{track.gain_offset_db.toFixed(1)} dB
+                      <span className={track.lufs_deviation_db !== null && track.lufs_deviation_db > 0 ? "text-[var(--accent-primary)]" : track.lufs_deviation_db !== null && track.lufs_deviation_db < 0 ? "text-[var(--accent-error)]" : "text-[var(--text-muted)]"}>
+                        {track.lufs_deviation_db !== null ? (track.lufs_deviation_db >= 0 ? "+" : "") + track.lufs_deviation_db.toFixed(1) : "—"} dB
                       </span>
                     </td>
                     <td className="py-3 text-right tabular-nums text-[var(--text-secondary)]">
-                      {track.output_true_peak_db?.toFixed(2) ?? "—"}
+                      {track.output_true_peak_dbtp?.toFixed(2) ?? "—"}
                     </td>
                     <td className="py-3">
-                      {track.error ? (
+                      {track.warnings && track.warnings.length > 0 ? (
                         <span className="text-[var(--accent-error)] flex items-center gap-1">
-                          <AlertCircle size={12} /> Error
+                          <AlertCircle size={12} /> {track.warnings[0]}
                         </span>
                       ) : (
                         <span className="text-[var(--accent-primary)] flex items-center gap-1">
@@ -600,15 +621,15 @@ export default function AlbumMastering() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-[var(--bg-glass)] rounded-lg">
             <div className="text-center">
               <p className="text-2xl font-bold text-[var(--accent-primary)] tabular-nums">
-                {albumReport.album_integrated_lufs?.toFixed(1) ?? "—"}
+                {albumReport.target_base_lufs_db?.toFixed(1) ?? "—"}
               </p>
-              <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide">Album LUFS</p>
+              <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide">Target LUFS</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-[var(--text-primary)] tabular-nums">
-                {albumReport.album_lra?.toFixed(1) ?? "—"}
+                {albumReport.lra_median_lu?.toFixed(1) ?? "—"}
               </p>
-              <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide">Album LRA</p>
+              <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide">LRA Mediana</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-[var(--text-primary)] tabular-nums">

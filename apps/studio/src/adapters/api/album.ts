@@ -13,19 +13,20 @@ export interface AlbumNegotiateRequest {
   target_lufs_db?: number;
 }
 
-export interface AlbumTrackTarget {
+export interface AlbumNegotiationTrack {
   session_id: string;
   track_number: number;
-  input_lufs: number | null;
-  input_true_peak_db: number | null;
-  input_lra: number | null;
-  target_lufs: number;
-  gain_offset_db: number;
+  input_lufs_db: number | null;
+  input_true_peak_dbtp: number | null;
+  input_lra_lu: number | null;
+  negotiated_target_lufs_db: number | null;
+  offset_db: number | null;
 }
 
 export interface AlbumNegotiateResponse {
-  album_base_lufs: number;
-  track_targets: AlbumTrackTarget[];
+  target_base_lufs_db: number;
+  lra_median_lu: number | null;
+  tracks: AlbumNegotiationTrack[];
 }
 
 export interface AlbumProcessRequest {
@@ -40,26 +41,23 @@ export interface AlbumProcessRequest {
   strict_mode?: boolean;
 }
 
-export interface AlbumTrackResult {
+export interface AlbumProcessTrack {
   session_id: string;
-  track_number: number;
-  input_lufs: number | null;
-  output_lufs: number | null;
-  gain_offset_db: number;
-  output_true_peak_db: number | null;
+  original_filename: string | null;
+  negotiated_target_lufs_db: number | null;
+  output_lufs_db: number | null;
+  output_lra_lu: number | null;
+  output_crest_db: number | null;
+  output_true_peak_dbtp: number | null;
+  lufs_deviation_db: number | null;
+  within_tolerance: boolean;
   warnings: string[];
-  mastered_path: string | null;
-  error: string | null;
 }
 
 export interface AlbumProcessResponse {
-  album_id: string;
-  album_base_lufs: number;
-  album_true_peak_ceiling: number;
-  tracks: AlbumTrackResult[];
-  album_integrated_lufs: number | null;
-  album_lra: number | null;
-  consistency_check: "PASS" | "FAIL";
+  target_base_lufs_db: number;
+  lra_median_lu: number | null;
+  tracks: AlbumProcessTrack[];
 }
 
 export interface AlbumReport {
@@ -67,7 +65,7 @@ export interface AlbumReport {
   platform_target: string;
   album_lufs_target: number;
   album_true_peak_ceiling: number;
-  tracks: AlbumTrackResult[];
+  tracks: AlbumProcessTrack[];
   album_integrated_lufs: number | null;
   album_lra: number | null;
   consistency_check: "PASS" | "FAIL";
