@@ -24,6 +24,7 @@ import StemSplitter, {
   createDefaultStemState,
   type StemSplitterState,
 } from "@/components/StemSplitter";
+import AlbumMastering from "@/presentation/components/AlbumMastering";
 import VocalChain from "@/components/VocalChain";
 import SongStarter from "@/components/SongStarter";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -86,6 +87,7 @@ const TABS: { key: MasteringTab; label: string }[] = [
   { key: "analysis", label: "Análisis" },
   { key: "stereo", label: "Estéreo" },
   { key: "live", label: "Live Engine" },
+  { key: "album", label: "Álbum" },
 ];
 
 /* ── Genre-to-params mapping ────────────────────────── */
@@ -1002,16 +1004,23 @@ export default function Home() {
       }
 
       case "songstarter":
-        return (
-          <div className="w-full">
-            <SongStarter
-              sessionId={session?.session_id ?? null}
-              disabled={processing}
-            />
-          </div>
-        );
+              return (
+                <div className="w-full">
+                  <SongStarter
+                    sessionId={session?.session_id ?? null}
+                    disabled={processing}
+                  />
+                </div>
+              );
 
-      case "pipeline":
+            case "album":
+              return (
+                <div className="w-full">
+                  <AlbumMastering />
+                </div>
+              );
+
+            case "pipeline":
         return (
           <div className="w-full">
             <MasteringGuide />

@@ -256,7 +256,7 @@ export function getStoredLicenseKey(): string | null {
   return sessionStorage.getItem("waveai_license_key");
 }
 
-function licenseHeaders(): Record<string, string> {
+export function licenseHeaders(): Record<string, string> {
   const key = getStoredLicenseKey();
   return key ? { "X-License-Key": key } : {};
 }

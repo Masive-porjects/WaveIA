@@ -5,6 +5,7 @@ import {
   Drum,
   LayoutGrid,
   Mic2,
+  Music,
   Radio,
   Scissors,
   Zap,
@@ -21,7 +22,8 @@ export type MasteringTab =
   | "pipeline"
   | "analysis"
   | "stereo"
-  | "live";
+  | "live"
+  | "album";
 
 export interface DockModuleDef {
   key: MasteringTab;
@@ -44,4 +46,5 @@ export const DOCK_MODULES: readonly DockModuleDef[] = [
   { key: "analysis", label: "Análisis", icon: Activity },
   { key: "stereo", label: "Estéreo", icon: Radio },
   { key: "live", label: "Live Engine", icon: Zap },
+  { key: "album", label: "Álbum", icon: Music },
 ];
