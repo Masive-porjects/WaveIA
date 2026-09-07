@@ -14,8 +14,6 @@ import FloatingDeliveryPanel from "@/components/FloatingDeliveryPanel";
 import FloatingReportCard from "@/components/FloatingReportCard";
 import GenreGuide from "@/components/GenreGuide";
 import MasteringGuide from "@/components/MasteringGuide";
-import FloatingNotes from "@/components/FloatingNotes";
-import FloatingGhosts from "@/components/FloatingGhosts";
 import BigGhostWithNotes from "@/components/BigGhostWithNotes";
 import ProcessingOverlay from "@/components/ProcessingOverlay";
 import Player from "@/components/Player";
@@ -27,7 +25,8 @@ import StemSplitter, {
 import AlbumMastering from "@/presentation/components/AlbumMastering";
 import VocalChain from "@/components/VocalChain";
 import SongStarter from "@/components/SongStarter";
-import ThemeToggle from "@/components/ThemeToggle";
+import AmbientLayer from "@/components/AmbientLayer";
+import IconButton from "@/components/ui/IconButton";
 import ModuleSheet from "@/components/ModuleSheet";
 import PaintedModule from "@/components/PaintedModule";
 import ShareCard from "@/components/ShareCard";
@@ -1075,10 +1074,9 @@ export default function Home() {
           platform={session.parameters?.platform_target ?? null}
         />
       )}
-      {/* Background watermark layer: strictly BELOW all content (z-0 < z-[1]),
-          heavily dimmed so notes never compete with card text. */}
-      <FloatingNotes zIndex={0} className="opacity-25" />
-      <FloatingGhosts zIndex={0} className="opacity-25" />
+      {/* Ambient layer — Awwwards ghosts + notes, vignette-dimmed near
+          decision zones, attenuated on interaction, off in focus mode. */}
+      <AmbientLayer />
 
       {/* ── Navbar ─────────────────────────────────── */}
       <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
@@ -1189,33 +1187,33 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-2">
-          {/* Theme toggle — moved here when the icon sidebar was replaced by the dock */}
-          <div className="hidden md:block">
-            <ThemeToggle />
-          </div>
+          {/* Header cleanup: theme + focus now live inside the Cuenta menu.
+              One primary action (Cuenta) + Home + mobile drawer. */}
           {currentView === "mastering" && (
-            <button
+            <IconButton
+              label="Inicio"
+              icon={HomeIcon}
               onClick={handleBackToUpload}
-              title="Inicio"
-              aria-label="Inicio"
-              className="hidden rounded-full w-9 h-9 md:flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
-            >
-              <HomeIcon size={18} />
-            </button>
+              className="hidden md:flex"
+              size="md"
+            />
           )}
           <div className="hidden sm:block">
             <UserMenu />
           </div>
-          <button
-            className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
+          <IconButton
+            label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden flex"
+            aria-expanded={mobileMenuOpen}
           >
-            <span className="transition-transform duration-300 inline-flex"
+            <span
+              className="inline-flex transition-transform duration-300"
               style={{ transform: mobileMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </span>
-          </button>
+          </IconButton>
         </div>
       </nav>
 
@@ -1696,12 +1694,14 @@ export default function Home() {
 
           {/* Expand button — visible when a tab that needs the right panel is selected and the panel is collapsed */}
           {currentView === "mastering" && masteringMode === "manual" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
-            <button
+            <IconButton
+              label="Abrir panel de análisis"
+              icon={ChevronLeft}
+              variant="ghost"
+              size="md"
               onClick={() => setRightPanelOpen(true)}
-              className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hover)] flex items-center justify-center hover:bg-[var(--bg-tertiary)] transition-all shadow-lg cursor-pointer"
-            >
-              <ChevronLeft size={14} className="text-[var(--text-secondary)]" />
-            </button>
+              className="absolute top-4 right-4 z-30 cursor-pointer"
+            />
           )}
         </main>
 
@@ -1717,16 +1717,17 @@ export default function Home() {
           <div className="w-80 lg:w-96 h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
-              <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
-                Panel de Análisis
-              </span>
-              <button
-                onClick={() => setRightPanelOpen(false)}
-                className="w-6 h-6 rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
+                  Panel de Análisis
+                </span>
+                <IconButton
+                  label="Cerrar panel de análisis"
+                  icon={ChevronRight}
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setRightPanelOpen(false)}
+                />
+              </div>
 
             {/* Content — scrollable.
                 Product decision: the general-analysis panel (and the
