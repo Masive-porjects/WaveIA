@@ -7,6 +7,13 @@ import DockItem from "./DockItem";
 import { LufsTile, MotorTile, ProgressTile } from "./DockTelemetryTile";
 import { DOCK_MODULES, type DockModuleDef, type MasteringTab } from "./types";
 
+/* ── Onboarding micro ───────────────────────────────────
+   The first time the dock mounts in a session, every label
+   reveals for ~2.2s so a new user learns what each module does
+   without a tutorial. sessionStorage = once per session, cheap. */
+const ONBOARD_KEY = "brikmaster-dock-labels-v1";
+const ONBOARD_MS = 2200;
+
 interface ModuleDockProps {
   activeTab: MasteringTab | null;
   onSelect: (tab: MasteringTab) => void;
@@ -55,6 +62,36 @@ export default function ModuleDock({
   const frameRef = useRef(0);
 
   const reduceMotion = useReducedMotion();
+
+  /* Onboarding reveal — once per session (sessionStorage). Skips when
+     reduced motion is preferred: the labels never animate. The state
+     write happens in async timeouts (not sync in the effect body). */
+  const [revealLabels, setRevealLabels] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (reduceMotion || typeof window === "undefined") return;
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem(ONBOARD_KEY) === "1";
+    } catch {
+      // Private mode — replay the micro-tour each session.
+    }
+    if (seen) return;
+
+    const showTimer = setTimeout(() => setRevealLabels(true), 80);
+    const hideTimer = setTimeout(() => {
+      setRevealLabels(false);
+      try {
+        sessionStorage.setItem(ONBOARD_KEY, "1");
+      } catch {
+        // Private mode — fine, this session already saw it.
+      }
+    }, 80 + ONBOARD_MS);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [reduceMotion]);
 
   /* Fisheye only for fine pointers without reduced-motion preference.
      Lazy initializer keeps SSR markup identical (listeners attach in the
@@ -156,13 +193,14 @@ export default function ModuleDock({
         icon={mod.icon}
         label={mod.label}
         active={activeTab === mod.key}
+        revealLabels={revealLabels}
         onSelect={() => onSelect(mod.key)}
         buttonRef={(el) => {
           itemRefs.current[index] = el;
         }}
       />
     ),
-    [activeTab, onSelect],
+    [activeTab, revealLabels, onSelect],
   );
 
   return (
