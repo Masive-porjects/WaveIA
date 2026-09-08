@@ -10,6 +10,8 @@ import { createAudioGraph, AudioGraph } from './audioGraph';
 import { createRecorder, RecorderState } from './recorder';
 import { applyPreset, FX_PRESETS, FxPresetName } from './fxPresets';
 import { LIVE_PARAM_DEFAULTS } from '@/lib/live/liveDefaults';
+import { publish, reset } from '@/lib/live/liveMeterBus';
+import { rms, peakDb, correlation, stereoWidth, momentaryLoudnessDb, shortTermLoudnessDb } from '@/lib/live/meterMath';
 
 export interface UseLiveEngineOptions {
   /** Master audio buffer (from WaveAI mastering) */
@@ -26,8 +28,6 @@ export interface UseLiveEngineOptions {
 export interface UseLiveEngineReturn {
   // State
   params: LiveParams;
-  outputLevel: number;
-  analyserData: { frequency: Uint8Array; timeDomain: Uint8Array } | null;
   recorderState: RecorderState;
   isPlaying: boolean;
 
@@ -70,8 +70,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     ts: Date.now(),
     ...initialParams,
   }));
-  const [outputLevel, setOutputLevel] = useState(0);
-  const [analyserData, setAnalyserData] = useState<{ frequency: Uint8Array; timeDomain: Uint8Array } | null>(null);
   const [recorderState, setRecorderState] = useState<RecorderState>({
     recording: false,
     paused: false,
@@ -134,16 +132,51 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, [masterAudioBuffer]);
 
-  // ── Analyser / Output Level Loop ────────────────────────────────
+  // ── Meter Loop → Bus (sin React state por frame) ────────────────
+  // ANTI-PATRÓN eliminado: antes este loop escribía state por frame (re-render
+  // React a 60fps). Ahora computa un LiveMeterReading y lo publica en
+  // liveMeterBus; los meters se suscriben y dibujan en canvas sin involucrar
+  // al reconciler. Deps [masterAudioBuffer]: si el buffer llega
+  // DESPUÉS del mount (caso real: master async), el loop arranca recién ahí
+  // (bug latente: con deps [] el loop moría temprano con graph null).
   useEffect(() => {
-    const graph = audioGraphRef.current;
-    if (!graph) return;
+    if (!masterAudioBuffer) return;
+
+    // Ventanas deslizantes por instancia de grafo: MOM ~400ms (24 frames),
+    // ST ~3s (180 frames) — aproximación documentada, NO BS.1770.
+    const momentary = momentaryLoudnessDb();
+    const shortTerm = shortTermLoudnessDb();
 
     const tick = () => {
-      const data = graph.getAnalyserData();
+      const graph = audioGraphRef.current;
+      if (!graph) {
+        // Sin grafo: silencio inmediato en el bus (no congelar el último frame).
+        reset();
+        animationFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const { frequency, timeDomain } = graph.getAnalyserData();
+      const { l, r } = graph.getStereoData();
       const level = graph.getOutputLevel();
-      setAnalyserData(data);
-      setOutputLevel(level);
+      const levelL = rms(l);
+      const levelR = rms(r);
+
+      publish({
+        frequency,
+        timeDomain,
+        outputLevel: level,
+        levelL,
+        levelR,
+        peakL: peakDb(l),
+        peakR: peakDb(r),
+        correlation: correlation(l, r),
+        width: stereoWidth(l, r),
+        momentaryLufs: momentary.push(level),
+        shortTermLufs: shortTerm.push(level),
+        ts: Date.now(),
+      });
+
       animationFrameRef.current = requestAnimationFrame(tick);
     };
     animationFrameRef.current = requestAnimationFrame(tick);
@@ -152,8 +185,9 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      reset();
     };
-  }, []);
+  }, [masterAudioBuffer]);
 
   // ── Parameter Setters ────────────────────────────────────────────
   const setParams = useCallback((newParams: Partial<LiveParams>) => {
@@ -176,6 +210,9 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
 
   // ── Transport Controls ───────────────────────────────────────────
   const play = useCallback(() => {
+    // Limpiar el frame viejo en el bus antes de arrancar: los meters
+    // muestran silencio hasta que el primer frame real de audio llega.
+    reset();
     audioGraphRef.current?.start(true);
     setIsPlaying(true);
   }, []);
@@ -183,11 +220,13 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   const pause = useCallback(() => {
     audioGraphRef.current?.stop();
     setIsPlaying(false);
+    reset();
   }, []);
 
   const stop = useCallback(() => {
     audioGraphRef.current?.stop();
     setIsPlaying(false);
+    reset();
   }, []);
 
   // ── Recorder Controls ────────────────────────────────────────────
@@ -224,8 +263,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   return {
     // State
     params,
-    outputLevel,
-    analyserData,
     recorderState,
     isPlaying,
     // Actions

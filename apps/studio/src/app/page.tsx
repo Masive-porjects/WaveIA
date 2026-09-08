@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore, useMemo } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -666,6 +666,33 @@ export default function Home() {
       if (abortRef.current === controller) abortRef.current = null;
     }
   }, [session, params, activePresetId, completeProgress]);
+
+  // Métricas estáticas para el Live Meter Deck (lado Original | Master).
+  // Referencias ESTABLES: no recrearlas por render (si no, el efecto del deck
+  // se re-suscribiría al bus en cada re-render de page).
+  const liveOriginalMetrics = useMemo(
+    () =>
+      session?.analysis
+        ? {
+            integrated_lufs: session.analysis.integrated_lufs,
+            true_peak_db: session.analysis.true_peak_db,
+            crest_factor_db: session.analysis.crest_factor_db ?? null,
+          }
+        : null,
+    [session],
+  );
+
+  const liveMasterMetrics = useMemo(
+    () =>
+      session?.master_result
+        ? {
+            integrated_lufs: session.master_result.integrated_lufs,
+            true_peak_db: session.master_result.true_peak_db,
+            crest_factor_db: session.master_result.crest_factor_db,
+          }
+        : null,
+    [session],
+  );
 
   /**
    * Resultados ya procesados, por preset.
@@ -1822,6 +1849,9 @@ export default function Home() {
                       masterAudioUrl={getAudioUrl(session.session_id, "mastered")}
                       masterAudioBuffer={null}
                       isActive={currentTab === "live" || sheetTab === "live"}
+                      presetId={activePresetId}
+                      originalMetrics={liveOriginalMetrics}
+                      masterMetrics={liveMasterMetrics}
                     />
                   )}
                 </>

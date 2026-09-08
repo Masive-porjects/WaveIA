@@ -9,8 +9,9 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveEngine } from '@/adapters/live/useLiveEngine';
 import { FxSlotPanel } from './FxSlotPanel';
-import { LiveMeters } from './LiveMeters';
+import { LiveMeterDeck } from './LiveMeterDeck';
 import { LiveRecorderBar } from './LiveRecorderBar';
+import type { LiveSide, LiveStaticMetrics } from './PresetHeader';
 
 interface LiveViewProps {
   /** Master audio buffer URL or blob */
@@ -19,6 +20,12 @@ interface LiveViewProps {
   masterAudioBuffer?: AudioBuffer | null | undefined;
   /** Whether the Live tab is active */
   isActive?: boolean;
+  /** Preset activo del flujo de mastering (para preset header + target LUFS). */
+  presetId?: string | null;
+  /** Métricas estáticas del original (session.analysis) — campos reales de los tipos API. */
+  originalMetrics?: LiveStaticMetrics | null;
+  /** Métricas estáticas del master (session.master_result). */
+  masterMetrics?: LiveStaticMetrics | null;
 }
 
 /** Parámetros iniciales (neutrales) del Live Engine — el hook ya inicializa con defaults del schema. */
@@ -27,7 +34,13 @@ export function LiveView({
   masterAudioUrl,
   masterAudioBuffer,
   isActive = false,
+  presetId = null,
+  originalMetrics = null,
+  masterMetrics = null,
 }: LiveViewProps) {
+  // Lado del A/B estático (Original | Master) — estado lento del deck.
+  const [side, setSide] = useState<LiveSide>('original');
+
   // ── Master real del flujo de mastering ─────────────────────────────
   // El padre pasa la URL del masterizado (getAudioUrl(session_id, "mastered")).
   // La decodificamos a AudioBuffer para el Live Engine. Con un AudioContext
@@ -65,8 +78,6 @@ export function LiveView({
   // Use the live engine hook
   const {
     params,
-    outputLevel,
-    analyserData,
     recorderState,
     isPlaying,
     setParams,
@@ -98,6 +109,9 @@ export function LiveView({
   useEffect(() => {
     return () => destroy();
   }, [destroy]);
+
+  // Hay master disponible (buffer decodificado o URL pendiente de decode).
+  const hasMaster = !!(masterBuffer ?? masterAudioBuffer) || !!masterAudioUrl;
 
   if (!isActive) {
     return (
@@ -187,11 +201,17 @@ export function LiveView({
           paddingLeft: 8,
         }}
       >
-        <LiveMeters
-          analyserData={analyserData}
-          outputLevel={outputLevel}
+        <LiveMeterDeck
           width={280}
-          height={320}
+          height={400}
+          presetId={presetId}
+          isPlaying={isPlaying}
+          isActive={isActive}
+          hasMaster={hasMaster}
+          side={side}
+          originalMetrics={originalMetrics}
+          masterMetrics={masterMetrics}
+          onSideChange={setSide}
         />
 
         <LiveRecorderBar

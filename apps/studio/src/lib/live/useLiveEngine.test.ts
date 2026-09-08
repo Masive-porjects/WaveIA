@@ -55,6 +55,7 @@ beforeEach(() => {
     disconnect: vi.fn(),
     getAnalyserData: vi.fn(() => ({ frequency: new Uint8Array(0), timeDomain: new Uint8Array(0) })),
     getOutputLevel: vi.fn(() => 0),
+    getStereoData: vi.fn(() => ({ l: new Float32Array(2048), r: new Float32Array(2048) })),
   });
 });
 
