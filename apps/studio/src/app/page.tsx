@@ -416,7 +416,7 @@ export default function Home() {
   const [vocalProcessed, setVocalProcessed] = useState(false);
 
   // Right panel collapse state — hidden by default until the user opens a tab
-  // that needs it (analysis, stereo or live).
+  // that needs it (analysis or stereo).
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   // Último tab que sincronizó el panel. Patrón oficial React de ajuste de
   // estado durante render (en vez de setState en un effect): el colapso
@@ -424,8 +424,7 @@ export default function Home() {
   const [panelSyncTab, setPanelSyncTab] = useState<MasteringTab | null>(null);
   const needsRightPanel =
     currentTab === "analysis" ||
-    currentTab === "stereo" ||
-    currentTab === "live";
+    currentTab === "stereo";
   if (currentTab !== panelSyncTab) {
     setPanelSyncTab(currentTab);
     setRightPanelOpen(needsRightPanel);

@@ -1,72 +1,32 @@
 # WaveAI × midiMastering — Integration Report
 
-> **Branch:** `test/integration-midimastering`  
-> **Date:** 2026-08-25  
-> **Status:** ✅ Complete — All blocks delivered, build passing, 7 semantic commits ready for PR
+> **Date:** 2026-08-25 (original) · **Updated:** 2026-09-08 (post-cleanup)
+> **Status:** ✅ Mastering integration complete — Live Engine standalone (knob-controlled)
 
 ---
 
-## Table of Contents
+## Post-cleanup note
 
-1. [Architecture Overview](#architecture-overview)
-2. [Monorepo Structure](#monorepo-structure)
-3. [Blocks Summary](#blocks-summary)
-4. [Shared Contract (LiveParams)](#shared-contract-liveparams)
-5. [Block A — Contracts & Monorepo](#block-a--contracts--monorepo)
-6. [Block B — HumanMidi](#block-b--humanmidi)
-7. [Block C — Bridge](#block-c--bridge)
-8. [Block D — Live Engine & UI](#block-d--live-engine--ui)
-9. [Block E — Simulator & E2E](#block-e--simulator--e2e)
-10. [Git History](#git-history)
-11. [How to Run](#how-to-run)
-12. [Next Steps](#next-steps)
+The vision/gesture/real-time-control stack was **removed** from the monorepo:
+
+- All camera/gesture/real-time-input applications and their mock/simulation tooling were deleted.
+- The Studio's **Live Engine is standalone**: a Web Audio player controlled exclusively by knobs (mouse/keyboard). No camera, no gestures, no WebSocket, no socket-neutral policy.
+- **Mastering (audiomind) is unchanged**: FastAPI + librosa + pedalboard, analysis + 13-stage DSP chain, in-memory sessions, `MasteringParameters` contract.
+- `packages/contracts/live_params.schema.json` remains the source of truth for `LiveParams`; only TypeScript types are generated now (`apps/studio/src/lib/live/liveParams.gen.ts`).
 
 ---
 
-## Architecture Overview
+## What Remains (accurate as of the cleanup)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        WaveAI Ecosystem                      │
-├──────────┬──────────┬──────────┬──────────┬──────────────────────┤
-│ humanmidi│  bridge  │  studio  │audiomind │     simulator       │
-│ (Python) │ (Python) │ (Next.js)│ (Python) │     (Python)        │
-├──────────┴────┬─────┴────┬─────┴──────────┴──────────────────────┤
-│   Vision → MIDI│  WS :8765 │        Web Audio Graph              │
-│   Gesture Map  │  Protocol │  Filter→Drive→Delay→Reverb→Master   │
-└───────────────┴───────────┴─────────────────────────────────────┘
-
-Pipeline: Camera → Hand Tracking → Gesture → MIDI CC → Bridge → WS → Studio → Audio
-```
-
-### Data Flow
-
-```
-[Camera] → [MediaPipe Hands] → [studio_gesture.py] → [MIDI CC]
-                                                          ↓
-[humanmidi] ──CC mapping──→ [Bridge] ──WebSocket──→ [Studio Live Engine]
-                              (smoother)               (Web Audio API)
-                                                          ↓
-                                                     [UI Knobs]
-                                                     [Meters]
-                                                     [FxSlotPanel]
-                                                     [CameraOverlay]
-                                                     [Recorder]
-```
-
----
-
-## Monorepo Structure
+### Monorepo Structure
 
 ```
 WaveAI/
 ├── packages/
-│   └── contracts/                 # Shared schema + type generators
+│   └── contracts/                 # Shared schema + type generator
 │       ├── live_params.schema.json  # Source of truth (JSON Schema)
-│       ├── liveParams.gen.ts        # Generated TypeScript types
 │       └── scripts/
-│           ├── gen_types.py         # Python type generator
-│           └── gen_types.sh         # Shell wrapper
+│           └── gen_types.sh         # TS type generator only
 │
 ├── apps/
 │   ├── audiomind/                 # DSP backend (Python/FastAPI)
@@ -74,68 +34,34 @@ WaveAI/
 │   │   │   ├── api/               # mastering.py (GET/POST endpoints)
 │   │   │   ├── analysis/          # audio analyzer
 │   │   │   └── intelligence/      # genre knowledge base
-│   │   ├── tests/                 # pytest suite
+│   │   ├── tests/                 # pytest suite (green)
 │   │   └── Dockerfile
-│   │
-│   ├── humanmidi/                 # Vision + MIDI (Python)
-│   │   ├── src/
-│   │   │   ├── core/              # camera_handler, hand_detector, midi_sender
-│   │   │   └── gestures/          # studio_gesture.py (CC mapping)
-│   │   ├── config/config.yaml
-│   │   ├── tests/                 # 49/49 passing
-│   │   └── run.py                 # Entry point
-│   │
-│   ├── bridge/                    # MIDI → WebSocket (Python)
-│   │   ├── src/
-│   │   │   ├── midi_listener.py
-│   │   │   ├── gesture_to_params.py
-│   │   │   ├── smoother.py        # EMA + dead zone + rate limiting
-│   │   │   ├── ws_server.py       # WebSocket server
-│   │   │   └── latency.py         # RTT tracker
-│   │   ├── live_params.py         # Generated from schema
-│   │   ├── tests/                 # 53/53 passing
-│   │   └── pyproject.toml
 │   │
 │   └── studio/                    # Next.js 16 + Turbopack
 │       ├── src/
-│       │   ├── lib/live/          # Live Engine core
+│       │   ├── lib/live/          # Live Engine core (standalone)
 │       │   │   ├── audioGraph.ts   # Web Audio node chain
-│       │   │   ├── liveSocket.ts   # WS client + auto-reconnect
-│       │   │   ├── useLiveEngine.ts# Orchestrator hook
+│       │   │   ├── useLiveEngine.ts# Orchestrator hook (no WS)
 │       │   │   ├── fxPresets.ts    # preset definitions
 │       │   │   ├── recorder.ts     # MediaRecorder + MIME detection
 │       │   │   └── liveParams.gen.ts # Generated types
-│       │   ├── components/live/    # Live UI components
-│       │   │   ├── LiveView.tsx     # 3-column layout
-│       │   │   ├── FxSlotPanel.tsx  # 4 knobs + preset selector
+│       │   ├── adapters/live/      # hook + audio graph adapters
+│       │   ├── presentation/components/live/
+│       │   │   ├── LiveView.tsx     # Container (2-column: FX + meters)
+│       │   │   ├── FxSlotPanel.tsx  # 4 slots + preset selector
 │       │   │   ├── Knob3D.tsx       # 3D rotary knob
 │       │   │   ├── LiveMeters.tsx   # VU/Peak meters
-│       │   │   ├── CameraOverlay.tsx# Camera feed
-│       │   │   ├── GestureBadge.tsx # Active gesture display
 │       │   │   └── LiveRecorderBar.tsx # Record controls
-│       │   └── components/dock/   # Dock navigation
-│       │       ├── ModuleDock.tsx
-│       │       └── types.ts       # MasteringTab includes "live"
+│       │   └── presentation/components/dock/   # Dock navigation
 │       ├── tests/                 # Vitest suite
 │       └── package.json
 │
-├── simulator/                     # Mock Bridge for E2E
-│   ├── main.py                    # CLI entry point
-│   ├── mock_bridge.py             # WS server (replicates Bridge protocol)
-│   ├── scenarios.py               # 5 deterministic scenarios
-│   ├── midi_injector.py           # Optional: rtmidi → virtual port
-│   └── requirements.txt
-│
 ├── e2e/                           # Playwright E2E tests
-│   ├── playwright.config.ts       # Chromium + headless flags
+│   ├── playwright.config.ts       # Chromium headless flags
 │   ├── fixtures/
 │   │   └── generate_fixture.py    # WAV audio generator
-│   ├── helpers/
-│   │   └── simulator.py           # Mock Bridge lifecycle helper
 │   └── tests/
-│       ├── master_to_live.spec.ts # Upload → master → live flow
-│       ├── live_params.spec.ts    # Sweep + presets + random walk
-│       └── live_reconnect.spec.ts # Reconnection + chaos
+│       └── master_to_live.spec.ts # Upload → master → live (standalone)
 │
 ├── frontend/                      # Legacy (moved to apps/studio)
 ├── backend/                       # Legacy (moved to apps/audiomind)
@@ -143,288 +69,52 @@ WaveAI/
 └── .gitignore
 ```
 
----
+### Shared Contract (LiveParams)
 
-## Blocks Summary
+`packages/contracts/live_params.schema.json` — source of truth, unchanged.
 
-| Block | Description | Status | Tests |
-|-------|-------------|--------|-------|
-| **A** | Contracts + Monorepo restructure | ✅ Done | Schema valid |
-| **B** | HumanMidi (Vision → MIDI) | ✅ Done | 49/49 passing |
-| **C** | Bridge (MIDI → WebSocket) | ✅ Done | 53/53 passing |
-| **D** | Live Engine + UI hardening | ✅ Done | Build passing |
-| **E** | Simulator + E2E | ✅ Done | 3 specs ready |
-
----
-
-## Shared Contract (LiveParams)
-
-### Source of Truth
-
-`packages/contracts/live_params.schema.json`
-
-### Generated Types
+Generated types:
 
 | Language | Output Path | Generator |
 |----------|-------------|-----------|
-| TypeScript | `apps/studio/src/lib/live/liveParams.gen.ts` | `packages/contracts/scripts/gen_types.py` |
-| Python | `apps/bridge/live_params.py` | `packages/contracts/scripts/gen_types.py` |
+| TypeScript | `apps/studio/src/lib/live/liveParams.gen.ts` | `packages/contracts/scripts/gen_types.sh` |
 
-### CC Mapping (MIDI → Parameters)
+The Python generation step was removed along with the deleted real-time-input applications; only the TypeScript target remains.
 
-| CC / Note | Parameter | Range | Curve |
-|-----------|-----------|-------|-------|
-| CC74 | `filter_cutoff` | 200–12000 Hz | Logarithmic |
-| CC92 | `reverb_mix` | 0–1 | Linear |
-| CC71 | `delay_time` | 50–800 ms | Linear |
-| CC73 | `echo_feedback` | 0–0.8 | Linear |
-| CC16 | `drive` | 0–1 | Linear |
-| Note 36 | `fx_preset` → "clean" | — | — |
-| Note 38 | `fx_preset` → "dub" | — | — |
-| Note 42 | `fx_preset` → "big_room" | — | — |
-| Note 49 | `fx_preset` → "radio" | — | — |
-
-### WS Protocol
-
-```
-→ Client connects
-← {"type":"hello","data":{"version":"1.0.0","midi_port":"...","gesture_mode":"studio","client_id":"...","server_time":...}}
-
-→ {"type":"PARAM_UPDATE","timestamp":...,"params":{...}}
-→ {"type":"PING","t":...}
-← {"type":"PONG","t":...,"server_t":...}
-
-→ {"type":"state","data":{"filter_cutoff":4500,...}}  // client echo
-```
-
----
-
-## Block A — Contracts & Monorepo
-
-### What was done
-
-- Created `packages/contracts/` with JSON Schema and type generators
-- Set up root `package.json` with npm workspaces
-- Generated TypeScript types for Studio
-- Generated Python types for Bridge
-
-### Key files
-
-- `packages/contracts/live_params.schema.json` — Source of truth
-- `packages/contracts/scripts/gen_types.py` — Dual-language generator
-- `packages/contracts/liveParams.gen.ts` — Generated TS types
-- `packages/apps/bridge/live_params.py` — Generated Python types
-
----
-
-## Block B — HumanMidi
-
-### What was done
-
-- Hand tracking with MediaPipe (camera_handler + hand_detector)
-- Gesture engine with configurable gesture classes
-- Studio gesture: exact CC mapping matching Bridge expectations
-- MIDI sender for virtual port output
-- Full config system (config.yaml + defaults.py + settings.py)
-
-### Test results: 49/49 passing
-
-### Key files
-
-| File | Purpose |
-|------|---------|
-| `src/core/camera_handler.py` | Camera feed management |
-| `src/core/hand_detector.py` | MediaPipe hand detection |
-| `src/core/midi_sender.py` | MIDI CC output |
-| `src/gestures/studio_gesture.py` | CC mapping (CC74→filter, CC92→reverb, etc.) |
-| `src/gestures/cc_controller.py` | CC value management |
-| `src/main.py` | Application entry point |
-| `run.py` | CLI runner |
-| `config/config.yaml` | Runtime configuration |
-
----
-
-## Block C — Bridge
-
-### What was done
-
-- WebSocket server on port 8765
-- MIDI listener (rtmidi-based)
-- Gesture → LiveParams conversion
-- Smoother: EMA filter + dead zone + rate limiting
-- Latency tracker (RTT via PING/PONG)
-- Pydantic validation against LiveParams schema
-
-### Test results: 53/53 passing
-
-### Key files
-
-| File | Purpose |
-|------|---------|
-| `src/ws_server.py` | WebSocket server (Bridge → Studio) |
-| `src/midi_listener.py` | MIDI CC input listener |
-| `src/gesture_to_params.py` | MIDI CC → LiveParams mapping |
-| `src/smoother.py` | EMA + dead zone + throttle |
-| `src/latency.py` | RTT measurement |
-| `live_params.py` | Generated Pydantic model |
-| `tests/test_*.py` | 5 test files, 53 tests total |
-
----
-
-## Block D — Live Engine & UI
-
-### What was done
+### Live Engine (standalone)
 
 - Web Audio graph: `Source → Filter → Drive → Delay → Reverb → Master → Analyser`
-- WebSocket client with auto-reconnect and ping/pong
-- FX presets (clean, dub, big_room, radio)
-- MediaRecorder with MIME detection
-- useLiveEngine orchestrator hook
-- Complete UI: LiveView, FxSlotPanel, Knob3D, LiveMeters, CameraOverlay, GestureBadge, LiveRecorderBar
-- Dock tab "live" integration
-
-### Hardening fixes applied
-
-| Component | Fix |
-|-----------|-----|
-| CameraOverlay.tsx | Refs → useEffect + MediaStream cleanup |
-| useLiveEngine.ts | Date.now() lazy init in useState |
-| recorder.ts | Auto MIME detection + MediaRecorderErrorEvent typed |
-| Knob3D.tsx | `as any` removed (React.TouchEvent typed) |
-| FxSlotPanel.tsx | `as any` removed (GestureBadge param typed) |
-| audioGraph.ts | `any` → ValidPreset type guard |
-| liveSocket.ts | HelloData includes client_id + server_time |
-
-### Build status: ✅ Passing
-
-### Lint status
-
-Pre-existing warnings (not from integration):
-- DropZone.tsx: missing useCallback dependency
-- MobileDrawer.tsx: unused imports
-- StereoField.tsx: unused variables
-- CameraOverlay.tsx: missing useEffect dependencies
-- Knob3D.tsx: unused variable
-- LiveMeters.tsx: unused import
+- FX presets (clean, dub, big_room, radio) — knob or preset selector driven
+- MediaRecorder with MIME detection (record + download)
+- `useLiveEngine` orchestrator hook — params come exclusively from knobs
 
 ---
 
-## Block E — Simulator & E2E
-
-### Simulator
-
-CLI tool that mocks the Bridge WS server for E2E testing.
-
-```bash
-# Run simulator
-python -m simulator.main --mode server --scenario sweep --port 8765
-
-# Available scenarios
---scenario sweep          # Deterministic parameter sweep (step-mode)
---scenario presets        # Note-triggered preset changes
---scenario random_walk    # Bounded random walk (fixed seed)
---scenario idle           # Hello + PING/PONG only
---scenario chaos          # Intentionally invalid payloads
-```
-
-### E2E Tests (Playwright)
-
-| Spec | What it tests |
-|------|---------------|
-| `master_to_live.spec.ts` | Upload audio → master → switch to live tab |
-| `live_params.spec.ts` | Sweep step values + presets + random walk validation |
-| `live_reconnect.spec.ts` | WS reconnection + chaos resilience |
-
-### Chromium flags (non-negotiable)
-
-```
---autoplay-policy=no-user-gesture-required
---use-fake-ui-for-media-stream
---use-fake-device-for-media-stream
---mute-audio
-```
-
-### How to run E2E
-
-```bash
-# Generate audio fixture (once)
-python e2e/fixtures/generate_fixture.py
-
-# Run all E2E tests
-cd apps/studio && npx playwright test --config=../../e2e/playwright.config.ts
-
-# Run with UI
-npx playwright test --config=../../e2e/playwright.config.ts --ui
-```
-
----
-
-## Git History
+## Git History (original integration, for reference)
 
 ```
 df477be test(e2e): playwright test suite, audio fixtures and helpers
-3299d20 test(simulator): mock ws bridge server and deterministic scenarios
 06f5f83 feat(studio): live engine, web audio graph, knobs and dock integration
-74b937c feat(bridge): realtime midi listener, smoother and ws server
-ad69a59 feat(humanmidi): vision tracker, gesture engine and studio midi mapper
 78b02bf feat(audiomind): dsp backend integration and session endpoints
 f3b6311 feat(contracts): schema, generators and monorepo root setup
 ```
 
-### Commit breakdown
-
-| # | Hash | Message | Files | Lines |
-|---|------|---------|-------|-------|
-| 1 | `f3b6311` | feat(contracts): schema, generators and monorepo root setup | 7 | +7,323 |
-| 2 | `78b02bf` | feat(audiomind): dsp backend integration and session endpoints | ~50 | ~5,000 |
-| 3 | `ad69a59` | feat(humanmidi): vision tracker, gesture engine and studio midi mapper | 49 | ~4,000 |
-| 4 | `74b937c` | feat(bridge): realtime midi listener, smoother and ws server | 18 | +2,222 |
-| 5 | `06f5f83` | feat(studio): live engine, web audio graph, knobs and dock integration | 88 | +16,274 |
-| 6 | `3299d20` | test(simulator): mock ws bridge server and deterministic scenarios | 6 | +1,127 |
-| 7 | `df477be` | test(e2e): playwright test suite, audio fixtures and helpers | 10 | +568 |
-| | | **Total** | **~228** | **~36,514** |
+> The commits above are historical; the real-time-input applications they reference were removed in the September cleanup.
 
 ---
 
-## How to Run
+## How to Run (current stack)
 
 ### Prerequisites
 
-- Node.js 18+ (Studio)
-- Python 3.10+ (HumanMidi, Bridge, Simulator)
-- npm (monorepo workspaces)
+- Node.js 18+ (Studio) + bun ≥ 1.3
+- Python 3.12 (audiomind)
 
-### Studio (Frontend)
-
-```bash
-cd apps/studio
-npm install
-npm run dev        # Development server
-npm run build      # Production build
-```
-
-### HumanMidi
+### Backend + Studio
 
 ```bash
-cd apps/humanmidi
-pip install -r requirements.txt
-python run.py      # Starts camera + hand tracking + MIDI output
-```
-
-### Bridge
-
-```bash
-cd apps/bridge
-pip install -e ".[dev]"
-python -m bridge   # Starts WS server on :8765
-```
-
-### Simulator (Mock Bridge)
-
-```bash
-cd simulator
-pip install -r requirements.txt
-python -m simulator.main --mode server --scenario sweep --port 8765
+cd apps/audiomind && uvicorn audiomind.main:app --port 8000   # http://localhost:8000/health
+cd apps/studio && bun install && bun run dev                  # http://localhost:3000
 ```
 
 ### E2E Tests
@@ -432,9 +122,7 @@ python -m simulator.main --mode server --scenario sweep --port 8765
 ```bash
 cd apps/studio
 npx playwright install chromium
-cd ../..
-python e2e/fixtures/generate_fixture.py
-cd apps/studio
+npm run e2e:fixtures                                          # generate WAV fixture
 npx playwright test --config=../../e2e/playwright.config.ts
 ```
 
@@ -442,13 +130,6 @@ npx playwright test --config=../../e2e/playwright.config.ts
 
 ## Next Steps
 
-1. **Open PR** from `test/integration-midimastering` → `develop`
-2. **Add `data-testid`** to 11 UI components for E2E stability
-3. **Run E2E suite** against local Studio dev server
-4. **CI/CD**: Add Playwright job to GitHub Actions with `webServer` config
-5. **Hardware validation**: Test with real MIDI controller + camera
-6. **Performance**: Profile WS latency end-to-end (target: <20ms)
-
----
-
-*Generated by WaveAI integration pipeline — 2026-08-25*
+1. Run the E2E suite against the local Studio (needs backend + fixture).
+2. CI/CD: add Playwright job to GitHub Actions with `webServer` config.
+3. Re-record `docs/UX_MAP.md` section 5 for the 2-column standalone Live layout (done in the cleanup docs pass).

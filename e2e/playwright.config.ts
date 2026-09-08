@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
-  expect: { timeout: 7_000 },
-  fullyParallel: false,        // mock bridge usa puerto fijo 8765
+  expect: { timeout: 10_000 },
+  fullyParallel: true,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
   reporter: [['html', { open: 'never' }], ['list']],
@@ -13,12 +13,9 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
-    permissions: ['camera'],
     launchOptions: {
       args: [
         '--autoplay-policy=no-user-gesture-required',
-        '--use-fake-ui-for-media-stream',
-        '--use-fake-device-for-media-stream',
         '--allow-file-access-from-files',
         '--mute-audio',
       ],

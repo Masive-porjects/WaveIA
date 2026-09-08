@@ -11,8 +11,6 @@ if (Test-Path $pidsFile) {
 }
 
 & "$PSScriptRoot\start-one.ps1" -Name "audiomind"
-& "$PSScriptRoot\start-one.ps1" -Name "bridge"
-& "$PSScriptRoot\start-one.ps1" -Name "humanmidi"
 & "$PSScriptRoot\start-one.ps1" -Name "studio"
 
 Write-Host "Servicios iniciados. PIDs guardados en $pidsFile"

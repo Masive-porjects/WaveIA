@@ -143,4 +143,4 @@ Cadena real: análisis → gain staging a −6 dBFS → HPF 30 Hz → match EQ p
 
 ## Live Engine (pestaña del dock)
 
-Requisito: haber masterizado un track (si no: *"Primero necesitás masterizar un track para activar el motor en vivo."*). Cámara → MediaPipe → gestos → bridge MIDI → WebSocket `:8765` → FX en vivo (filtro, drive, delay, echo, reverb). Si el socket se cae > 2 s, el engine **vuelve solo a neutral** para no sonar roto.
+Requisito: haber masterizado un track (si no: *"Primero necesitás masterizar un track para activar el motor en vivo."*). El master se reproduce en el navegador con FX en vivo (filtro, drive, delay, echo, reverb) controlados por **knobs** (mouse o teclado: flechas arriba/abajo/izq/der, Inicio, Fin) y **presets** (Clean, Dub, Big Room, Radio). Incluye escucha con **meters** (VU/peak + espectro) y **grabación** de la sesión (botón 🎙️ → descargar el WAV grabado). No requiere cámara ni servicios externos: es un reproductor Web Audio standalone.

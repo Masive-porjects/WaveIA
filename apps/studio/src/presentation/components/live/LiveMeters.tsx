@@ -6,17 +6,12 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import type { ConnectionState } from '@/adapters/live/liveSocket';
 
 interface LiveMetersProps {
   /** Analyser data from audio graph */
   analyserData: { frequency: Uint8Array; timeDomain: Uint8Array } | null;
   /** Current output level (RMS 0-1) */
   outputLevel: number;
-  /** Latency in ms */
-  latency?: number;
-  /** Connection state */
-  connectionState?: ConnectionState;
   /** Width in px */
   width?: number;
   /** Height in px */
@@ -32,8 +27,6 @@ const METER_COLORS = {
 export function LiveMeters({
   analyserData,
   outputLevel,
-  latency,
-  connectionState = 'disconnected',
   width = 280,
   height = 320,
 }: LiveMetersProps) {
@@ -291,59 +284,7 @@ export function LiveMeters({
             {Math.round(outputLevel * 100)}%
           </span>
         </div>
-
-        {/* Status & Latency */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            padding: '8px 12px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.05)',
-            borderRadius: 10,
-            fontSize: 11,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: connectionState === 'connected' ? METER_COLORS.safe :
-                            connectionState === 'connecting' ? METER_COLORS.warn :
-                            connectionState === 'stale' ? METER_COLORS.clip : '#8a8a8a',
-                animation: connectionState === 'connecting' ? 'pulse 1s infinite' : 'none',
-              }}
-            />
-            <span
-              style={{
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: connectionState === 'connected' ? METER_COLORS.safe :
-                       connectionState === 'connecting' ? METER_COLORS.warn :
-                       connectionState === 'stale' ? METER_COLORS.clip : '#8a8a8a',
-              }}
-            >
-              {connectionState}
-            </span>
-          </div>
-          {latency !== undefined && (
-            <span style={{ color: '#627e84', fontFamily: 'Inter, monospace' }}>
-              RTT: {latency.toFixed(1)}ms
-            </span>
-          )}
-        </div>
       </div>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   );
 }

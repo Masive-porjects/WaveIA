@@ -1,42 +1,36 @@
 /**
- * useLiveEngine — React hook orchestrating the complete live engine.
- * Manages: AudioContext, AudioGraph, WebSocket, Recorder, and UI state.
+ * useLiveEngine — React hook orchestrating the standalone Live Engine.
+ * Manages: AudioContext, AudioGraph, Recorder, and UI state.
+ * No WebSocket: params come exclusively from the knob UI (mouse/keyboard).
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { LiveParams } from '@/lib/live/liveParams.gen';
 import { createAudioGraph, AudioGraph } from './audioGraph';
-import { createLiveSocket, ConnectionState } from './liveSocket';
 import { createRecorder, RecorderState } from './recorder';
-import { applyPreset, getPresetByNote, FX_PRESETS, FxPresetName } from './fxPresets';
-import { LIVE_PARAM_DEFAULTS, NEUTRAL_AFTER_MS, NEUTRAL_CHECK_MS } from '@/lib/live/liveDefaults';
+import { applyPreset, FX_PRESETS, FxPresetName } from './fxPresets';
+import { LIVE_PARAM_DEFAULTS } from '@/lib/live/liveDefaults';
 
 export interface UseLiveEngineOptions {
   /** Master audio buffer (from WaveAI mastering) */
   masterAudioBuffer: AudioBuffer | null;
   /** AudioContext (shared or created internally) */
   audioContext?: AudioContext;
-  /** WebSocket URL */
-  wsUrl?: string;
   /** Initial LiveParams */
   initialParams?: Partial<LiveParams>;
   /** Callbacks */
   onParamsChange?: (params: LiveParams) => void;
-  onConnectionStateChange?: (state: ConnectionState) => void;
-  onLatencyUpdate?: (rtt: number) => void;
   onError?: (error: Error) => void;
 }
 
 export interface UseLiveEngineReturn {
   // State
   params: LiveParams;
-  connectionState: ConnectionState;
-  latency: number;
   outputLevel: number;
   analyserData: { frequency: Uint8Array; timeDomain: Uint8Array } | null;
   recorderState: RecorderState;
   isPlaying: boolean;
-  
+
   // Actions
   setParams: (params: Partial<LiveParams>) => void;
   setFxPreset: (preset: FxPresetName) => void;
@@ -46,31 +40,27 @@ export interface UseLiveEngineReturn {
   startRecording: () => void;
   stopRecording: () => void;
   downloadRecording: (filename?: string) => void;
-  
+
   // Cleanup
   destroy: () => void;
 }
 
 /**
- * Main hook for the Live Engine.
- * Handles the complete pipeline: WebSocket → Params → AudioGraph → Recorder.
+ * Main hook for the standalone Live Engine (knob-controlled).
+ * Pipeline: Knobs → LiveParams → AudioGraph → Recorder.
  */
 export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineReturn {
   const {
     masterAudioBuffer,
     audioContext: providedContext,
-    wsUrl = 'ws://localhost:8765',
     initialParams = {},
     onParamsChange,
-    onConnectionStateChange,
-    onLatencyUpdate,
     onError,
   } = options;
 
   // ── Refs for persistent objects ──────────────────────────────────
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioGraphRef = useRef<AudioGraph | null>(null);
-  const socketRef = useRef<ReturnType<typeof createLiveSocket> | null>(null);
   const recorderRef = useRef<ReturnType<typeof createRecorder> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -80,8 +70,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     ts: Date.now(),
     ...initialParams,
   }));
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
-  const [latency, setLatency] = useState(0);
   const [outputLevel, setOutputLevel] = useState(0);
   const [analyserData, setAnalyserData] = useState<{ frequency: Uint8Array; timeDomain: Uint8Array } | null>(null);
   const [recorderState, setRecorderState] = useState<RecorderState>({
@@ -146,46 +134,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
     };
   }, [masterAudioBuffer]);
 
-  // ── Initialize WebSocket ─────────────────────────────────────────
-  useEffect(() => {
-    const socket = createLiveSocket({
-      url: wsUrl,
-      onStateChange: (state) => {
-        setConnectionState(state);
-        onConnectionStateChange?.(state);
-        // Política de neutral: anotar el momento de la caída; se resetea
-        // a defaults si sigue caído > NEUTRAL_AFTER_MS (spec AGENTS.md).
-        if (state === 'connected' || state === 'connecting') {
-          disconnectSinceRef.current = null;
-        } else if (disconnectSinceRef.current === null) {
-          disconnectSinceRef.current = Date.now();
-        }
-      },
-      onParams: (newParams) => {
-        // Apply incoming params from Bridge
-        setParamsState(prev => {
-          const merged = { ...prev, ...newParams, ts: newParams.ts };
-          // If preset changed via note, apply full preset
-          if (newParams.fx_preset && newParams.fx_preset !== prev.fx_preset) {
-            return applyPreset(merged, newParams.fx_preset);
-          }
-          return merged;
-        });
-      },
-      onPong: (rtt) => {
-        setLatency(rtt);
-        onLatencyUpdate?.(rtt);
-      },
-      onError: (err) => onError?.(err),
-    });
-    socketRef.current = socket;
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [wsUrl]);
-
   // ── Analyser / Output Level Loop ────────────────────────────────
   useEffect(() => {
     const graph = audioGraphRef.current;
@@ -206,28 +154,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       }
     };
   }, []);
-
-  // ── Neutral policy: socket caído > 2 s → volver a defaults (spec) ──
-  const disconnectSinceRef = useRef<number | null>(null);
-
-  const resetToNeutral = useCallback(() => {
-    const defaults: LiveParams = { ...LIVE_PARAM_DEFAULTS, ts: Date.now() };
-    setParamsState(defaults);
-    audioGraphRef.current?.setParams(defaults);
-    onParamsChange?.(defaults);
-  }, [onParamsChange]);
-
-  useEffect(() => {
-    const check = () => {
-      const since = disconnectSinceRef.current;
-      if (since !== null && Date.now() - since > NEUTRAL_AFTER_MS) {
-        disconnectSinceRef.current = null; // reset una sola vez por caída
-        resetToNeutral();
-      }
-    };
-    const id = setInterval(check, NEUTRAL_CHECK_MS);
-    return () => clearInterval(id);
-  }, [resetToNeutral]);
 
   // ── Parameter Setters ────────────────────────────────────────────
   const setParams = useCallback((newParams: Partial<LiveParams>) => {
@@ -285,7 +211,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
       cancelAnimationFrame(animationFrameRef.current);
     }
     audioGraphRef.current?.disconnect();
-    socketRef.current?.disconnect();
     recorderRef.current?.cleanup();
     if (audioContextRef.current && !providedContext) {
       audioContextRef.current.close();
@@ -299,8 +224,6 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   return {
     // State
     params,
-    connectionState,
-    latency,
     outputLevel,
     analyserData,
     recorderState,

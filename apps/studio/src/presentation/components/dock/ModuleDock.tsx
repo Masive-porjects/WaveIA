@@ -192,6 +192,7 @@ export default function ModuleDock({
         key={mod.key}
         icon={mod.icon}
         label={mod.label}
+        testId={`dock-tab-${mod.key}`}
         active={activeTab === mod.key}
         revealLabels={revealLabels}
         onSelect={() => onSelect(mod.key)}

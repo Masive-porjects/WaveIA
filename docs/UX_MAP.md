@@ -117,16 +117,14 @@ stateDiagram-v2
 ```mermaid
 flowchart LR
     Master[Master audio<br/>getAudioUrl(mastered)] --> Decode[decodeAudioData<br/>AudioContext efímero]
-    Decode --> LV[LiveView<br/>3 columnas]
-    LV --> Cam[CameraOverlay<br/>MediaPipe + gestos]
+    Decode --> LV[LiveView<br/>2 columnas: FX + meters]
     LV --> FX[FxSlotPanel<br/>filtro · drive · delay · reverb]
     LV --> Meters[LiveMeters]
     LV --> Rec[LiveRecorderBar]
-    Bridge[Bridge WS :8765] --> LV
 ```
 
 - Requiere **master previo** (empty state si no hay).
-- `bridgeConnected` / `bridgeLatency` vienen del bridge, no de la vista.
+- Control standalone: los **knobs** (mouse/teclado, `Knob3D`) escriben `LiveParams` directo en el grafo Web Audio del navegador. No hay cámara, gestos ni WebSocket.
 - Patrón React oficial de descarte de buffer: ajuste durante render (`decodedUrl !== masterAudioUrl`).
 
 ## 6. Chat del Asistente IA

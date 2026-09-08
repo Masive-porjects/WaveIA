@@ -18,7 +18,7 @@
     "test:studio": "bun run --filter studio test",
     "dev:audiomind": "cd apps/audiomind && uvicorn audiomind.main:app --reload --port 8000",
     "test:backend": "cd apps/audiomind && python -m pytest -v",
-    "contracts:gen": "cd packages/contracts/scripts && python gen_types.py"
+    "contracts:gen": "bash packages/contracts/scripts/gen_types.sh"
   },
   "devDependencies": {}
 }

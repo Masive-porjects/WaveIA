@@ -5,7 +5,7 @@
 
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("audiomind", "bridge", "humanmidi", "studio")]
+    [ValidateSet("audiomind", "studio")]
     [string]$Name
 )
 
@@ -17,14 +17,6 @@ $services = @{
     audiomind = @{
         WorkDir = "apps/audiomind"
         Command = '$env:PYTHONPATH = (Join-Path $pwd ''src''); .venv\Scripts\python.exe -m uvicorn audiomind.main:app --reload --port 8000'
-    }
-    bridge = @{
-        WorkDir = "apps/bridge"
-        Command = ".venv\Scripts\python.exe main.py"
-    }
-    humanmidi = @{
-        WorkDir = "apps/humanmidi"
-        Command = ".venv\Scripts\python.exe run.py --mode studio"
     }
     studio = @{
         WorkDir = "apps/studio"

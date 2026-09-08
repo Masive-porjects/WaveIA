@@ -4,7 +4,7 @@
 
 # Brikmaster
 
-**Estudio de mastering asistido por IA + Live Engine controlado por gestos.**
+**Estudio de mastering asistido por IA + Live Engine Web Audio standalone (knobs).**
 
 <sub>Anteriormente *WaveAI* — rebrand a **Brikmaster** (el fantasma beige `#D6C9A9` es la mascota y el favicon de la app).</sub>
 
@@ -14,16 +14,14 @@
 
 ## Qué es
 
-Brikmaster (antes WaveAI) une dos proyectos en una sola interfaz:
+Brikmaster es un estudio de mastering con dos capas:
 
 1. **Studio de mastering IA** — subís un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
-2. **HumanMidi** — app Python que convierte gestos de la mano (MediaPipe) en MIDI en tiempo real.
-
-**La unión:** Brikmaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce los gestos (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
+2. **Live Engine** — el master se carga en un reproductor Web Audio (en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb) controlados por **knobs** (mouse/teclado). Todo en la pestaña **"Live"** del studio.
 
 ```
-Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother)
-        → WS :8765 → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
+Upload → WaveAI Mastering (audiomind) → Master WAV
+        → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
 ```
 
 ## Mapa del repo
@@ -32,10 +30,7 @@ Camera → MediaPipe Hands → Gesture → MIDI CC → Bridge (smoother)
 |---|---|---|
 | `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
 | `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
-| `apps/humanmidi/` | Python 3.12, MediaPipe | Visión + gestos → MIDI CC |
-| `apps/bridge/` | Python, websockets, rtmidi | MIDI → `LiveParams` → WS :8765 |
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
-| `simulator/` | Python | Emisor de `LiveParams` sintéticos |
 | `e2e/` | Playwright | master → live |
 | `docs/` | Markdown | Especificaciones, setup, reportes de integración |
 
@@ -68,12 +63,6 @@ cd apps/audiomind && uvicorn audiomind.main:app --port 8000
 # Frontend (studio)
 cd apps/studio && bun install && bun run dev
 # → http://localhost:3000
-
-# Bridge (Live Engine, opcional para gestos)
-cd apps/bridge && python main.py                 # WS :8765
-
-# HumanMidi (opcional — SIEMPRE por run.py)
-cd apps/humanmidi && python run.py --list-midi
 ```
 
 ## Verificación
@@ -83,17 +72,10 @@ cd apps/humanmidi && python run.py --list-midi
 cd apps/audiomind && pytest tests/ -q
 uvicorn audiomind.main:app --port 8000           # → curl localhost:8000/health
 
-# Bridge
-cd apps/bridge && pytest tests/ -q
-
-# HumanMidi
-cd apps/humanmidi && pytest tests/ -v
-
 # Studio (lint + build)
 cd apps/studio && npm run lint && npm run build
 
-# Integral
-python -m simulator.main --mode server --scenario sweep   # desde la raíz
+# E2E
 npm run e2e                                               # desde apps/studio
 ```
 
@@ -103,9 +85,7 @@ npm run e2e                                               # desde apps/studio
 
 - **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo — regenerá tipos con `packages/contracts/scripts/gen_types.sh`, nunca edites los generados a mano.
 - **Neutral = bypass**: parámetro neutral = audio idéntico (bit-exacto en backend, defaults del schema en Live Engine).
-- **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado; mensajes completos, el último estado gana.
 - **`setTargetAtTime` siempre** (nunca asignación directa en Web Audio — anti-zipper).
-- **`mediapipe==0.10.14` pinned**; entry point de HumanMidi SIEMPRE `run.py`.
 - **Microcopy en español rioplatense** (voseo): "Subí", "Ajustá", "Probá de nuevo".
 - **Commits semánticos** (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), sin atribución AI.
 

@@ -12,6 +12,8 @@ interface DockItemProps {
   buttonRef?: (el: HTMLButtonElement | null) => void;
   /** Onboarding: briefly show EVERY label regardless of hover/active. */
   revealLabels?: boolean;
+  /** E2E test id (e.g. dock-tab-live) */
+  testId?: string;
 }
 
 /* ── DockItem ───────────────────────────────────────────
@@ -29,6 +31,7 @@ export default function DockItem({
   onSelect,
   buttonRef,
   revealLabels = false,
+  testId,
 }: DockItemProps) {
   const labelVisible = active || revealLabels;
 
@@ -55,6 +58,7 @@ export default function DockItem({
       <button
         ref={buttonRef}
         type="button"
+        data-testid={testId}
         onClick={onSelect}
         aria-label={`Módulo ${label}`}
         aria-current={active ? "true" : undefined}

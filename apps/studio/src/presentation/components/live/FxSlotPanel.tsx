@@ -8,7 +8,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Knob3D } from './Knob3D';
-import { GestureBadge } from './GestureBadge';
 import { FX_PRESETS, FX_PRESET_ORDER, FxPresetName } from '@/adapters/live/fxPresets';
 import type { LiveParams } from '@/lib/live/liveParams.gen';
 
@@ -232,7 +231,7 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
               gap: 10,
             }}
           >
-            {/* Slot Header + Gesture Badge */}
+            {/* Slot Header */}
             <div
               style={{
                 display: 'flex',
@@ -252,7 +251,6 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
               >
                 {slot.label}
               </span>
-              <GestureBadge param={slot.param} compact />
             </div>
 
             {/* Primary Knob */}
@@ -264,6 +262,7 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
               color={slot.color}
               disabled={disabled}
               size={72}
+              dataTestid={slot.key === 'filter_cutoff' ? 'knob-filter_cutoff' : undefined}
               decimals={slot.param === 'filter_cutoff' ? 0 : slot.param === 'delay_time' ? 0 : 2}
               formatValue={slot.param === 'filter_cutoff' ? formatFilterValue : slot.param === 'delay_time' ? formatDelayValue : undefined}
             />
@@ -293,7 +292,6 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
                     >
                       {sec.label}
                     </span>
-                    <GestureBadge param={sec.param} compact />
                   </div>
                   <Knob3D
                     value={params[sec.param as keyof LiveParams] as number}
