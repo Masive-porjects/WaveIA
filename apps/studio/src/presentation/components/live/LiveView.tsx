@@ -188,7 +188,7 @@ export function LiveView({
         />
       </motion.div>
 
-      {/* Column 2: Meters & Recorder */}
+      {/* Column 2: Meters (recorder lives full-width below) */}
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -212,17 +212,6 @@ export function LiveView({
           originalMetrics={originalMetrics}
           masterMetrics={masterMetrics}
           onSideChange={setSide}
-        />
-
-        <LiveRecorderBar
-          recorderState={recorderState}
-          isPlaying={isPlaying}
-          onPlay={play}
-          onPause={pause}
-          onStop={stop}
-          onStartRecording={startRecording}
-          onStopRecording={stopRecording}
-          onDownload={downloadRecording}
         />
       </motion.div>
 
