@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveEngine } from '@/adapters/live/useLiveEngine';
+import { safeCloseAudioContext } from '@/lib/live/audioContextUtils';
 import { FxSlotPanel } from './FxSlotPanel';
 import { LiveMeterDeck } from './LiveMeterDeck';
 import { LiveRecorderBar } from './LiveRecorderBar';
@@ -70,7 +71,7 @@ export function LiveView({
         if (!cancelled) setMasterBuffer(audioBuf);
       })
       .catch((err) => console.error('[LiveView] decode master:', err))
-      .finally(() => { void ctx.close(); });
+      .finally(() => { void safeCloseAudioContext(ctx); });
 
     return () => { cancelled = true; };
   }, [masterAudioUrl]);

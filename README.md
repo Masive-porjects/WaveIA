@@ -30,8 +30,10 @@ Upload → WaveAI Mastering (audiomind) → Master WAV
 |---|---|---|
 | `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
 | `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
+| `apps/agent/` | TypeScript + Gemini (`@google/genai`) | Agente conversacional IA (intent + presets + chat), usado por el studio (`@midimastering/agent`) |
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
 | `e2e/` | Playwright | master → live |
+| `scripts/` | PowerShell/BAT | start/verify local (audiomind + studio) |
 | `docs/` | Markdown | Especificaciones, setup, reportes de integración |
 
 ## Compliance Phase 1 (feature destacada)

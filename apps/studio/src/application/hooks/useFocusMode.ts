@@ -9,7 +9,14 @@ import { useCallback, useEffect, useState } from "react";
 
    Persisted in localStorage and propagated through a data attribute
    on <html> + a tiny CustomEvent bus, so any component (AmbientLayer,
-   glass surfaces) can react without a shared context provider. */
+   glass surfaces) can react without a shared context provider.
+
+   IMPORTANT: the state updater is kept pure — persisting and notifying
+   happen in an effect AFTER commit. Putting applyFocus() inside the
+   updater would dispatch the CustomEvent synchronously during the
+   render phase and make React throw "Cannot update a component while
+   rendering a different component" (AmbientLayer updating during
+   UserMenu's render), silently dropping the update. */
 
 const FOCUS_KEY = "brikmaster-focus-mode";
 const FOCUS_EVENT = "brikmaster:focus-mode";
@@ -38,11 +45,18 @@ export function isFocusMode(): boolean {
 export function useFocusMode() {
   const [focus, setFocus] = useState<boolean>(readStored);
 
-  /* Idempotent mount sync: write the attribute to match storage
-     (DOM write only — no setState here). */
+  /* After every committed change (and once on mount to normalise a
+     stale attribute), persist + notify the bus. Pure updaters above,
+     side effects live here — post-commit, never during another
+     component's render. */
   useEffect(() => {
-    document.documentElement.dataset.focus = readStored() ? "true" : "false";
-  }, []);
+    try {
+      localStorage.setItem(FOCUS_KEY, focus ? "1" : "0");
+    } catch {
+      // Private mode — still applies for the session
+    }
+    applyFocus(focus);
+  }, [focus]);
 
   /* Keep in sync across instances via the bus. */
   useEffect(() => {
@@ -54,16 +68,7 @@ export function useFocusMode() {
   }, []);
 
   const toggle = useCallback(() => {
-    setFocus((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(FOCUS_KEY, next ? "1" : "0");
-      } catch {
-        // Private mode — still applies for the session
-      }
-      applyFocus(next);
-      return next;
-    });
+    setFocus((prev) => !prev);
   }, []);
 
   return { focus, toggle };

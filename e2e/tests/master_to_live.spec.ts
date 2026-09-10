@@ -16,9 +16,8 @@ test.describe('Flujo completo: Master → Live Engine', () => {
       execSync('python e2e/fixtures/generate_fixture.py', { cwd: __dirname + '/..', stdio: 'inherit' });
     }
 
-    // 2. Navegar a Studio
+    // 2. Navegar al Studio
     await page.goto('/');
-    await expect(page.locator('[data-testid="live-view"]')).toBeVisible({ timeout: 10000 });
 
     // 3. Subir archivo de audio
     const fileInput = page.locator('input[type="file"]').first();

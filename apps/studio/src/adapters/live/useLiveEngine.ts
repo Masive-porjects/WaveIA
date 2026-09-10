@@ -11,6 +11,7 @@ import { createRecorder, RecorderState } from './recorder';
 import { applyPreset, FX_PRESETS, FxPresetName } from './fxPresets';
 import { LIVE_PARAM_DEFAULTS } from '@/lib/live/liveDefaults';
 import { publish, reset } from '@/lib/live/liveMeterBus';
+import { safeCloseAudioContext } from '@/lib/live/audioContextUtils';
 import { rms, peakDb, correlation, stereoWidth, momentaryLoudnessDb, shortTermLoudnessDb } from '@/lib/live/meterMath';
 
 export interface UseLiveEngineOptions {
@@ -63,6 +64,8 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   const audioGraphRef = useRef<AudioGraph | null>(null);
   const recorderRef = useRef<ReturnType<typeof createRecorder> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  /** Guard de dispose idempotente: destroy() no debe cerrar el ctx dos veces. */
+  const disposedRef = useRef(false);
 
   // ── React State ──────────────────────────────────────────────────
   const [params, setParamsState] = useState<LiveParams>(() => ({
@@ -90,8 +93,16 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   }, [params]);
 
   // ── Initialize AudioContext ──────────────────────────────────────
+  // StrictMode / Fast Refresh pueden haber cerrado el ctx vía destroy() en un
+  // ciclo anterior: si quedó "closed", descartarlo y crear uno fresco. Nunca
+  // se reusa un contexto cerrado (crear nodos sobre él también lanza
+  // InvalidStateError).
   useEffect(() => {
+    if (audioContextRef.current?.state === 'closed') {
+      audioContextRef.current = null;
+    }
     if (!audioContextRef.current) {
+      disposedRef.current = false; // nuevo dueño de contexto → destroy revive
       const ctx = providedContext || new AudioContext({ latencyHint: 'interactive' });
       audioContextRef.current = ctx;
     }
@@ -245,14 +256,28 @@ export function useLiveEngine(options: UseLiveEngineOptions): UseLiveEngineRetur
   }, []);
 
   // ── Cleanup ──────────────────────────────────────────────────────
+  // Idempotente: StrictMode/Fast Refresh montan y desmontan efectos varias
+  // veces; el primer destroy cierra el ctx, los siguientes no-op. El ref se
+  // nulifica ANTES del close para que un init posterior cree uno fresco.
   const destroy = useCallback(() => {
+    if (disposedRef.current) return;
+    disposedRef.current = true;
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     audioGraphRef.current?.disconnect();
+    audioGraphRef.current = null;
     recorderRef.current?.cleanup();
-    if (audioContextRef.current && !providedContext) {
-      audioContextRef.current.close();
+    recorderRef.current = null;
+
+    // Owner del AudioContext interno: cerrar UNA vez. Un contexto provisto
+    // por el caller (providedContext) lo cierra el caller, no nosotros.
+    const ctx = audioContextRef.current;
+    audioContextRef.current = null;
+    if (ctx && !providedContext) {
+      void safeCloseAudioContext(ctx);
     }
   }, [providedContext]);
 

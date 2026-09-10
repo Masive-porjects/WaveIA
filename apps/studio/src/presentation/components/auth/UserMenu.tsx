@@ -115,7 +115,7 @@ export default function UserMenu() {
             className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors"
           >
             {isDark ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
-            Tema: {isDark ? "claro" : "oscuro"}
+            Tema: {isDark ? "oscuro" : "claro"}
           </button>
 
           <button
