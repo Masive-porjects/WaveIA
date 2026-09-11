@@ -609,6 +609,18 @@ export default function Home() {
                   "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recargá y debería recuperarse; si no, subí el audio de nuevo.",
               });
               break;
+            case 422:
+              // Demo mode rejects uploads with a "Demo: ..." detail —
+              // surface it as a clear modal instead of a raw inline error.
+              if (err.message.startsWith("Demo:")) {
+                setErrorModal({
+                  title: "Límite de la demo",
+                  message: err.message,
+                });
+              } else {
+                setError(err.message || "Upload failed");
+              }
+              break;
             default:
               if (err.status >= 500) {
                 setErrorModal({
@@ -802,11 +814,19 @@ export default function Home() {
     async (format: "wav" | "mp3") => {
       if (!session) return;
       try {
-        const blob = await downloadMastered(session.session_id, format);
+        const blob = await downloadMastered(
+          session.session_id,
+          format,
+          activePresetId ?? undefined,
+        );
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `brikmaster_${session.session_id}.${format}`;
+        // With an active preset the file is that preset's master — name it so
+        // the download doesn't collide with the unparametrized one.
+        a.download = activePresetId
+          ? `brikmaster_${session.session_id}_${activePresetId}.${format}`
+          : `brikmaster_${session.session_id}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -815,7 +835,7 @@ export default function Home() {
         // Silently fail — the backend error is already surfaced
       }
     },
-    [session],
+    [session, activePresetId],
   );
 
   /* ── Back to upload ──────────────────────────────── */
@@ -1402,7 +1422,7 @@ export default function Home() {
                     originalUrl={getAudioUrl(session.session_id, "original")}
                     masteredUrl={
                       session.mastered_path
-                        ? getAudioUrl(session.session_id, "mastered")
+                        ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
                         : null
                     }
                     disabled={processing}
@@ -1590,7 +1610,7 @@ export default function Home() {
                       originalUrl={getAudioUrl(session.session_id, "original")}
                       masteredUrl={
                         session.mastered_path
-                          ? getAudioUrl(session.session_id, "mastered")
+                          ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
                           : null
                       }
                       disabled={processing}
@@ -1798,7 +1818,7 @@ export default function Home() {
                   {/* Stereo Field Visualizer — dedicated tab */}
                   {session?.mastered_path ? (
                     <StereoField
-                      audioUrl={getAudioUrl(session.session_id, "mastered")}
+                      audioUrl={getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)}
                     />
                   ) : (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
@@ -1819,7 +1839,7 @@ export default function Home() {
                     </div>
                   ) : (
                     <LiveView
-                      masterAudioUrl={getAudioUrl(session.session_id, "mastered")}
+                      masterAudioUrl={getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)}
                       masterAudioBuffer={null}
                       isActive={currentTab === "live" || sheetTab === "live"}
                     />

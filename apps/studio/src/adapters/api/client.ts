@@ -66,6 +66,16 @@ export interface SessionData {
   master_result?: MasterResultMetrics | null;
   validation?: ValidationReport | null;
   mastering_report?: MasteringReport | null;
+  preset_masters?: Record<
+    string,
+    {
+      preset_id: string;
+      output_path?: string | null;
+      status?: string;
+      progress?: number;
+      master_result?: MasterResultMetrics | null;
+    }
+  >;
   error: string | null;
 }
 
@@ -228,12 +238,28 @@ export async function processAudio(
   return res.json();
 }
 
-export function getAudioUrl(sessionId: string, type: "original" | "mastered"): string {
-  return `${API_BASE}/session/${sessionId}/audio/${type}`;
+export function getAudioUrl(
+  sessionId: string,
+  type: "original" | "mastered",
+  presetId?: string,
+): string {
+  let url = `${API_BASE}/session/${sessionId}/audio/${type}`;
+  if (type === "mastered" && presetId) {
+    url += `?preset_id=${encodeURIComponent(presetId)}`;
+  }
+  return url;
 }
 
-export function getDownloadUrl(sessionId: string, format: "wav" | "mp3"): string {
-  return `${API_BASE}/session/${sessionId}/download/${format}`;
+export function getDownloadUrl(
+  sessionId: string,
+  format: "wav" | "mp3",
+  presetId?: string,
+): string {
+  let url = `${API_BASE}/session/${sessionId}/download/${format}`;
+  if (presetId) {
+    url += `?preset_id=${encodeURIComponent(presetId)}`;
+  }
+  return url;
 }
 
 /* ── Crudo Reference (Layer 3 fair A/B) ─────────────── */
@@ -498,11 +524,13 @@ export function getSavedBeatAudioUrl(beatId: string, stem?: string): string {
 export async function downloadMastered(
   sessionId: string,
   format: "wav" | "mp3",
+  presetId?: string,
 ): Promise<Blob> {
-  const res = await fetch(
-    `${API_BASE}/session/${sessionId}/download/${format}`,
-    { headers: { ...licenseHeaders() } },
-  );
+  let url = `${API_BASE}/session/${sessionId}/download/${format}`;
+  if (presetId) {
+    url += `?preset_id=${encodeURIComponent(presetId)}`;
+  }
+  const res = await fetch(url, { headers: { ...licenseHeaders() } });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Descarga fallida" }));
     throw new Error(err.detail || "Descarga fallida");
