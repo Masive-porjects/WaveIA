@@ -2,6 +2,8 @@
 
 > Fuente de verdad del **estado** de cada área. El *qué hace cada quién* vive en [`PLAN.md`](PLAN.md); las reglas técnicas en [`AGENTS.md`](AGENTS.md).
 > Regla: se actualiza al cerrar cada tarea, con verificación real (no "está casi"). Commits semánticos + PR a `develop`.
+>
+> **⚠️ 2026-09-11:** HumanMidi fue **removido del producto** (ya no existe `apps/humanmidi/`, ni `mediapipe` como dependencia). Las entradas de este reporte sobre humanmidi/mediapipe son históricas. Ver `HUMANMIDI_REMOVAL_REPORT.md`.
 
 ---
 

@@ -118,7 +118,7 @@ stateDiagram-v2
 flowchart LR
     Master[Master audio<br/>getAudioUrl(mastered)] --> Decode[decodeAudioData<br/>AudioContext efímero]
     Decode --> LV[LiveView<br/>3 columnas]
-    LV --> Cam[CameraOverlay<br/>MediaPipe + gestos]
+    LV --> LVInput[Input<br/>fuente de audio]
     LV --> FX[FxSlotPanel<br/>filtro · drive · delay · reverb]
     LV --> Meters[LiveMeters]
     LV --> Rec[LiveRecorderBar]

@@ -1,6 +1,8 @@
 # 07 — Estrategia de Equipo: 5 Desarrolladores para midiMastering
 
 > Plan de arquitectura, roles, contratos y UX/UI para construir el ecosistema completo (WaveAI + Live Engine + HumanMidi) con **5 desarrolladores** en el marco del hackaton (7 días), aplicando **SOLID** en el código y en la organización misma.
+>
+> **⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO:** HumanMidi (Dev 4, visión/gestos) fue removido del producto. El rol del bridge Python y el Live Engine se mantienen; ver `HUMANMIDI_REMOVAL_REPORT.md`.
 
 ## 1. Principio rector: dividir por DOMINIO, no por capa
 

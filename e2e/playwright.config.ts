@@ -13,12 +13,9 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
-    permissions: ['camera'],
     launchOptions: {
       args: [
         '--autoplay-policy=no-user-gesture-required',
-        '--use-fake-ui-for-media-stream',
-        '--use-fake-device-for-media-stream',
         '--allow-file-access-from-files',
         '--mute-audio',
       ],

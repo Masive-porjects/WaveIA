@@ -1,14 +1,16 @@
 # 🎵 Hackaton midiMastering — Arquitectura del Ecosistema Unificado
 
-> **Dos ideas, un solo flujo:** WaveAI **masteriza** la canción primero, y el resultado se **toca en vivo** con efectos (reverb, delay, echo, filtro, drive) controlados por los gestos de HumanMidi — todo en una misma interface.
+> **⚠️ 2026-09-11: HumanMidi fue REMOVIDO del producto.** Esta carpeta queda como registro histórico del diseño original (fase *en vivo* = Live Engine + Bridge/Source MIDI). Ver `HUMANMIDI_REMOVAL_REPORT.md`. El Live Engine actual conserva `05` como referencia de arquitectura de audio; ninguna doc de esta carpeta debe leerse como estado vigente de HumanMidi.
+
+> **Dos ideas, un solo flujo:** WaveAI **masteriza** la canción primero, y el resultado se **toca en vivo** con efectos (reverb, delay, echo, filtro, drive) controlados por un controlador MIDI — todo en una misma interface.
 
 Este índice reúne la documentación de arquitectura que une las dos ideas del proyecto:
 
 | Idea | Documento fuente | Qué es |
 |------|-----------------|--------|
-| **1. HumanMidi** | `README.md`, `ARCHITECTURE.md` | Gestos de la mano → MIDI en tiempo real (MediaPipe + RtMidi) |
+| **1. HumanMidi** ~~(REMOVED 2026-09-11)~~ | `README.md`, `ARCHITECTURE.md` | ~~Gestos de la mano → MIDI en tiempo real (MediaPipe + RtMidi)~~ Eliminado |
 | **2. WaveAI** | `MASTERING_ECOSYSTEM_SPEC.md` | Estudio de mastering IA: análisis → DSP → export (FastAPI + Next.js) |
-| **Unión** | (docs 01, 05, 06) | Master offline primero + Live Engine de FX controlado por gestos |
+| **Unión** | (docs 01, 05, 06) | Master offline primero + Live Engine de FX controlado por MIDI |
 
 ---
 
@@ -17,7 +19,6 @@ Este índice reúne la documentación de arquitectura que une las dos ideas del 
 | Doc | Contenido |
 |-----|-----------|
 | [01_vision_unificada.md](01_vision_unificada.md) | La visión: masterizar primero, tocar el resultado en vivo |
-| [02_humanmidi_capa_performance.md](02_humanmidi_capa_performance.md) | Idea 1 — Capa de performance: HumanMidi (gestos → MIDI) |
 | [03_waveai_backend_mastering.md](03_waveai_backend_mastering.md) | Idea 2 — Capa de producción: backend de mastering (FastAPI) |
 | [04_waveai_sistema_diseno.md](04_waveai_sistema_diseno.md) | Idea 2 — Sistema de diseño del studio (Next.js) |
 | [05_live_engine_gestos_a_master.md](05_live_engine_gestos_a_master.md) | ⭐ El puente: Live Engine — master + FX en tiempo real con gestos |

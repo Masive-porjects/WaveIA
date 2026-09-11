@@ -2,7 +2,7 @@
 Bridge Main - MIDI to LiveParams WebSocket Bridge.
 
 Usage:
-    python -m src.main [--port 8765] [--midi-port "HumanMidi"] [--verbose]
+    python -m src.main [--port 8765] [--midi-port "loopMIDI"] [--verbose]
 
 Pipeline:
     MIDI Input (rtmidi) -> CC/Note Parser -> LiveParams Mapper -> Smoother -> WebSocket Broadcast

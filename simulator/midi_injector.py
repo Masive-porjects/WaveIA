@@ -2,7 +2,7 @@
 MIDI Injector — Inyecta eventos MIDI en un puerto virtual.
 
 Modo alternativo para validar la cadena completa:
-HumanMidi → Puerto MIDI Virtual → Bridge Real → WS → Studio
+MIDI Source → Puerto MIDI Virtual → Bridge Real → WS → Studio
 
 Requiere: python-rtmidi, puerto virtual (loopMIDI Windows / IAC macOS)
 """
@@ -26,7 +26,7 @@ class MidiInjector:
     y los envía al puerto virtual especificado.
     """
 
-    # Mapeo CC → Parámetro (match Bridge/HumanMidi)
+    # Mapeo CC → Parámetro (match Bridge/Live Protocol)
     CC_MAP = {
         "filter_cutoff": 74,      # Pulgar derecho → filter_cutoff (log)
         "reverb_mix": 92,         # Pulgar izquierdo → reverb_mix

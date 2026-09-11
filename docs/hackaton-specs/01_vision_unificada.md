@@ -1,5 +1,7 @@
 # 01 — Visión Unificada: Masterizar primero, Tocar el resultado en vivo
 
+> **⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO:** HumanMidi (gestos de mano → MIDI) fue removido del producto. La visión vigente = **WaveAI** (mastering offline) + **Live Engine** (FX en vivo controlados por MIDI vía Bridge). Ver `HUMANMIDI_REMOVAL_REPORT.md`.
+
 ## 1. Por qué unir estas dos ideas
 
 El proyecto **HumanMidi** resuelve la *entrada*: convertir gestos de la mano en MIDI en tiempo real, sin tocar un instrumento físico. El proyecto **WaveAI** resuelve la *producción*: convertir una mezcla en un master profesional listo para plataformas, con análisis IA y DSP proporcional.

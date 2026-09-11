@@ -3,6 +3,7 @@
 > **Branch:** `test/integration-midimastering`  
 > **Date:** 2026-08-25  
 > **Status:** ✅ Complete — All blocks delivered, build passing, 7 semantic commits ready for PR
+> **Update 2026-09-11:** **HumanMidi fue removido del producto** (baja definitiva). Ver `HUMANMIDI_REMOVAL_REPORT.md`. Este reporte conserva la estructura histórica con la sección Block B marcada como removed.
 
 ---
 
@@ -13,7 +14,7 @@
 3. [Blocks Summary](#blocks-summary)
 4. [Shared Contract (LiveParams)](#shared-contract-liveparams)
 5. [Block A — Contracts & Monorepo](#block-a--contracts--monorepo)
-6. [Block B — HumanMidi](#block-b--humanmidi)
+6. [Block B — HumanMidi (removed)](#block-b--humanmidi-removed)
 7. [Block C — Bridge](#block-c--bridge)
 8. [Block D — Live Engine & UI](#block-d--live-engine--ui)
 9. [Block E — Simulator & E2E](#block-e--simulator--e2e)
@@ -26,32 +27,29 @@
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        WaveAI Ecosystem                      │
-├──────────┬──────────┬──────────┬──────────┬──────────────────────┤
-│ humanmidi│  bridge  │  studio  │audiomind │     simulator       │
-│ (Python) │ (Python) │ (Next.js)│ (Python) │     (Python)        │
-├──────────┴────┬─────┴────┬─────┴──────────┴──────────────────────┤
-│   Vision → MIDI│  WS :8765 │        Web Audio Graph              │
-│   Gesture Map  │  Protocol │  Filter→Drive→Delay→Reverb→Master   │
-└───────────────┴───────────┴─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                     WaveAI Ecosystem                         │
+├──────────┬──────────┬──────────┬──────────────────────────────┤
+│  bridge  │  studio  │audiomind │        simulator             │
+│ (Python) │ (Next.js)│ (Python) │        (Python)              │
+├──────────┴────┬─────┴──────────┴─────────────────────────────┤
+│  WS :8765     │        Web Audio Graph                        │
+│  Protocol     │  Filter→Drive→Delay→Reverb→Master             │
+└───────────────┴──────────────────────────────────────────────┘
 
-Pipeline: Camera → Hand Tracking → Gesture → MIDI CC → Bridge → WS → Studio → Audio
+Pipeline: MIDI Source → Bridge → WS → Studio → Audio
 ```
 
 ### Data Flow
 
 ```
-[Camera] → [MediaPipe Hands] → [studio_gesture.py] → [MIDI CC]
-                                                          ↓
-[humanmidi] ──CC mapping──→ [Bridge] ──WebSocket──→ [Studio Live Engine]
-                              (smoother)               (Web Audio API)
-                                                          ↓
-                                                     [UI Knobs]
-                                                     [Meters]
-                                                     [FxSlotPanel]
-                                                     [CameraOverlay]
-                                                     [Recorder]
+[MIDI Source] ──CC/Note──→ [Bridge] ──WebSocket──→ [Studio Live Engine]
+                            (smoother)               (Web Audio API)
+                                                        ↓
+                                                   [UI Knobs]
+                                                   [Meters]
+                                                   [FxSlotPanel]
+                                                   [Recorder]
 ```
 
 ---
@@ -76,14 +74,6 @@ WaveAI/
 │   │   │   └── intelligence/      # genre knowledge base
 │   │   ├── tests/                 # pytest suite
 │   │   └── Dockerfile
-│   │
-│   ├── humanmidi/                 # Vision + MIDI (Python)
-│   │   ├── src/
-│   │   │   ├── core/              # camera_handler, hand_detector, midi_sender
-│   │   │   └── gestures/          # studio_gesture.py (CC mapping)
-│   │   ├── config/config.yaml
-│   │   ├── tests/                 # 49/49 passing
-│   │   └── run.py                 # Entry point
 │   │
 │   ├── bridge/                    # MIDI → WebSocket (Python)
 │   │   ├── src/
@@ -110,8 +100,6 @@ WaveAI/
 │       │   │   ├── FxSlotPanel.tsx  # 4 knobs + preset selector
 │       │   │   ├── Knob3D.tsx       # 3D rotary knob
 │       │   │   ├── LiveMeters.tsx   # VU/Peak meters
-│       │   │   ├── CameraOverlay.tsx# Camera feed
-│       │   │   ├── GestureBadge.tsx # Active gesture display
 │       │   │   └── LiveRecorderBar.tsx # Record controls
 │       │   └── components/dock/   # Dock navigation
 │       │       ├── ModuleDock.tsx
@@ -150,7 +138,7 @@ WaveAI/
 | Block | Description | Status | Tests |
 |-------|-------------|--------|-------|
 | **A** | Contracts + Monorepo restructure | ✅ Done | Schema valid |
-| **B** | HumanMidi (Vision → MIDI) | ✅ Done | 49/49 passing |
+| **B** | HumanMidi (Vision → MIDI) | ❌ Removed (2026-09-11) | — |
 | **C** | Bridge (MIDI → WebSocket) | ✅ Done | 53/53 passing |
 | **D** | Live Engine + UI hardening | ✅ Done | Build passing |
 | **E** | Simulator + E2E | ✅ Done | 3 specs ready |
@@ -217,9 +205,11 @@ WaveAI/
 
 ---
 
-## Block B — HumanMidi
+## Block B — HumanMidi (removed)
 
-### What was done
+> **❌ Removido del producto el 2026-09-11.** HumanMidi (visión por cámara, MediaPipe, hand tracking, gestos → MIDI) dejó de pertenecer a BrikMaster2027. El directorio `apps/humanmidi/`, sus tests, configs y dependencias (`mediapipe`, `cv2` legacy) fueron eliminados; `CameraOverlay` y `GestureBadge` salieron del Live Engine; todos los scripts de arranque/verificación fueron limpiados. Detalle completo: `HUMANMIDI_REMOVAL_REPORT.md`.
+
+### Lo que era (histórico)
 
 - Hand tracking with MediaPipe (camera_handler + hand_detector)
 - Gesture engine with configurable gesture classes
@@ -227,9 +217,9 @@ WaveAI/
 - MIDI sender for virtual port output
 - Full config system (config.yaml + defaults.py + settings.py)
 
-### Test results: 49/49 passing
+### Test results (históricos): 49/49 passing
 
-### Key files
+### Key files (históricos, eliminados)
 
 | File | Purpose |
 |------|---------|
@@ -280,18 +270,17 @@ WaveAI/
 - FX presets (clean, dub, big_room, radio)
 - MediaRecorder with MIME detection
 - useLiveEngine orchestrator hook
-- Complete UI: LiveView, FxSlotPanel, Knob3D, LiveMeters, CameraOverlay, GestureBadge, LiveRecorderBar
+- Complete UI: LiveView, FxSlotPanel, Knob3D, LiveMeters, LiveRecorderBar
 - Dock tab "live" integration
 
 ### Hardening fixes applied
 
 | Component | Fix |
 |-----------|-----|
-| CameraOverlay.tsx | Refs → useEffect + MediaStream cleanup |
 | useLiveEngine.ts | Date.now() lazy init in useState |
 | recorder.ts | Auto MIME detection + MediaRecorderErrorEvent typed |
 | Knob3D.tsx | `as any` removed (React.TouchEvent typed) |
-| FxSlotPanel.tsx | `as any` removed (GestureBadge param typed) |
+| FxSlotPanel.tsx | `as any` removed (parameter typed) |
 | audioGraph.ts | `any` → ValidPreset type guard |
 | liveSocket.ts | HelloData includes client_id + server_time |
 
@@ -303,7 +292,6 @@ Pre-existing warnings (not from integration):
 - DropZone.tsx: missing useCallback dependency
 - MobileDrawer.tsx: unused imports
 - StereoField.tsx: unused variables
-- CameraOverlay.tsx: missing useEffect dependencies
 - Knob3D.tsx: unused variable
 - LiveMeters.tsx: unused import
 
@@ -377,7 +365,7 @@ f3b6311 feat(contracts): schema, generators and monorepo root setup
 |---|------|---------|-------|-------|
 | 1 | `f3b6311` | feat(contracts): schema, generators and monorepo root setup | 7 | +7,323 |
 | 2 | `78b02bf` | feat(audiomind): dsp backend integration and session endpoints | ~50 | ~5,000 |
-| 3 | `ad69a59` | feat(humanmidi): vision tracker, gesture engine and studio midi mapper | 49 | ~4,000 |
+| 3 | `ad69a59` | feat(humanmidi): vision tracker, gesture engine and studio midi mapper *(removed 2026-09-11)* | 49 | ~4,000 |
 | 4 | `74b937c` | feat(bridge): realtime midi listener, smoother and ws server | 18 | +2,222 |
 | 5 | `06f5f83` | feat(studio): live engine, web audio graph, knobs and dock integration | 88 | +16,274 |
 | 6 | `3299d20` | test(simulator): mock ws bridge server and deterministic scenarios | 6 | +1,127 |
@@ -391,7 +379,7 @@ f3b6311 feat(contracts): schema, generators and monorepo root setup
 ### Prerequisites
 
 - Node.js 18+ (Studio)
-- Python 3.10+ (HumanMidi, Bridge, Simulator)
+- Python 3.10+ (Bridge, Simulator)
 - npm (monorepo workspaces)
 
 ### Studio (Frontend)
@@ -403,13 +391,9 @@ npm run dev        # Development server
 npm run build      # Production build
 ```
 
-### HumanMidi
+### HumanMidi (removed)
 
-```bash
-cd apps/humanmidi
-pip install -r requirements.txt
-python run.py      # Starts camera + hand tracking + MIDI output
-```
+> ❌ Eliminado el 2026-09-11. Ya no existe `apps/humanmidi/`. El Live Engine se controla con el Simulator (`python -m simulator.main`) o cualquier fuente MIDI externa vía Bridge.
 
 ### Bridge
 
@@ -446,7 +430,7 @@ npx playwright test --config=../../e2e/playwright.config.ts
 2. **Add `data-testid`** to 11 UI components for E2E stability
 3. **Run E2E suite** against local Studio dev server
 4. **CI/CD**: Add Playwright job to GitHub Actions with `webServer` config
-5. **Hardware validation**: Test with real MIDI controller + camera
+5. **Hardware validation**: Test with real MIDI controller
 6. **Performance**: Profile WS latency end-to-end (target: <20ms)
 
 ---

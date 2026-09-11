@@ -1,6 +1,6 @@
 /**
  * LiveView — Main Live Engine container (3-column layout).
- * Combines Camera, FX Slots, and Meters into the Live tab.
+ * Combines Input, FX Slots, and Meters into the Live tab.
  */
 
 'use client';
@@ -9,7 +9,6 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveEngine } from '@/adapters/live/useLiveEngine';
 import { FxSlotPanel } from './FxSlotPanel';
-import { CameraOverlay } from './CameraOverlay';
 import { LiveMeters } from './LiveMeters';
 import { LiveRecorderBar } from './LiveRecorderBar';
 
@@ -35,12 +34,9 @@ export function LiveView({
   bridgeConnected = false,
   bridgeLatency,
 }: LiveViewProps) {
-  const [cameraError, setCameraError] = useState<string | null>(null);
-
-  // ── Master real del flujo de mastering ─────────────────────────────
-  // El padre pasa la URL del masterizado (getAudioUrl(session_id, "mastered")).
-  // La decodificamos a AudioBuffer para el Live Engine. Con un AudioContext
-  // efímero (el decode es puntual; el hook usa el suyo para el graph).
+  // Master real del flujo de mastering: el padre pasa la URL del masterizado
+  // (getAudioUrl(session_id, "mastered")). La decodificamos a AudioBuffer para
+  // el Live Engine (AudioContext efímero; el hook usa el suyo para el graph).
   const [masterBuffer, setMasterBuffer] = useState<AudioBuffer | null>(null);
   const [decodedUrl, setDecodedUrl] = useState<string | null>(null);
 
@@ -107,11 +103,6 @@ export function LiveView({
     onError: (err) => console.error('[LiveEngine]', err),
   });
 
-  // Handle camera errors
-  const handleCameraError = (err: Error) => {
-    setCameraError(err.message);
-  };
-
   // Cleanup on unmount
   useEffect(() => {
     return () => destroy();
@@ -152,7 +143,7 @@ export function LiveView({
         overflow: 'hidden',
       }}
     >
-      {/* Column 1: Camera & Input */}
+      {/* Column 1: Input */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -165,33 +156,6 @@ export function LiveView({
           paddingRight: 8,
         }}
       >
-        {/* Camera Overlay */}
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <CameraOverlay
-            mirror={true}
-            facingMode="user"
-            showLandmarks={true}
-            onError={handleCameraError}
-          />
-        </div>
-
-        {cameraError && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{
-              padding: '12px 16px',
-              background: 'rgba(255,59,48,0.1)',
-              border: '1px solid rgba(255,59,48,0.3)',
-              borderRadius: 10,
-              color: '#ff3b30',
-              fontSize: 12,
-            }}
-          >
-            ⚠️ Cámara: {cameraError}
-          </motion.div>
-        )}
-
         {/* Audio Source Selector */}
         <div
           style={{

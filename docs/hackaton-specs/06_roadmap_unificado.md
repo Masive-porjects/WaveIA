@@ -1,5 +1,7 @@
 # 06 — Roadmap Unificado: Masterizar → Tocar en Vivo
 
+> **⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO:** HumanMidi fue removido del producto; el roadmap que lo incluía quedó desactualizado. Ver `HUMANMIDI_REMOVAL_REPORT.md`.
+
 > Fusión de los roadmaps de ambos proyectos en una sola línea de tiempo orientada al hackaton. **El objetivo: masterizar la canción primero y tocarla en vivo con efectos controlados por gestos en una misma interface.**
 
 ## 1. Estado actual

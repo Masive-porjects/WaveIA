@@ -2,7 +2,7 @@
 
 > Instrucciones para levantar el entorno **completo** en una máquina nueva.
 > Cualquier agente de IA puede seguir esto literalmente: comandos exactos, output esperado, pitfalls reales.
-> Stack: Studio (Next.js :3000) · Bridge (WS :8765) · AudioMind (FastAPI :8000) · HumanMidi (cámara) · Simulator · Convex (cloud).
+> Stack: Studio (Next.js :3000) · Bridge (WS :8765) · AudioMind (FastAPI :8000) · Simulator · Convex (cloud).
 
 ---
 
@@ -10,10 +10,9 @@
 
 | Requisito | Versión | Por qué |
 |---|---|---|
-| Python | **3.12** (NO 3.14) | mediapipe no expone `mp.solutions` en wheels arm64 con 3.14; el proyecto declara 3.12 |
+| Python | **3.12** (NO 3.14) | el proyecto declara 3.12 en los pyproject de los apps Python |
 | bun | ≥ 1.3 | el equipo usa **bun** (`bun.lock`); NO usar npm (package-lock fue eliminado) |
 | Node | 18+ | Studio |
-| macOS arm64 o Linux x86_64 | — | diferencias de mediapipe en §7 |
 
 ---
 
@@ -33,15 +32,14 @@ bun install          # workspaces: apps/* (studio, agent) + packages/contracts
 ```bash
 python3.12 -m venv .venv
 
-# OJO: apps/humanmidi/requirements.txt pinea mediapipe==0.10.14 (imposible en macOS arm64).
-# Instalar el resto filtrando mediapipe, y mediapipe 0.10.33 por separado:
-grep -hv '^#' apps/humanmidi/requirements.txt apps/bridge/requirements.txt simulator/requirements.txt \
-  | grep -v '^mediapipe' | grep -v '^$' > /tmp/reqs-combined.txt
+# Instalar los requirements de los apps Python (bridge + simulator):
+grep -hv '^#' apps/bridge/requirements.txt simulator/requirements.txt \
+  | grep -v '^$' > /tmp/reqs-combined.txt
 
-./.venv/bin/pip install --retries 15 --timeout 90 "mediapipe==0.10.33" -r /tmp/reqs-combined.txt
+./.venv/bin/pip install --retries 15 --timeout 90 -r /tmp/reqs-combined.txt
 ```
 
-**Esperado:** `import mediapipe, rtmidi, cv2, websockets, mido` sin errores.
+**Esperado:** `import rtmidi, websockets, mido` sin errores.
 
 ---
 
@@ -91,9 +89,8 @@ cd apps/bridge && ../.venv/bin/python main.py          # WS :8765
 # T3 — Studio
 cd apps/studio && bun run dev                           # http://localhost:3000
 
-# T4 — HumanMidi (cámara) o Simulator (sin cámara, demo)
-cd apps/humanmidi && ../.venv/bin/python run.py --list-midi
-python -m simulator.main --mode server --scenario sweep # desde la raíz, mock del bridge
+# T4 — Simulator (demo sin MIDI, mock del bridge)
+python -m simulator.main --mode server --scenario sweep # desde la raíz
 ```
 
 ---
@@ -109,7 +106,6 @@ npm run build           # OK
 
 # Python
 cd apps/bridge && ../.venv/bin/python -m pytest tests/ -q      # 53/53 passing
-cd apps/humanmidi && ../.venv/bin/python -m pytest tests/ -q   # ⚠️ 16 failed + 8 errors ESPERADOS (mp.solutions no existe en wheels arm64 — requiere migración a mp.tasks)
 
 # Integral
 python -m simulator.main --mode server --scenario sweep       # WS mock :8765
@@ -121,21 +117,18 @@ python -m simulator.main --mode server --scenario sweep       # WS mock :8765
 
 | # | Pitfall | Detalle |
 |---|---|---|
-| 1 | `mediapipe==0.10.14` | no tiene wheel para macOS arm64. Usar `0.10.33` (último pre-eliminación de la API legacy) |
-| 2 | `mp.solutions` en arm64 | **ningún** wheel arm64 de PyPI lo incluye (verificado 0.10.30 y 0.10.33). humanmidi requiere migración a `mp.tasks.vision.HandLandmarker` o correr en Linux |
-| 3 | Python 3.14 | el default de Homebrew rompe mediapipe (sin `solutions`). Forzar `python3.12` |
-| 4 | npm vs bun | el equipo migró a bun. `npm install` regenera package-lock y ensucia el repo. Usar `bun install` |
-| 5 | `convex/_generated/` | NO se commitea (`.gitignore` de apps/studio). Se regenera con `npx convex dev` |
-| 6 | `.env.local` | NO se commitea. `convex dev` lo genera con la URL del deployment propio |
-| 7 | `@midimastering/agent` | apunta a `dist/` — sin `bun run build` previo, el studio no lo resuelve (TS2307) |
-| 8 | typecheck global | los 3 errores de `convex/mastering.ts` son de Tomás (ciclo `api.d.ts` ↔ `mastering.ts`). No tocarlos sin avisarle |
-| 9 | contrato live_params | `packages/contracts/live_params.schema.json` es la fuente de verdad. Si cambia: `packages/contracts/scripts/gen_types.sh` (regenera TS + Python). Nunca editar tipos generados a mano |
+| 1 | npm vs bun | el equipo migró a bun. `npm install` regenera package-lock y ensucia el repo. Usar `bun install` |
+| 2 | `convex/_generated/` | NO se commitea (`.gitignore` de apps/studio). Se regenera con `npx convex dev` |
+| 3 | `.env.local` | NO se commitea. `convex dev` lo genera con la URL del deployment propio |
+| 4 | `@midimastering/agent` | apunta a `dist/` — sin `bun run build` previo, el studio no lo resuelve (TS2307) |
+| 5 | typecheck global | los 3 errores de `convex/mastering.ts` son de Tomás (ciclo `api.d.ts` ↔ `mastering.ts`). No tocarlos sin avisarle |
+| 6 | contrato live_params | `packages/contracts/live_params.schema.json` es la fuente de verdad. Si cambia: `packages/contracts/scripts/gen_types.sh` (regenera TS + Python). Nunca editar tipos generados a mano |
 
 ---
 
 ## 8. Estado conocido del repo (2026-08-29)
 
 - ✅ bridge 53/53 · studio tsc (salvo mastering.ts) + 6/6 vitest + build · contrato live_params congelado
-- 🔴 humanmidi bloqueado en macOS arm64 (pitfall #2)
+- ✅ HumanMidi **removido del producto** (2026-09-11) — ver `HUMANMIDI_REMOVAL_REPORT.md`
 - ⚠️ Convex: deployment de David `proper-scorpion-625` (WaveIA) — el del equipo llega cuando Tomás comparta el suyo
 - ⚠️ CI inexistente — la verificación es manual (sección 6)

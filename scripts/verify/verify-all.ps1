@@ -74,7 +74,6 @@ function Wait-ForService {
 $results = @()
 $results += Wait-ForService "audiomind" { Test-HealthEndpoint "http://localhost:8000/health" } 15 1
 $results += Wait-ForService "bridge" { Test-TcpPort "localhost" 8765 } 15 1
-$results += Wait-ForService "humanmidi" { Test-ProcessAlive "humanmidi" } 15 1
 $results += Wait-ForService "studio" { Test-HealthEndpoint "http://localhost:3000" } 15 1
 
 if ($results -contains $false) {

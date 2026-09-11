@@ -8,7 +8,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Knob3D } from './Knob3D';
-import { GestureBadge } from './GestureBadge';
 import { FX_PRESETS, FX_PRESET_ORDER, FxPresetName } from '@/adapters/live/fxPresets';
 import type { LiveParams } from '@/lib/live/liveParams.gen';
 
@@ -252,7 +251,6 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
               >
                 {slot.label}
               </span>
-              <GestureBadge param={slot.param} compact />
             </div>
 
             {/* Primary Knob */}
@@ -293,7 +291,6 @@ export function FxSlotPanel({ params, onParamsChange, onPresetChange, disabled =
                     >
                       {sec.label}
                     </span>
-                    <GestureBadge param={sec.param} compact />
                   </div>
                   <Knob3D
                     value={params[sec.param as keyof LiveParams] as number}

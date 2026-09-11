@@ -1,11 +1,11 @@
 #Requires -Version 5.1
 
-# Inicia un solo servicio de midiMastering en una ventana de PowerShell separada.
+# Inicia un solo servicio de WaveAI en una ventana de PowerShell separada.
 # Guarda el PID en scripts/.pids para poder detenerlo con stop-all.ps1.
 
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("audiomind", "bridge", "humanmidi", "studio")]
+    [ValidateSet("audiomind", "bridge", "studio")]
     [string]$Name
 )
 
@@ -21,10 +21,6 @@ $services = @{
     bridge = @{
         WorkDir = "apps/bridge"
         Command = ".venv\Scripts\python.exe main.py"
-    }
-    humanmidi = @{
-        WorkDir = "apps/humanmidi"
-        Command = ".venv\Scripts\python.exe run.py --mode studio"
     }
     studio = @{
         WorkDir = "apps/studio"
