@@ -675,6 +675,29 @@ class ValidationReport(BaseModel):
     note: str | None = None
 
 
+class PresetMasterEntry(BaseModel):
+    """Per-preset mastered output record for a session.
+
+    Additive to ``SessionData``: sessions persisted before this field
+    existed load with an empty ``preset_masters`` dict (safe default), so
+    old ``uploads/sessions.json`` data keeps its meaning. Created by the
+    on-demand ``/process?preset_id=X`` path and by the pre-render cache
+    hit path (so ``?preset_id=`` lookups work in every mode).
+
+    ``status`` mirrors ``_prerender_cache`` semantics:
+    ``pending | processing | completed | error``.
+    """
+
+    preset_id: str
+    output_path: str | None = None
+    master_result: MasterResultMetrics | None = None
+    validation: ValidationReport | None = None
+    status: str = "pending"
+    progress: float = 0.0
+    error: str | None = None
+    created_at: float | None = None
+
+
 class SessionData(BaseModel):
     session_id: str
     status: ProcessingStatus = ProcessingStatus.UPLOADED
@@ -691,6 +714,10 @@ class SessionData(BaseModel):
     mastering_report: MasteringReport | None = None
     validation: ValidationReport | None = None
     error: str | None = None
+    # Per-preset mastered outputs (client demo mode). ``mastered_path``
+    # stays the legacy "last processed / currently selected" pointer and is
+    # kept in sync on every successful preset process.
+    preset_masters: dict[str, PresetMasterEntry] = Field(default_factory=dict)
 
 
 class BeatData(BaseModel):

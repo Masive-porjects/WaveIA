@@ -2,6 +2,7 @@
 from pathlib import Path
 import asyncio
 import shutil
+import time
 import uuid
 import urllib.parse
 import urllib.request
@@ -18,6 +19,7 @@ from audiomind.models.audio import (
     MasteringParameters,
     MasteringReport,
     MasterResultMetrics,
+    PresetMasterEntry,
     ProcessingStatus,
     ReferenceComparison,
     ReferenceRenderResult,
@@ -25,6 +27,7 @@ from audiomind.models.audio import (
     SessionData,
     ValidationReport,
 )
+from audiomind.services import demo_guard
 from audiomind.api.upload import sessions, save_sessions
 # Heavy DSP modules (librosa/pedalboard) are imported lazily inside the
 # functions that use them so FastAPI startup stays light and fast on
@@ -374,6 +377,190 @@ def _retry_once_on_lufs_miss(
     return result, False
 
 
+async def _process_preset_on_demand(
+    session: SessionData,
+    session_id: str,
+    params: MasteringParameters,
+    preset_id: str,
+) -> SessionData:
+    """Run (or join) the single-flighted heavy DSP job for one preset.
+
+    Single-flight contract for ``POST /session/{id}/process?preset_id=X``:
+
+    * CASE 1 — nothing recorded yet: create the flight Future, submit the
+      job to the gated pool, await it.
+    * CASE 2 — preset already completed with an existing file: return the
+      session state for that preset. NO DSP.
+    * CASE 3 — flight in progress for (session, preset): await the SAME
+      Future; never a second heavy pipeline.
+    * CASE 4 — flight in progress for a DIFFERENT preset: the new job
+      queues on the global DSP gate and runs after the first finishes
+      (``max_concurrent_dsp=1`` serializes). The HTTP call may wait —
+      that is documented demo behavior, never a 500.
+
+    Errors keep the legacy mapping: ``InputQcError`` → 422 (the session
+    keeps its current state); anything else → 500 with the session marked
+    ERROR.
+    """
+    # CASE 2 — already-mastered preset with a file on disk: serve it.
+    entry = session.preset_masters.get(preset_id)
+    if (
+        entry is not None
+        and entry.status == "completed"
+        and entry.output_path
+        and Path(entry.output_path).exists()
+    ):
+        session.mastered_path = entry.output_path
+        session.master_result = entry.master_result
+        session.validation = entry.validation
+        session.status = ProcessingStatus.COMPLETED
+        session.progress = 1.0
+        session.error = None
+        return session
+
+    output_path = (
+        settings.output_dir / f"{session_id}_{preset_id}_mastered.wav"
+    ).resolve()
+
+    def _job() -> None:
+        with demo_guard.gate():
+            _run_preset_job(
+                session=session,
+                session_id=session_id,
+                params=params,
+                preset_id=preset_id,
+                output_path=output_path,
+            )
+
+    # CASE 1 / CASE 3 — create or join the shared flight future.
+    future = demo_guard.get_or_create_flight(session_id, preset_id, _job)
+    try:
+        await asyncio.wrap_future(future)
+    except Exception as e:
+        from audiomind.processing.engine import InputQcError
+
+        if isinstance(e, InputQcError):
+            # Request rejection, not a processing failure: the session
+            # keeps its current state (mirrors the legacy path).
+            raise HTTPException(status_code=422, detail=str(e)) from e
+        session.status = ProcessingStatus.ERROR
+        session.error = f"Processing failed: {str(e)}"
+        raise HTTPException(status_code=500, detail=session.error) from e
+    return session
+
+
+def _run_preset_job(
+    session: SessionData,
+    session_id: str,
+    params: MasteringParameters,
+    preset_id: str,
+    output_path: Path,
+) -> None:
+    """Heavy DSP + bookkeeping for one preset (runs in a gated pool thread).
+
+    Analysis is produced here when the upload-time background analysis is
+    missing (the engine tolerates ``analysis_result=None`` with safe
+    defaults, mirroring the legacy /process path).
+    """
+    if session.analysis is None and session.status != ProcessingStatus.ANALYZING:
+        try:
+            analysis = analyze_audio(session.original_path)
+            if analysis is not None:
+                session.analysis = analysis
+        except Exception:
+            pass  # analysis is optional; the engine handles None safely
+
+    entry = session.preset_masters.setdefault(
+        preset_id, PresetMasterEntry(preset_id=preset_id)
+    )
+    entry.status = "processing"
+    entry.progress = 0.0
+    entry.error = None
+    session.status = ProcessingStatus.PROCESSING
+    session.progress = 0.0
+
+    def update_progress(pct: float) -> None:
+        session.progress = max(0.0, min(1.0, pct))
+        entry.progress = max(0.0, min(1.0, pct))
+
+    try:
+        result = process_audio(
+            input_path=session.original_path,
+            output_path=output_path,
+            params=params,
+            analysis_result=session.analysis,
+            progress_cb=update_progress,
+        )
+
+        # ── Layer 2 gate: validate against the preset, with at most ONE
+        # auto-retry at reduced intensity on LUFS misses (legacy semantics).
+        preset_entry = PRESET_CHAINS[preset_id]
+        retried = False
+        try:
+            result, retried = _retry_once_on_lufs_miss(
+                result=result,
+                session=session,
+                params=params,
+                output_path=output_path,
+                preset_entry=preset_entry,
+                progress_cb=update_progress,
+            )
+        except Exception:
+            retried = False
+
+        master_result = _master_result_from_engine(result)
+        validation: ValidationReport | None = None
+        try:
+            verdict = validate_master(
+                master_result, preset_entry, session.analysis
+            )
+            if verdict is not None:
+                if retried:
+                    verdict["retry_applied"] = True
+                    verdict["note"] = (
+                        "Reintento automático con menor intensidad; "
+                        "se conservó el intento más cercano al objetivo."
+                    )
+                validation = ValidationReport(**verdict)
+        except Exception:
+            validation = None
+
+        entry.output_path = str(output_path)
+        entry.master_result = master_result
+        entry.validation = validation
+        entry.status = "completed"
+        entry.progress = 1.0
+        entry.created_at = time.time()
+
+        # Legacy pointers stay in sync so existing consumers keep working:
+        # mastered_path is the "last processed / currently selected
+        # available master" pointer.
+        session.mastered_path = str(output_path)
+        session.master_result = master_result
+        session.validation = validation
+        session.mastering_report = _mastering_report_from_engine(result)
+        session.parameters = params
+        session.status = ProcessingStatus.COMPLETED
+        session.progress = 1.0
+        session.error = None
+    except Exception as e:
+        # The async wrapper maps InputQcError → 422 keeping the session
+        # state untouched (REQUEST rejection); other failures are marked
+        # on both the per-preset entry and the session (→ 500).
+        from audiomind.processing.engine import InputQcError
+
+        if not isinstance(e, InputQcError):
+            entry.status = "error"
+            entry.error = str(e)
+            entry.progress = 0.0
+            session.status = ProcessingStatus.ERROR
+            session.error = f"Processing failed: {str(e)}"
+        raise
+
+    demo_guard.touch(session_id)
+    save_sessions(sessions)
+
+
 @router.post("/session/{session_id}/process")
 async def process_session(
     session_id: str,
@@ -395,6 +582,20 @@ async def process_session(
     if not session.original_path or not Path(session.original_path).exists():
         raise HTTPException(
             status_code=400, detail="No audio file found for this session"
+        )
+
+    # Demo duration guard (defensive, API layer only — DSP untouched):
+    # the upload endpoint rejects overlength files first; this catches
+    # sessions restored from disk, analyzed later, or created outside
+    # /api/upload. Applies to preset AND no-preset paths alike.
+    if demo_guard.duration_over_limit(
+        session.analysis.duration_seconds if session.analysis else None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=demo_guard.demo_duration_message(
+                settings.demo_max_duration_seconds
+            ),
         )
 
     output_path = settings.output_dir / f"{session_id}_mastered.wav"
@@ -433,6 +634,17 @@ async def process_session(
                         session.validation = ValidationReport(**verdict)
                 except Exception:
                     session.validation = None  # never break a cache hit
+            # Record the per-preset result so ?preset_id= lookups and the
+            # per-preset download/audio endpoints work for this session.
+            session.preset_masters[preset_id] = PresetMasterEntry(
+                preset_id=preset_id,
+                output_path=str(output_path),
+                master_result=session.master_result,
+                validation=session.validation,
+                status="completed",
+                progress=1.0,
+                created_at=time.time(),
+            )
             save_sessions(sessions)
             return session
 
@@ -454,8 +666,34 @@ async def process_session(
                 session.error = None
                 session.master_result = entry.get("master_result")
                 session.validation = entry.get("validation")
+                # Record the per-preset result pointing at the PRERENDER
+                # output file so ?preset_id= lookups work later; the legacy
+                # copy-to-{session_id}_mastered.wav + mastered_path behavior
+                # above is unchanged.
+                session.preset_masters[preset_id] = PresetMasterEntry(
+                    preset_id=preset_id,
+                    output_path=entry.get("output_path"),
+                    master_result=entry.get("master_result"),
+                    validation=entry.get("validation"),
+                    status="completed",
+                    progress=1.0,
+                    created_at=time.time(),
+                )
                 save_sessions(sessions)
                 return session
+
+    # ── Preset-aware on-demand processing (client demo mode) ──
+    # Single-flight per (session, preset): concurrent /process calls for the
+    # same preset share ONE heavy DSP job (never two engines writing the
+    # same output file); calls for different presets queue on the global
+    # DSP gate. HTTP calls may wait — that is documented demo behavior.
+    if preset_id and preset_id in PRESET_CHAINS:
+        return await _process_preset_on_demand(
+            session=session,
+            session_id=session_id,
+            params=params,
+            preset_id=preset_id,
+        )
 
     # Use background analysis if already done; skip re-analysis entirely
     # when it's still running (status == ANALYZING) to avoid double work.
@@ -480,61 +718,64 @@ async def process_session(
 
     def _run_processing():
         """CPU-bound work executed in a thread so the event loop stays free."""
-        result = process_audio(
-            input_path=session.original_path,
-            output_path=output_path,
-            params=params,
-            analysis_result=session.analysis,
-            progress_cb=update_progress,
-        )
-        session.mastered_path = result["output_path"]
+        with demo_guard.gate():
+            result = process_audio(
+                input_path=session.original_path,
+                output_path=output_path,
+                params=params,
+                analysis_result=session.analysis,
+                progress_cb=update_progress,
+            )
+            session.mastered_path = result["output_path"]
 
-        # ── Layer 2 gate: validate against the active preset, with at
-        # most ONE auto-retry at reduced intensity on LUFS misses. All
-        # best-effort: any failure here keeps validation null and never
-        # breaks the response.
-        preset_entry = _resolve_preset_entry(preset_id)
-        if preset_entry is not None:
-            retried = False
-            try:
-                result, retried = _retry_once_on_lufs_miss(
-                    result=result,
-                    session=session,
-                    params=params,
-                    output_path=output_path,
-                    preset_entry=preset_entry,
-                    progress_cb=update_progress,
-                )
-            except Exception:
+            # ── Layer 2 gate: validate against the active preset, with at
+            # most ONE auto-retry at reduced intensity on LUFS misses. All
+            # best-effort: any failure here keeps validation null and never
+            # breaks the response.
+            preset_entry = _resolve_preset_entry(preset_id)
+            if preset_entry is not None:
                 retried = False
-            try:
+                try:
+                    result, retried = _retry_once_on_lufs_miss(
+                        result=result,
+                        session=session,
+                        params=params,
+                        output_path=output_path,
+                        preset_entry=preset_entry,
+                        progress_cb=update_progress,
+                    )
+                except Exception:
+                    retried = False
+                try:
+                    session.master_result = _master_result_from_engine(result)
+                    verdict = validate_master(
+                        session.master_result, preset_entry, session.analysis
+                    )
+                    if verdict is not None:
+                        if retried:
+                            verdict["retry_applied"] = True
+                            verdict["note"] = (
+                                "Reintento automático con menor intensidad; "
+                                "se conservó el intento más cercano al objetivo."
+                            )
+                        session.validation = ValidationReport(**verdict)
+                except Exception:
+                    session.validation = None
+            else:
                 session.master_result = _master_result_from_engine(result)
-                verdict = validate_master(
-                    session.master_result, preset_entry, session.analysis
-                )
-                if verdict is not None:
-                    if retried:
-                        verdict["retry_applied"] = True
-                        verdict["note"] = (
-                            "Reintento automático con menor intensidad; "
-                            "se conservó el intento más cercano al objetivo."
-                        )
-                    session.validation = ValidationReport(**verdict)
-            except Exception:
-                session.validation = None
-        else:
-            session.master_result = _master_result_from_engine(result)
 
-        # Delivery compliance report (Compliance Phase 1) — same engine
-        # result mapped onto the report model.
-        session.mastering_report = _mastering_report_from_engine(result)
+            # Delivery compliance report (Compliance Phase 1) — same engine
+            # result mapped onto the report model.
+            session.mastering_report = _mastering_report_from_engine(result)
 
-        session.parameters = params
-        session.status = ProcessingStatus.COMPLETED
-        session.progress = 1.0
+            session.parameters = params
+            session.status = ProcessingStatus.COMPLETED
+            session.progress = 1.0
 
     try:
-        await asyncio.get_running_loop().run_in_executor(_dsp_executor, _run_processing)
+        await asyncio.get_running_loop().run_in_executor(
+            demo_guard.DSP_THREAD_POOL, _run_processing
+        )
     except Exception as e:
         from audiomind.processing.engine import InputQcError
 
@@ -548,6 +789,7 @@ async def process_session(
         session.error = f"Processing failed: {str(e)}"
         raise HTTPException(status_code=500, detail=session.error)
 
+    demo_guard.touch(session_id)
     save_sessions(sessions)
     return session
 
@@ -929,8 +1171,17 @@ async def get_reference_file_audio(session_id: str):
 
 
 @router.get("/session/{session_id}/audio/{audio_type}")
-async def get_audio(session_id: str, audio_type: str):
-    """Serve audio file for playback."""
+async def get_audio(
+    session_id: str,
+    audio_type: str,
+    preset_id: str | None = Query(default=None),
+):
+    """Serve audio file for playback.
+
+    ``audio_type == "mastered"`` accepts an optional ``?preset_id=X`` to
+    serve that preset's mastered file instead of the legacy
+    ``mastered_path`` pointer; unknown presets / missing files → 404.
+    """
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -938,7 +1189,11 @@ async def get_audio(session_id: str, audio_type: str):
     if audio_type == "original":
         path = session.original_path
     elif audio_type == "mastered":
-        path = session.mastered_path
+        if preset_id:
+            entry = session.preset_masters.get(preset_id)
+            path = entry.output_path if entry is not None else None
+        else:
+            path = session.mastered_path
     else:
         raise HTTPException(
             status_code=400,
@@ -989,16 +1244,29 @@ async def get_raw_audio(session_id: str):
 
 
 @router.get("/session/{session_id}/raw-mastered")
-async def get_raw_mastered_audio(session_id: str):
-    """Return raw PCM audio data of the mastered version."""
+async def get_raw_mastered_audio(
+    session_id: str,
+    preset_id: str | None = Query(default=None),
+):
+    """Return raw PCM audio data of the mastered version.
+
+    ``?preset_id=X`` serves that preset's mastered file (404 when unknown
+    or missing); the no-param legacy behavior reads ``mastered_path``.
+    """
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if not session.mastered_path or not Path(session.mastered_path).exists():
+    if preset_id:
+        entry = session.preset_masters.get(preset_id)
+        path = entry.output_path if entry is not None else None
+    else:
+        path = session.mastered_path
+
+    if not path or not Path(path).exists():
         raise HTTPException(status_code=404, detail="No mastered audio available")
 
-    audio, sr = sf.read(session.mastered_path, dtype="float32")
+    audio, sr = sf.read(path, dtype="float32")
 
     if audio.ndim == 1:
         audio = np.stack([audio, audio], axis=1)
@@ -1018,14 +1286,26 @@ async def get_raw_mastered_audio(session_id: str):
 async def download_audio(
     session_id: str,
     format: str,
+    preset_id: str | None = Query(default=None),
     _=Depends(require_license),
 ):
-    """Download mastered audio in specified format."""
+    """Download mastered audio in specified format.
+
+    ``?preset_id=X`` downloads THAT preset's mastered file (same
+    precedence as ``/audio/mastered``); no param keeps the legacy
+    ``mastered_path`` behavior. MP3 conversion keeps using ffmpeg.
+    """
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if not session.mastered_path or not Path(session.mastered_path).exists():
+    if preset_id:
+        entry = session.preset_masters.get(preset_id)
+        source = entry.output_path if entry is not None else None
+    else:
+        source = session.mastered_path
+
+    if not source or not Path(source).exists():
         raise HTTPException(
             status_code=404, detail="No mastered audio available. Process first."
         )
@@ -1037,7 +1317,7 @@ async def download_audio(
         import subprocess
         import shutil
 
-        mp3_path = Path(session.mastered_path).with_suffix(".mp3")
+        mp3_path = Path(source).with_suffix(".mp3")
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
             # Try common Windows install path
@@ -1052,7 +1332,7 @@ async def download_audio(
             raise HTTPException(status_code=500, detail="ffmpeg not found. Install ffmpeg for MP3 support.")
         
         result = subprocess.run(
-            [ffmpeg, "-i", session.mastered_path, "-codec:a", "libmp3lame", "-b:a", "320k", "-y", str(mp3_path)],
+            [ffmpeg, "-i", source, "-codec:a", "libmp3lame", "-b:a", "320k", "-y", str(mp3_path)],
             capture_output=True,
             text=True,
             timeout=60,
@@ -1067,7 +1347,7 @@ async def download_audio(
         )
 
     return FileResponse(
-        session.mastered_path,
+        source,
         media_type="audio/wav",
         filename="BrikmasterFinal.wav",
     )
@@ -1159,18 +1439,31 @@ async def master_stateless(
 
     def _run_pipeline():
         """Analyze + process on the DSP executor; the event loop stays free."""
-        analysis = analyze_audio(input_path)
-        return process_audio(
-            input_path=input_path,
-            output_path=output_path,
-            params=req.settings,
-            analysis_result=analysis,
-        )
+        with demo_guard.gate():
+            analysis = analyze_audio(input_path)
+            if demo_guard.duration_over_limit(
+                getattr(analysis, "duration_seconds", None)
+            ):
+                # Demo duration limit — analyzed BEFORE any DSP runs.
+                raise demo_guard.DemoDurationError(
+                    demo_guard.demo_duration_message(
+                        settings.demo_max_duration_seconds
+                    )
+                )
+            return process_audio(
+                input_path=input_path,
+                output_path=output_path,
+                params=req.settings,
+                analysis_result=analysis,
+            )
 
     try:
         result = await asyncio.get_running_loop().run_in_executor(
-            _dsp_executor, _run_pipeline
+            demo_guard.DSP_THREAD_POOL, _run_pipeline
         )
+    except demo_guard.DemoDurationError as e:
+        input_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         input_path.unlink(missing_ok=True)
         from audiomind.processing.engine import InputQcError

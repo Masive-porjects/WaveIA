@@ -1,7 +1,13 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+import threading
+import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from audiomind.config import settings
+from audiomind.services import demo_guard
 from audiomind.api.upload import router as upload_router
 from audiomind.api.mastering import router as mastering_router
 from audiomind.api.license import router as license_router
@@ -10,10 +16,32 @@ from audiomind.api.vocal import router as vocal_router
 from audiomind.api.songstarter import router as songstarter_router
 from audiomind.api.batch import router as batch_router
 
+
+def _ttl_janitor_loop() -> None:
+    """Daemon loop pruning idle demo sessions (only when TTL is enabled)."""
+    while True:
+        time.sleep(60)
+        try:
+            demo_guard.prune_expired_sessions()
+        except Exception:
+            pass  # the janitor never dies on a bad prune
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Start the session TTL janitor when demo TTL is configured."""
+    if settings.session_ttl_minutes > 0:
+        threading.Thread(
+            target=_ttl_janitor_loop, daemon=True, name="session-ttl-janitor"
+        ).start()
+    yield
+
+
 app = FastAPI(
     title=settings.app_name,
     description="AI-powered audio mastering studio",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Increase upload body limit from default 16MB to match config

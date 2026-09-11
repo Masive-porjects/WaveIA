@@ -6,6 +6,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from audiomind.config import settings
 from audiomind.models.audio import SessionData, ProcessingStatus
+from audiomind.services import demo_guard
 from audiomind.session_store import load_sessions, save_sessions
 
 router = APIRouter()
@@ -61,6 +62,25 @@ async def upload_audio(file: UploadFile = File(...)):
     )
     sessions[session_id] = session
 
+    # Demo duration guard: reject overlength uploads BEFORE any analysis or
+    # DSP. WAV probes the header only (fast); MP3 uses librosa/audioread.
+    # A failed probe never rejects — the defensive checks in /process and
+    # /master catch it later (the backend is the authority in the end).
+    if settings.demo_max_duration_seconds > 0.0:
+        duration = demo_guard.probe_duration(file_path)
+        if duration is not None and duration > settings.demo_max_duration_seconds:
+            # Best-effort cleanup of what we just created, then reject.
+            file_path.unlink(missing_ok=True)
+            sessions.pop(session_id, None)
+            raise HTTPException(
+                status_code=422,
+                detail=demo_guard.demo_duration_message(
+                    settings.demo_max_duration_seconds
+                ),
+            )
+
+    demo_guard.touch(session_id)
+
     # Auto-analyze the uploaded audio in the background so the upload
     # returns immediately and the event loop never blocks on librosa.
     session.status = ProcessingStatus.ANALYZING
@@ -76,9 +96,14 @@ async def upload_audio(file: UploadFile = File(...)):
             pass  # Analysis is optional on upload; process will do it if needed
         finally:
             session.status = ProcessingStatus.UPLOADED
-            # Trigger pre-render of all presets once analysis is ready.
+            # Trigger pre-render of all presets once analysis is ready —
+            # ONLY in the default "all" mode. Demo ("on_demand") uploads
+            # finish with status "uploaded" and zero automatic preset DSP.
             # Lazy import to avoid circular dependency (mastering imports upload).
-            if session.analysis is not None:
+            if (
+                session.analysis is not None
+                and settings.prerender_mode == "all"
+            ):
                 try:
                     from audiomind.api.mastering import _prerender_all_presets
                     _prerender_all_presets(
@@ -116,4 +141,5 @@ async def get_session(session_id: str):
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    demo_guard.touch(session_id)
     return session

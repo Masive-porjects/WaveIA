@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -37,6 +38,19 @@ class Settings(BaseSettings):
 
     # License
     license_key: str = ""  # AUDIOMIND_LICENSE_KEY env var
+
+    # ── Client demo mode ────────────────────────────────────────────────
+    # All demo knobs default to the historic "master all presets" behavior
+    # so a deployment that sets no env vars is byte-for-byte the same as
+    # before this feature. The demo deployment (Vercel/Railway) overrides:
+    #   AUDIOMIND_PRERENDER_MODE=on_demand   (no automatic preset DSP)
+    #   AUDIOMIND_MAX_CONCURRENT_DSP=1       (serialize heavy DSP, 1GB RAM)
+    #   AUDIOMIND_DEMO_MAX_DURATION_SECONDS=60 (short-demo upload cap)
+    #   AUDIOMIND_SESSION_TTL_MINUTES=60     (janitor prunes idle uploads)
+    prerender_mode: Literal["all", "on_demand"] = "all"
+    max_concurrent_dsp: int = 2
+    demo_max_duration_seconds: float = 0.0
+    session_ttl_minutes: int = 0
 
     model_config = {
         "env_prefix": "AUDIOMIND_",
