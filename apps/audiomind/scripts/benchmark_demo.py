@@ -1,4 +1,4 @@
-"""Benchmark a single preset master of a <=60s track over the REAL API path.
+"""Benchmark a single preset master of a <=240s track over the REAL API path.
 
 Purpose
 -------
@@ -34,7 +34,8 @@ The server runs with the DEMO environment (the values the Railway/Vercel
 demo deployment sets, see src/audiomind/config.py):
   AUDIOMIND_PRERENDER_MODE=on_demand        (no automatic preset DSP)
   AUDIOMIND_MAX_CONCURRENT_DSP=1            (serialize heavy DSP)
-  AUDIOMIND_DEMO_MAX_DURATION_SECONDS=60    (demo upload cap)
+  AUDIOMIND_DEMO_MAX_DURATION_SECONDS=240   (demo upload cap: 4 minutes)
+  AUDIOMIND_MAX_FILE_SIZE_MB=100            (4-min PCM24 upload headroom)
   AUDIOMIND_SESSION_TTL_MINUTES=60          (janitor prunes idle uploads)
 
 Generated tracks are sine+noise hybrids (timing only, audio quality is
@@ -88,10 +89,14 @@ HOST = "127.0.0.1"
 TRACK_DURATIONS_S = (45.0, 60.0)
 
 # Demo deployment environment (see config.py "Client demo mode").
+# 240 s = the 4-minute client cap; 100 MB covers a 4-min PCM24 44.1k
+# stereo upload (≈63.5 MB) plus overhead, while MP3/16-bit WAV stay
+# comfortably inside.
 DEMO_ENV = {
     "AUDIOMIND_PRERENDER_MODE": "on_demand",
     "AUDIOMIND_MAX_CONCURRENT_DSP": "1",
-    "AUDIOMIND_DEMO_MAX_DURATION_SECONDS": "60",
+    "AUDIOMIND_DEMO_MAX_DURATION_SECONDS": "240",
+    "AUDIOMIND_MAX_FILE_SIZE_MB": "100",
     "AUDIOMIND_SESSION_TTL_MINUTES": "60",
 }
 
