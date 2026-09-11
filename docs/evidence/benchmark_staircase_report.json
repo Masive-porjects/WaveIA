@@ -1,0 +1,237 @@
+{
+  "machine": {
+    "total_ram_gb": 16.36,
+    "available_ram_gb": 8.6,
+    "cpus": 8,
+    "os": "nt"
+  },
+  "stages": {
+    "A_45s_3presets": {
+      "track_s": "stair_45.wav",
+      "upload_wall_s": 0.12,
+      "dsp_after_analysis": 0,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "fuego",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.26,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 6.1,
+          "peak_cpu_pct": 137.5,
+          "avg_cpu_pct": 95.8,
+          "output_mb": 11.9,
+          "dsp_count": 1,
+          "completed": true
+        },
+        {
+          "preset": "cinta",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.31,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 5.8,
+          "peak_cpu_pct": 106.2,
+          "avg_cpu_pct": 93.1,
+          "output_mb": 11.9,
+          "dsp_count": 2,
+          "completed": true
+        },
+        {
+          "preset": "natural",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.26,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 5.9,
+          "peak_cpu_pct": 125.0,
+          "avg_cpu_pct": 96.1,
+          "output_mb": 11.9,
+          "dsp_count": 3,
+          "completed": true
+        },
+        {
+          "preset": "natural(cache)",
+          "wall_s": 0.0,
+          "dsp_delta": 0
+        }
+      ],
+      "dsp_total": 3
+    },
+    "B_60s_3presets": {
+      "track_s": "stair_60.wav",
+      "upload_wall_s": 0.11,
+      "dsp_after_analysis": 3,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "fuego",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.6,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 7.7,
+          "peak_cpu_pct": 181.2,
+          "avg_cpu_pct": 97.6,
+          "output_mb": 15.9,
+          "dsp_count": 4,
+          "completed": true
+        },
+        {
+          "preset": "cinta",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.79,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 7.8,
+          "peak_cpu_pct": 168.8,
+          "avg_cpu_pct": 97.0,
+          "output_mb": 15.9,
+          "dsp_count": 5,
+          "completed": true
+        },
+        {
+          "preset": "natural",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 1.61,
+          "end_rss_gb": 0.22,
+          "settled_rss_gb": 0.22,
+          "wall_s": 14.9,
+          "peak_cpu_pct": 156.2,
+          "avg_cpu_pct": 88.6,
+          "output_mb": 15.9,
+          "dsp_count": 6,
+          "completed": true
+        },
+        {
+          "preset": "natural(cache)",
+          "wall_s": 0.02,
+          "dsp_delta": 0
+        }
+      ],
+      "dsp_total": 6
+    },
+    "C_210s_one_preset": {
+      "track_s": "stair_210.wav",
+      "upload_wall_s": 0.28,
+      "dsp_after_analysis": 6,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "fuego",
+          "start_rss_gb": 0.22,
+          "peak_rss_gb": 5.6,
+          "end_rss_gb": 0.22,
+          "settled_rss_gb": 0.22,
+          "wall_s": 26.8,
+          "peak_cpu_pct": 168.8,
+          "avg_cpu_pct": 99.7,
+          "output_mb": 55.6,
+          "dsp_count": 7,
+          "completed": true
+        }
+      ],
+      "dsp_total": 7
+    },
+    "D_240s_one_preset": {
+      "track_s": "stair_240.wav",
+      "upload_wall_s": 0.35,
+      "dsp_after_analysis": 7,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "fuego",
+          "start_rss_gb": 0.22,
+          "peak_rss_gb": 6.71,
+          "end_rss_gb": 0.22,
+          "settled_rss_gb": 0.22,
+          "wall_s": 33.2,
+          "peak_cpu_pct": 146.9,
+          "avg_cpu_pct": 97.4,
+          "output_mb": 63.5,
+          "dsp_count": 8,
+          "completed": true
+        }
+      ],
+      "dsp_total": 8
+    },
+    "E_240s_3presets": {
+      "track_s": "stair_240.wav",
+      "upload_wall_s": 0.44,
+      "dsp_after_analysis": 8,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "cinta",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 6.71,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 31.6,
+          "peak_cpu_pct": 156.2,
+          "avg_cpu_pct": 99.0,
+          "output_mb": 63.5,
+          "dsp_count": 9,
+          "completed": true
+        },
+        {
+          "preset": "natural",
+          "start_rss_gb": 0.21,
+          "peak_rss_gb": 6.95,
+          "end_rss_gb": 0.21,
+          "settled_rss_gb": 0.21,
+          "wall_s": 31.0,
+          "peak_cpu_pct": 156.2,
+          "avg_cpu_pct": 98.8,
+          "output_mb": 63.5,
+          "dsp_count": 10,
+          "completed": true
+        }
+      ],
+      "dsp_total": 10
+    },
+    "F_240s_5presets": {
+      "track_s": "stair_240.wav",
+      "upload_wall_s": 3.04,
+      "dsp_after_analysis": 10,
+      "dsp_analysis_delta": 0,
+      "jobs": [
+        {
+          "preset": "claridad",
+          "start_rss_gb": 0.22,
+          "peak_rss_gb": 6.73,
+          "end_rss_gb": 0.22,
+          "settled_rss_gb": 0.22,
+          "wall_s": 32.3,
+          "peak_cpu_pct": 162.5,
+          "avg_cpu_pct": 100.5,
+          "output_mb": 63.5,
+          "dsp_count": 11,
+          "completed": true
+        },
+        {
+          "preset": "espacial",
+          "start_rss_gb": 0.22,
+          "peak_rss_gb": 6.83,
+          "end_rss_gb": 0.22,
+          "settled_rss_gb": 0.22,
+          "wall_s": 32.6,
+          "peak_cpu_pct": 168.8,
+          "avg_cpu_pct": 99.6,
+          "output_mb": 63.5,
+          "dsp_count": 12,
+          "completed": true
+        }
+      ],
+      "dsp_total": 12
+    }
+  },
+  "final": {
+    "outputs_disk_mb": 528.7,
+    "uploads_disk_mb": 174.2,
+    "total_dsp_executions": 12,
+    "final_server_rss_gb": 0.22,
+    "available_ram_gb": 7.95
+  }
+}

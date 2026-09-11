@@ -1,0 +1,61 @@
+{
+  "demo_env": {
+    "AUDIOMIND_PRERENDER_MODE": "on_demand",
+    "AUDIOMIND_MAX_CONCURRENT_DSP": "1",
+    "AUDIOMIND_DEMO_MAX_DURATION_SECONDS": "240",
+    "AUDIOMIND_MAX_FILE_SIZE_MB": "100",
+    "AUDIOMIND_SESSION_TTL_MINUTES": "60"
+  },
+  "machine": {
+    "system": "nt",
+    "cpu": 8
+  },
+  "duration_checks": [
+    {
+      "duration_s": 60.0,
+      "accepted": true,
+      "detail_snippet": "",
+      "session_id": "183cf455-5ce5-4f74-8abf-847c2c441dcd",
+      "dsp_after_analysis": 0,
+      "orphan_files": [
+        "183cf455-5ce5-4f74-8abf-847c2c441dcd.wav"
+      ]
+    },
+    {
+      "duration_s": 210.0,
+      "accepted": true,
+      "detail_snippet": "",
+      "session_id": "3cbafdbe-0070-47e2-afad-4bd32fb5fa88",
+      "dsp_after_analysis": 0,
+      "orphan_files": [
+        "3cbafdbe-0070-47e2-afad-4bd32fb5fa88.wav"
+      ]
+    },
+    {
+      "duration_s": 240.0,
+      "accepted": true,
+      "detail_snippet": "",
+      "session_id": "86867976-fc47-46aa-96ad-44c629768b1c",
+      "dsp_after_analysis": 0,
+      "orphan_files": [
+        "86867976-fc47-46aa-96ad-44c629768b1c.wav"
+      ]
+    },
+    {
+      "duration_s": 241.0,
+      "accepted": false,
+      "detail_snippet": "{\"detail\":\"Demo: carga hasta 240 segundos de audio.\"}",
+      "session_id": null,
+      "dsp_after_analysis": 0,
+      "orphan_files": []
+    }
+  ],
+  "dsp_meter_proof": {
+    "baseline": 0,
+    "after_analysis": 0,
+    "after_first_fuego": 1,
+    "after_cache_fuego": 1,
+    "first_wall_s": 1.85,
+    "cache_wall_s": 0.02
+  }
+}
