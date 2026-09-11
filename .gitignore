@@ -68,3 +68,15 @@ package-lock.json
 
 # Assets de terceros (BandLab Lottie) que no se versionan
 jsonEjemplo/
+
+# Demo environment (real file, local only - use .env.demo.example as template)
+apps/audiomind/.env.demo
+
+# Playwright artifacts (generated)
+playwright-report/
+test-results/
+
+# Local validation logs and reports (regenerable)
+apps/audiomind/_*.txt
+apps/audiomind/test_results_junit.xml
+apps/studio/_studio_dev_out.txt

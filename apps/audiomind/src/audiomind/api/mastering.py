@@ -462,6 +462,9 @@ def _run_preset_job(
     missing (the engine tolerates ``analysis_result=None`` with safe
     defaults, mirroring the legacy /process path).
     """
+    # Meter: this is the ONLY place the heavy pipeline runs, so the count
+    # is the authoritative "DSP executions" evidence for demo validation.
+    demo_guard.record_dsp_execution()
     if session.analysis is None and session.status != ProcessingStatus.ANALYZING:
         try:
             analysis = analyze_audio(session.original_path)

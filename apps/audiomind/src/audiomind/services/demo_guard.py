@@ -29,6 +29,12 @@ from audiomind.config import settings
 _lock = threading.Lock()
 _flights: dict[tuple[str, str], Future[None]] = {}
 
+# Heavy-DSP execution counter: incremented ONLY where the real pipeline
+# runs (mastering._run_preset_job). Cache hits, pre-built copies, and
+# pre-render-cache copies never call it, so it is the authoritative
+# "DSP executions" meter for demo validation over the real HTTP path.
+_dsp_executions: int = 0
+
 _gate = threading.BoundedSemaphore(max(1, settings.max_concurrent_dsp))
 
 # Dedicated pool for heavy DSP invocations (process_audio) that must be
@@ -104,6 +110,28 @@ def reset_gate() -> None:
     DSP_THREAD_POOL = ThreadPoolExecutor(
         max_workers=workers, thread_name_prefix="dsp-gated"
     )
+
+
+# ── DSP execution meter (demo validation) ─────────────────────────────
+
+
+def record_dsp_execution() -> None:
+    """Count one real heavy-DSP pipeline run (called by the job itself)."""
+    global _dsp_executions
+    with _lock:
+        _dsp_executions += 1
+
+
+def dsp_execution_count() -> int:
+    """Current total of DSP pipelines executed since process start."""
+    return _dsp_executions
+
+
+def reset_dsp_count() -> None:
+    """Forget the counter (tests / benchmark reset)."""
+    global _dsp_executions
+    with _lock:
+        _dsp_executions = 0
 
 
 # ── Demo duration probe / message ─────────────────────────────────────

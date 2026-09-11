@@ -69,3 +69,26 @@ app.include_router(batch_router, prefix="/api")
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/api/demo/stats")
+async def demo_stats():
+    """Read-only demo validation meter (no secrets, no mutation).
+
+    Reports the number of heavy-DSP pipeline executions since process
+    start (cache hits never increment it) plus live session state, so
+    local validation can prove "DSP executions = 0 after upload" and
+    "N DSP for N distinct preset requests" over the real HTTP path.
+    """
+    from audiomind.api.upload import sessions
+
+    return {
+        "service": settings.app_name,
+        "demo_max_duration_seconds": settings.demo_max_duration_seconds,
+        "max_concurrent_dsp": settings.max_concurrent_dsp,
+        "prerender_mode": settings.prerender_mode,
+        "max_file_size_mb": settings.max_file_size_mb,
+        "session_ttl_minutes": settings.session_ttl_minutes,
+        "dsp_executions": demo_guard.dsp_execution_count(),
+        "active_sessions": len(sessions),
+    }

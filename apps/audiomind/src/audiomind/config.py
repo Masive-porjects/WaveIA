@@ -43,10 +43,12 @@ class Settings(BaseSettings):
     # All demo knobs default to the historic "master all presets" behavior
     # so a deployment that sets no env vars is byte-for-byte the same as
     # before this feature. The demo deployment (Vercel/Railway) overrides:
-    #   AUDIOMIND_PRERENDER_MODE=on_demand   (no automatic preset DSP)
-    #   AUDIOMIND_MAX_CONCURRENT_DSP=1       (serialize heavy DSP, 1GB RAM)
-    #   AUDIOMIND_DEMO_MAX_DURATION_SECONDS=60 (short-demo upload cap)
-    #   AUDIOMIND_SESSION_TTL_MINUTES=60     (janitor prunes idle uploads)
+    #   AUDIOMIND_PRERENDER_MODE=on_demand          (no automatic preset DSP)
+    #   AUDIOMIND_MAX_CONCURRENT_DSP=1              (serialize heavy DSP)
+    #   AUDIOMIND_DEMO_MAX_DURATION_SECONDS=240     (demo upload cap: 4 min)
+    #   AUDIOMIND_MAX_FILE_SIZE_MB=100              (demo covers 4-min PCM24
+    #                                                44.1k stereo ≈ 63.5 MB)
+    #   AUDIOMIND_SESSION_TTL_MINUTES=60            (janitor prunes idle uploads)
     prerender_mode: Literal["all", "on_demand"] = "all"
     max_concurrent_dsp: int = 2
     demo_max_duration_seconds: float = 0.0
