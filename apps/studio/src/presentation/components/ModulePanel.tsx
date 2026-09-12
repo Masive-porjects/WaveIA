@@ -51,7 +51,7 @@ export const PRESETS: MacroPreset[] = [
     description: "Balance profesional para cualquier género",
     tooltip: "Cadena equilibrada: ecualización transparente, compresión suave (1.5:1) y limitación a -14 LUFS. Ideal cuando no sabés qué preset elegir — preserva la intención de la mezcla original.",
     icon: Sparkles,
-    params: { ...DEFAULT_PARAMS },
+    params: { ...DEFAULT_PARAMS, target_lufs_db: -14 },
   },
   {
     id: "fuego",
@@ -87,6 +87,7 @@ export const PRESETS: MacroPreset[] = [
       transient_boost_db: 2.0,
       stereo_width: 1.3,
       haas_delay_ms: 6,
+      target_lufs_db: -13,
     },
   },
   {
@@ -105,6 +106,7 @@ export const PRESETS: MacroPreset[] = [
       clarity_brightness_db: -0.5,
       transient_boost_db: 0.5,
       stereo_width: 1.0,
+      target_lufs_db: -12,
     },
   },
   {
@@ -125,6 +127,7 @@ export const PRESETS: MacroPreset[] = [
       transient_boost_db: 0.5,
       stereo_width: 1.0,
       haas_delay_ms: 0,
+      target_lufs_db: -14,
     },
   },
   {
@@ -141,6 +144,7 @@ export const PRESETS: MacroPreset[] = [
       clarity_brightness_db: 2.0,
       clarity_wet: 0.3,
       compression_ratio: 2.0,
+      target_lufs_db: -13,
     },
   },
   {
@@ -160,6 +164,7 @@ export const PRESETS: MacroPreset[] = [
       saturation_drive_db: 2.0,
       compression_ratio: 2.5,
       transient_boost_db: 2.5,
+      target_lufs_db: -12,
     },
   },
   {
