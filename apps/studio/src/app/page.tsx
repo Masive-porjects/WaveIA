@@ -19,7 +19,7 @@ import FloatingGhosts from "@/components/FloatingGhosts";
 import BigGhostWithNotes from "@/components/BigGhostWithNotes";
 import ProcessingOverlay from "@/components/ProcessingOverlay";
 import Player from "@/components/Player";
-import LicenseGuard from "@/components/LicenseGuard";
+import WelcomeGate from "@/components/WelcomeGate";
 import StemSplitter, {
   createDefaultStemState,
   type StemSplitterState,
@@ -1040,7 +1040,7 @@ export default function Home() {
 
   return (
     <AuthGuard>
-    <LicenseGuard>
+    <WelcomeGate>
     <main className="h-dvh w-screen overflow-hidden overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col antialiased">
       {/* ═══════════════════════════════════════════════
            Processing Overlay (global)
@@ -1855,7 +1855,7 @@ export default function Home() {
         </ModuleSheet>
       )}
     </main>
-    </LicenseGuard>
+    </WelcomeGate>
     </AuthGuard>
   );
 }
