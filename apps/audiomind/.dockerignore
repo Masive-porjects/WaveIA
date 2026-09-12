@@ -1,0 +1,27 @@
+# Build context hygiene for Railway (Dockerfile builder).
+# keeps ~1.8 GB of local WAV fixtures / venvs out of the image build context.
+
+# Local demo artifacts (gitignored, huge)
+uploads/
+outputs/
+samples/
+projects/
+prebuilt/
+
+# Python environment
+.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets (pydantic-settings reads .env at runtime, never baked in)
+.env
+.env.local
+.env.*.local
+
+# Not needed at runtime (the image only COPYs pyproject.toml and src/)
+tests/
+scripts/
