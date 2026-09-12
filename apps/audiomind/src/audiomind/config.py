@@ -35,6 +35,13 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:5173",
     ]
+    # CORS regex net: any *.vercel.app origin reaches the public demo without
+    # re-adding each Vercel project hash on every redeploy (the demo project
+    # keeps changing its .vercel.app hash). The demo service is public anyway
+    # (no license key); this only relaxes browser-origin checks, not transport
+    # access. Set AUDIOMIND_CORS_ORIGIN_REGEX="" to disable and go back to the
+    # exact allowlist only.
+    cors_origin_regex: str = r"https://.*\.vercel\.app"
 
     # License
     license_key: str = ""  # AUDIOMIND_LICENSE_KEY env var
