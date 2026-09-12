@@ -38,10 +38,7 @@ import { useIsMobile } from "@/shared/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import AuthGuard from "@/components/auth/AuthGuard";
 import TrackChip from "@/presentation/components/TrackChip";
-import ChatPanel, {
-  NEUTRAL_PROFILE,
-  type Profile,
-} from "@/presentation/components/chat/ChatPanel";
+import { ComingSoonNotice } from "@/components/ComingSoonNotice";
 import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
@@ -75,7 +72,6 @@ import {
 } from "lucide-react";
 import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
-import { LiveView } from "@/components/live/LiveView";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "modules", label: "Módulos" },
@@ -287,19 +283,6 @@ function useProcessingProgress(
 /* ── Note burst colors (reused for the upload animation) ── */
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
 
-/* ── Saludo del agente ───────────────────────────────── */
-
-/**
- * El saludo NO nombra el genero detectado.
- *
- * El clasificador se equivoca seguido, y abrir la conversacion afirmando algo
- * falso sobre la musica del usuario destruye la confianza en todo lo que venga
- * despues. El genero se sigue mandando al agente para calibrar cuanto mover
- * cada eje; simplemente no se anuncia.
- */
-const WELCOME =
-  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
-
 /* ── Hydration-safe client detector ──────────────────── */
 
 function useIsClient(): boolean {
@@ -405,7 +388,6 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
   const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
-  const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
 
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
@@ -844,7 +826,6 @@ export default function Home() {
     abortRef.current = null;
     setCurrentView("upload");
     setMasteringMode("manual");
-    setIntentProfile(NEUTRAL_PROFILE);
     setSession(null);
     setProcessing(false);
     setError(null);
@@ -1387,25 +1368,10 @@ export default function Home() {
                 className={`${masteringMode === "ai" ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
                 aria-hidden={masteringMode !== "ai"}
               >
-                <motion.div
-                  className="flex h-full max-h-[min(42rem,100%)] min-h-[28rem] w-full max-w-2xl flex-col"
-                  initial={VIEW_TRANSITION.initial}
-                  animate={VIEW_TRANSITION.animate}
-                  transition={VIEW_TRANSITION.transition}
-                >
-                  <ChatPanel
-                    profile={intentProfile}
-                    onProfileChange={setIntentProfile}
-                    analysis={session?.analysis ?? undefined}
-                    welcome={WELCOME}
-                    voiceOutput={masteringMode === "ai"}
-                    onPresetSelect={(presetId) => {
-                      const preset = PRESETS.find((x) => x.id === presetId);
-                      if (!preset) return;
-                      void handlePresetSelect(preset.params, presetId);
-                    }}
-                  />
-                </motion.div>
+                <ComingSoonNotice
+                  title="Asistente IA"
+                  message="El asistente con recomendaciones llega pronto. Mientras tanto, masterizá en modo Manual con las guías de género."
+                />
               </div>
 
               <div
@@ -1829,22 +1795,10 @@ export default function Home() {
                   )}
                 </>
               ) : currentTab === "live" ? (
-                <>
-                  {!session?.mastered_path ? (
-                    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-8 text-center">
-                      <p className="text-lg text-[var(--text-secondary)] mb-2">Live Engine</p>
-                      <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitás masterizar un track para activar el motor en vivo.
-                      </p>
-                    </div>
-                  ) : (
-                    <LiveView
-                      masterAudioUrl={getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)}
-                      masterAudioBuffer={null}
-                      isActive={currentTab === "live" || sheetTab === "live"}
-                    />
-                  )}
-                </>
+                <ComingSoonNotice
+                  title="Live Engine"
+                  message="El motor de efectos en vivo llega pronto. Por ahora, masterizá y escuchá el resultado en Análisis."
+                />
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                   <p className="text-xs leading-relaxed text-[var(--text-muted)]">
