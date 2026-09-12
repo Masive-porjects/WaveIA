@@ -1,25 +1,39 @@
 /**
  * Base URL de la API de AudioMind.
  *
- * NEXT_PUBLIC_* se inlinea en build: en Railway hay que definir
- * NEXT_PUBLIC_API_URL apuntando al backend desplegado (ej. https://<svc>.up.railway.app/api).
- * El fallback a localhost solo sirve para desarrollo local.
+ * NEXT_PUBLIC_* se inlinea en build: en Vercel hay que definir
+ * NEXT_PUBLIC_API_URL apuntando al backend desplegado
+ * (ej. https://waveia-production.up.railway.app). La normalización de abajo
+ * corrige los errores de configuración típicos y agrega el sufijo `/api`
+ * cuando falta — el backend monta TODOS los routers bajo ese prefix.
  *
- * CONTRATO: el valor debe ser exactamente `https://<host>/api` — el backend
- * monta TODOS los routers bajo ese prefix. Sin el `/api` el backend responde
- * 404 (rutas en raíz no existen); con `/api` duplicado o trailing slash también.
- * La normalización de abajo corrige las dos variantes más comunes.
+ * CONTRATO DE PRODUCCIÓN: en producción (NODE_ENV=production) NO existe
+ * fallback a localhost. Si la variable falta, el módulo falla ruidoso en
+ * build/deploy en lugar de pegarle en silencio a `localhost:8000` — el
+ * bundle desplegado debe llevar SIEMPRE la URL real inlineada.
  */
-const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const DEV_API_BASE = "http://localhost:8000/api";
+
+function resolveRawApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+  if (configured) return configured;
+  if (process.env.NODE_ENV !== "production") return DEV_API_BASE;
+  throw new Error(
+    "[config] NEXT_PUBLIC_API_URL no está definida. Configurala en Vercel " +
+      "(Settings → Environment Variables) apuntando a https://<backend>/api y redeployá.",
+  );
+}
 
 /**
  * Normaliza la base contra errores de configuración típicos:
  * - trailing slash sobrante: `.../api/` -> `.../api`
+ * - `/api` faltante: `https://<host>` -> `https://<host>/api`
  * - `/api` duplicado: `.../api/api` -> `.../api`
  */
 function normalizeApiBase(value: string): string {
   const trimmed = value.trim().replace(/\/+$/, "");
-  return trimmed.replace(/(?:\/api){2,}(?=\/|$)/i, "/api");
+  const deduped = trimmed.replace(/(?:\/api){2,}(?=\/|$)/i, "/api");
+  return /\/api$/i.test(deduped) ? deduped : `${deduped}/api`;
 }
 
-export const API_BASE = normalizeApiBase(RAW_API_BASE);
+export const API_BASE = normalizeApiBase(resolveRawApiBase());
