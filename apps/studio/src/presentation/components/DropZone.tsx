@@ -131,7 +131,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
           className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
         />
         <p className="text-xs text-[var(--text-muted)]">
-          {isDragging ? "Soltá tu track aquí" : "Arrastrá un track diferente"}
+          {isDragging ? "Suelta tu track aquí" : "Arrastra un track diferente"}
         </p>
         <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">WAV, MP3</p>
       </div>
@@ -223,10 +223,10 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
 
         <div>
           <h2 className="text-lg font-bold text-[var(--text-primary)] mb-1">
-            {isDragging ? "Soltá tu track aquí" : "Subí tu track para masterizar"}
+            {isDragging ? "Suelta tu track aquí" : "Carga tu track para masterizar"}
           </h2>
           <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
-            Arrastrá tu archivo o hacé click para comenzar.
+            Arrastra tu archivo o haz clic para comenzar.
             <br />
             <span className="text-[var(--text-muted)]">Soporta WAV y MP3 — máximo 50MB</span>
           </p>

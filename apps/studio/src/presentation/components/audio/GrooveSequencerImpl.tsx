@@ -60,10 +60,10 @@ export default function GrooveSequencerImpl() {
       <header className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-            Probá el groove
+            Prueba el groove
           </h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Elegí un género y editá los pasos mientras suena
+            Elige un género y edita los pasos mientras suena
           </p>
         </div>
         <button

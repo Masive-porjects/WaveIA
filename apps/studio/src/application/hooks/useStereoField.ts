@@ -205,7 +205,7 @@ export function useStereoField(
       try {
         await ctx.resume();
       } catch {
-        setError("No se pudo iniciar el audio. Probá de nuevo.");
+        setError("No se pudo iniciar el audio. Prueba de nuevo.");
         return;
       }
     }

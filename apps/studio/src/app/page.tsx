@@ -650,7 +650,7 @@ export default function Home() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
+          "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
         );
         return;
       }
@@ -744,7 +744,7 @@ export default function Home() {
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
-            "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
+            "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
           );
           return;
         }
@@ -898,7 +898,7 @@ export default function Home() {
       case "modules":
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para empezar.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para empezar.</p>
           );
         }
         return (
@@ -974,7 +974,7 @@ export default function Home() {
       case "splitter": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar el Splitter.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar el Splitter.</p>
           );
         }
         return (
@@ -993,7 +993,7 @@ export default function Home() {
       case "vocal": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar VoiceChain Pro.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar VoiceChain Pro.</p>
           );
         }
         return (
@@ -1108,7 +1108,7 @@ export default function Home() {
               borderColor: "var(--border-strong)",
             }}
             role="group"
-            aria-label="Elegí cómo querés masterizar"
+            aria-label="Elige cómo quieres masterizar"
           >
             {([
               {
@@ -1266,7 +1266,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          Brikmaster Studio
+                          WaveIA
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>
@@ -1278,7 +1278,7 @@ export default function Home() {
                       </h1>
 
                       <p className="text-[var(--text-muted)] text-sm">
-                        Subí tu track, ajustá los módulos y obtené un master profesional
+                        Carga tu track, ajusta los módulos y obtén un master profesional
                       </p>
                     </div>
 
@@ -1729,7 +1729,7 @@ export default function Home() {
                   {session?.mastered_path && (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-3 text-center mt-4">
                       <p className="text-[10px] text-[var(--text-muted)]">
-                        ¿Querés ver el análisis completo y descargar?
+                        ¿Quieres ver el análisis completo y descargar?
                       </p>
                       <button
                         onClick={() => handleModuleClick("analysis")}
@@ -1802,7 +1802,7 @@ export default function Home() {
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                   <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                    Abrí el módulo{" "}
+                    Abre el módulo{" "}
                     <span className="text-[var(--text-secondary)]">Análisis</span>{" "}
                     desde el dock para ver los resultados y descargar tu master.
                   </p>

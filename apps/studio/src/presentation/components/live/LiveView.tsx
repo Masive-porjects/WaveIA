@@ -186,7 +186,7 @@ export function LiveView({
             defaultValue="master"
             disabled
           >
-            <option value="master">Master Output (Brikmaster)</option>
+            <option value="master">Master Output (WaveIA)</option>
             <option value="mic" disabled>Micrófono (próximamente)</option>
             <option value="file" disabled>Archivo local (próximamente)</option>
           </select>

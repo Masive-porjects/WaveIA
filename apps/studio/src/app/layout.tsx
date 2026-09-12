@@ -4,7 +4,7 @@ import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brikmaster — AI Mastering Studio",
+  title: "WaveIA — AI Mastering Studio",
   description: "Professional audio mastering powered by AI",
 };
 

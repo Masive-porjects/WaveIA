@@ -613,7 +613,7 @@ export default function SongStarter({ sessionId, disabled }: SongStarterProps) {
       </div>
 
       {/* ═══════════════════════════════════════════════
-           Probá el groove — secuenciador interactivo
+           Prueba el groove — secuenciador interactivo
            ═══════════════════════════════════════════════ */}
       <GrooveSequencer />
 
@@ -720,7 +720,7 @@ export default function SongStarter({ sessionId, disabled }: SongStarterProps) {
             style={{ background: "var(--surface-hover)", border: "1px solid var(--border-subtle)" }}
           >
             <p className="text-xs text-[var(--text-muted)]">
-              No hay beats guardados todavía. Generá uno y presioná Guardar.
+              No hay beats guardados todavía. Genera uno y presiona Guardar.
             </p>
           </div>
         )}
@@ -747,7 +747,7 @@ export default function SongStarter({ sessionId, disabled }: SongStarterProps) {
                     {saved.name ?? `Beat ${saved.id.slice(0, 8)}`}
                   </p>
                   <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                    {new Date(saved.created_at).toLocaleDateString("es-AR", {
+                    {new Date(saved.created_at).toLocaleDateString("es-CO", {
                       day: "numeric",
                       month: "short",
                       hour: "2-digit",
@@ -795,7 +795,7 @@ export default function SongStarter({ sessionId, disabled }: SongStarterProps) {
            ═══════════════════════════════════════════════ */}
       {!beat && !generating && (
         <p className="text-xs text-[var(--text-muted)] text-center">
-          Ajustá los parámetros y presioná &quot;Generar Beat&quot; para empezar.
+          Ajusta los parámetros y presiona &quot;Generar Beat&quot; para empezar.
         </p>
       )}
       {generating && (

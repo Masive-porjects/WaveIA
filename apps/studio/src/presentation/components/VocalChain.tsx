@@ -390,7 +390,7 @@ export default function VocalChain({
       {/* Status */}
       {!processed && !processing && (
         <p className="text-xs text-[var(--text-muted)] text-center">
-          Ajustá los 3 controles y presioná &quot;Procesar Voz&quot; para aplicar la cadena vocal.
+          Ajusta los 3 controles y presiona &quot;Procesar Voz&quot; para aplicar la cadena vocal.
         </p>
       )}
       {processing && (

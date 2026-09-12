@@ -5,7 +5,7 @@ import {
 } from "./useSequencerEngine";
 
 /**
- * Genre loop presets for the SongStarter "Probá el groove" section.
+ * Genre loop presets for the SongStarter "Prueba el groove" section.
  * Rows are 16-step strings ('X' = hit, '.' = rest) in fixed track order:
  * Kick / Caja / Hi-Hat / Bajo.
  */

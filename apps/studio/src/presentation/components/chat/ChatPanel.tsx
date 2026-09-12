@@ -310,7 +310,7 @@ export default function ChatPanel({
                 className="mb-2 text-xs tracking-tight"
                 style={{ color: "var(--text-muted)" }}
               >
-                Elegí por dónde arrancar
+                Elige por dónde empezar
                 {trackType !== "unknown" && ` · ${trackType === "vocal" ? "con voz" : "instrumental"}`}
               </p>
               <PresetCards

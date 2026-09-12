@@ -419,7 +419,7 @@ export default function StemSplitter({
             </p>
           </div>
           <p className="text-xs text-[var(--text-muted)] text-center">
-            Usá los botones <Play size={10} className="inline" /> para escuchar cada stem, los faders para ajustar
+            Usa los botones <Play size={10} className="inline" /> para escuchar cada stem, los faders para ajustar
             volumen, Mute/Solo para aislar, y <Download size={10} className="inline" /> para descargar.
           </p>
         </div>

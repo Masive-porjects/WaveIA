@@ -75,7 +75,7 @@ export default function MobilePresetStrip({
     <div className="w-full">
       <div className="flex items-center gap-2 mb-2 px-1">
         <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
-          Elegí un preset
+          Elige un preset
         </span>
         {activePresetId && (
           <span

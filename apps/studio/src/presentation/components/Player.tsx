@@ -586,7 +586,7 @@ export default function Player({
       })
       .catch(() => {
         setSource((s) => (s === "reference" ? "original" : s));
-        setReferenceError("No se pudo generar la referencia. Probá de nuevo.");
+        setReferenceError("No se pudo generar la referencia. Prueba de nuevo.");
       })
       .finally(() => {
         setRenderingReference(false);

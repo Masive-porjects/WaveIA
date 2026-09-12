@@ -150,7 +150,7 @@ export default function WelcomeGate({ children }: WelcomeGateProps) {
           </h1>
 
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 relative z-10">
-            Subí tu audio y empezá a masterizar.
+            Carga tu audio y empieza a masterizar.
           </p>
 
           {/* Continue */}
@@ -171,7 +171,7 @@ export default function WelcomeGate({ children }: WelcomeGateProps) {
           <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed relative z-10">
             WaveIA © {new Date().getFullYear()}
             <br />
-            Creado por Waveman Paul Morales
+            Creado por Brikman Paul
           </p>
         </div>
       </div>

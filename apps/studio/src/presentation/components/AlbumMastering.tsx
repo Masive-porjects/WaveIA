@@ -234,7 +234,7 @@ export default function AlbumMastering() {
             Mastering de Álbum / EP
           </h2>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            Subí múltiples tracks, analizá el álbum completo y masterizá con targets relativos coherentes.
+            Carga múltiples tracks, analiza el álbum completo y masteriza con targets relativos coherentes.
           </p>
         </div>
         {tracks.length > 0 && (
@@ -264,7 +264,7 @@ export default function AlbumMastering() {
           >
             <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={e => e.target.files && handleFiles(e.target.files)} />
             <Upload size={48} className="mx-auto mb-4 text-[var(--text-muted)]" />
-            <p className="text-lg font-medium text-[var(--text-primary)] mb-1">Arrastrá tus tracks aquí</p>
+            <p className="text-lg font-medium text-[var(--text-primary)] mb-1">Arrastra tus tracks aquí</p>
             <p className="text-sm text-[var(--text-muted)]">O hacé click para seleccionar múltiples archivos (WAV, MP3, FLAC — máx 50MB c/u)</p>
           </div>
         )}

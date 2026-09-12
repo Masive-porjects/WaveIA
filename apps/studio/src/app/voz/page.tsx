@@ -57,7 +57,7 @@ export default function VozPage() {
                 Empecemos por tu <span className="serif-accent">track</span>
               </h1>
               <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
-                Subí el audio y después me contás cómo querés que suene.
+                Carga el audio y después me cuentas cómo quieres que suene.
               </p>
             </header>
 

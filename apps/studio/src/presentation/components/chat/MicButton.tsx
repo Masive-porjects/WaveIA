@@ -93,7 +93,7 @@ export default function MicButton({
                 ? "Entendiendo lo que dijiste…"
                 : listening
                   ? "Te escucho… tocá para enviar"
-                  : "Tocá para hablar"}
+                  : "Toca para hablar"}
           </span>
         </span>
       </motion.button>

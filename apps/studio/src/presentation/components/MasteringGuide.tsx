@@ -47,15 +47,15 @@ const PIPELINE_STEPS = [
 
 const TIPS = [
   {
-    title: "Dejá headroom en tu mezcla",
-    body: "Exportá tu mezcla con picos entre -6 dBFS y -3 dBFS. NO subas el master fader de tu DAW. El headroom le da espacio al motor DSP de Brikmaster para trabajar sin recortar transitorios.",
+    title: "Deja headroom en tu mezcla",
+    body: "Exporta tu mezcla con picos entre -6 dBFS y -3 dBFS. NO subas el master fader de tu DAW. El headroom le da espacio al motor DSP de WaveIA para trabajar sin recortar transitorios.",
   },
   {
     title: "No apliques limitación en el bus maestro",
-    body: "Si ya limitaste la mezcla en tu DAW, el motor no puede diferenciar entre tu intención creativa y la distorsión. Dejá el bus maestro limpio — Brikmaster se encarga de la limitación final profesional.",
+    body: "Si ya limitaste la mezcla en tu DAW, el motor no puede diferenciar entre tu intención creativa y la distorsión. Deja el bus maestro limpio — WaveIA se encarga de la limitación final profesional.",
   },
   {
-    title: "Exportá en WAV de 24 bits",
+    title: "Exporta en WAV de 24 bits",
     body: "El formato WAV de 24-bit a 44.1 kHz o 48 kHz es el estándar de la industria. Evitá MP3, AAC u otros formatos con pérdida — el algoritmo necesita la información completa para procesar correctamente.",
   },
   {
@@ -73,7 +73,7 @@ export default function MasteringGuide() {
           Cadena de <span className="serif-accent">Master</span>
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-5">
-          Cómo funciona Brikmaster paso a paso — cadena DSP profesional
+          Cómo funciona WaveIA paso a paso — cadena DSP profesional
         </p>
 
         <div className="space-y-3">
@@ -147,7 +147,7 @@ export default function MasteringGuide() {
           <span className="text-lg">🎧</span>
         </div>
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto">
-          <strong className="text-[var(--text-primary)]">Waveman Paul Morales</strong>, el creador de Brikmaster,
+          <strong className="text-[var(--text-primary)]">Brikman Paul</strong>, el creador de WaveIA,
           se ha tomado el trabajo de pulir meticulosamente cada algoritmo y modelo matemático DSP
           para garantizar que cada canción que pase por la plataforma suene{' '}
           <strong className="text-[var(--accent-primary)]">superbién</strong>, competitiva y lista

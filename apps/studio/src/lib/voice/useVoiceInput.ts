@@ -109,7 +109,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): VoiceInput {
         if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
         const text = (data.text ?? "").trim();
         if (text) onFinalRef.current?.(text);
-        else setError("No te entendí. Probá de nuevo hablando un poco más fuerte.");
+        else setError("No te entendí. Prueba de nuevo hablando un poco más fuerte.");
       } catch (err) {
         setError(err instanceof Error ? err.message : "No pude transcribir el audio.");
       } finally {

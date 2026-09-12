@@ -16,7 +16,7 @@ describe("decodeAgentText", () => {
   });
 
   it("leaves ordinary percentages and URLs unchanged", () => {
-    const text = "Subí el ancho 10% y abrí https://example.com/a%20b";
+    const text = "Sube el ancho 10% y abre https://example.com/a%20b";
     expect(decodeAgentText(text)).toBe(text);
   });
 

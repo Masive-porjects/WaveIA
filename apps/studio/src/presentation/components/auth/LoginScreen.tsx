@@ -176,7 +176,7 @@ export default function LoginScreen() {
 
           {!isLogin && (
             <div className="space-y-2">
-              <span className="text-xs text-[var(--text-secondary)]">Elegí tu plan</span>
+              <span className="text-xs text-[var(--text-secondary)]">Elige tu plan</span>
               <div className="grid grid-cols-2 gap-2">
                 {(["basic", "premium"] as UserRole[]).map((r) => (
                   <button

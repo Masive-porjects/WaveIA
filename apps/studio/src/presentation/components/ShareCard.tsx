@@ -127,7 +127,7 @@ async function renderCard(opts: {
     ctx.fillStyle = opts.accent;
     ctx.font = '800 34px system-ui, sans-serif';
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("Brikmaster", PAD, PAD + 24);
+    ctx.fillText("WaveIA", PAD, PAD + 24);
   }
 
   // Track name
@@ -175,7 +175,7 @@ async function renderCard(opts: {
   // Footer
   ctx.font = '500 20px system-ui, sans-serif';
   ctx.fillStyle = TEXT_MUTED;
-  ctx.fillText("masterizado con Brikmaster", PAD, CARD_H - 36);
+  ctx.fillText("masterizado con WaveIA", PAD, CARD_H - 36);
 
   return canvas;
 }
@@ -230,8 +230,8 @@ export default function ShareCard({
       try {
         await navigator.share({
           files: [file],
-          title: "Brikmaster",
-          text: `${trackName} — masterizado con Brikmaster`,
+          title: "WaveIA",
+          text: `${trackName} — masterizado con WaveIA`,
         });
         return;
       } catch (err) {

@@ -36,7 +36,7 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 - **Sesiones del backend en memoria** (dict + `SessionCache`) — se pierden al reiniciar el backend. `ProcessingStatus`: `uploaded → analyzing → processing → completed | error`.
 - **Los knobs del Live Engine NO son `MasteringParameters`** — no reprocesar el track; son nodos Web Audio.
 - **El limiter es 8× oversampling** (si tocás MasteringGuide escribí 8×, no 4×).
-- **Microcopy en español rioplatense** (voseo): "Subí", "Ajustá", "Probá de nuevo".
+- **Microcopy en español latino neutro/colombiano** (sin voseo): "Cargá" NO — "Carga tu audio", "Ajusta", "Prueba de nuevo", "Elige", "Toca".
 - **Socket caído > 2 s → Live Engine vuelve a neutral** (defaults del schema). Heartbeat cada 5 s.
 - **SOLID**: SRP por módulo, Strategy para slots FX, DIP hacia los contratos.
 
