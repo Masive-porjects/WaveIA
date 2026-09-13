@@ -15,6 +15,8 @@ import soundfile as sf
 from pedalboard import (
     Compressor,
     HighpassFilter,
+    HighShelfFilter,
+    LowShelfFilter,
     PeakFilter,
     Pedalboard,
 )
@@ -293,6 +295,46 @@ def build_match_eq(
             )
         )
 
+    return plugins
+
+
+def build_character_eq(eq_bands: list[dict], gain_scale: float = 1.0) -> list:
+    """Build preset character EQ plugins from PRESET_CHAINS band dicts.
+
+    Each band follows the preset chain format:
+    ``{"freq": float, "max_gain_db": float, "q": float,
+       "type": "peak"|"low_shelf"|"high_shelf"}``. The ``type`` maps to
+    the matching pedalboard filter class (verified against pedalboard
+    0.9.25: ``PeakFilter`` / ``LowShelfFilter`` / ``HighShelfFilter`` all
+    exist with ``cutoff_frequency_hz`` / ``gain_db`` / ``q``); any
+    unknown type degrades to ``PeakFilter`` at the declared frequency so
+    a future band type never crashes the chain.
+
+    Gains are scaled by ``gain_scale`` (the engine's ``am_factor``,
+    exactly like the 8 kHz clarity shelf) and clamped to the
+    pedalboard-sanctioned default range (±24 dB gain, q in [0.1, 10]).
+    """
+    plugins: list = []
+    for band in eq_bands:
+        band_type = band.get("type", "peak")
+        freq = float(band.get("freq", 1000.0))
+        gain = float(band.get("max_gain_db", 0.0)) * gain_scale
+        q = float(band.get("q", 1.0))
+        gain = float(np.clip(gain, -24.0, 24.0))
+        q = float(np.clip(q, 0.1, 10.0))
+        if band_type == "low_shelf":
+            plugin_cls = LowShelfFilter
+        elif band_type == "high_shelf":
+            plugin_cls = HighShelfFilter
+        else:  # "peak" (and unknown types → peak fallback)
+            plugin_cls = PeakFilter
+        plugins.append(
+            plugin_cls(
+                cutoff_frequency_hz=freq,
+                gain_db=gain,
+                q=q,
+            )
+        )
     return plugins
 
 
@@ -858,6 +900,19 @@ def process_audio(
         )
     for p in eq_plugins:
         board.append(p)
+
+    # 3b. Preset character EQ — the preset's declared tonal signature
+    #     (params.eq_bands, e.g. fuego's 80 Hz low-shelf punch). NEVER
+    #     gated: unlike the analysis-derived match EQ, these bands ARE the
+    #     preset's identity — the user picked fuego/espacial for exactly
+    #     this character, and the smart gate only skips corrective stages.
+    #     The neutral default ([] = no plugins) is what keeps every
+    #     existing master bit-exact. Gains are scaled by am_factor exactly
+    #     like the 8 kHz clarity shelf, so already-mastered material gets
+    #     the same proportional character, not the full preset boost.
+    if params.eq_bands:
+        for p in build_character_eq(params.eq_bands, gain_scale=am_factor):
+            board.append(p)
 
     # 4. Module EQ: Claridad — Brilliance (8 kHz shelf)
     if (

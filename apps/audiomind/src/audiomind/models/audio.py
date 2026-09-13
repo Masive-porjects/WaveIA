@@ -51,6 +51,20 @@ class MasteringParameters(BaseModel):
         description="High-frequency boost/cut at 8 kHz. Positive = brighter air.",
     )
 
+    # ── Preset character EQ (preset tonal signatures) ─────────────────
+    # Declared in PRESET_CHAINS as the preset's audible identity: shelves
+    # and peaks that render the character (bass punch, air, presence).
+    # Empty list = no additional plugins (bit-exact bypass), so existing
+    # masters are unchanged unless a preset explicitly ships bands.
+    eq_bands: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "Preset character EQ bands applied after match EQ: "
+            "[{freq, max_gain_db, q, type: peak|low_shelf|high_shelf}]. "
+            "Empty list = no additional plugins (bit-exact bypass)."
+        ),
+    )
+
     # ── Módulo Fuego / Empuje — Compresión + Límite + Transientes ────
     compression_ratio: float = Field(
         2.0, ge=1.0, le=10.0,

@@ -143,7 +143,6 @@ PRESET_CHAINS: dict[str, dict] = {
         "display_name": "Épico",
         "style": "Pesado",
         "description": "Saturación intensa y distorsión armónica.",
-        "spatial": "cinematico",
         "highpass_hz": 25,
         "eq_character": "punch",
         "eq_bands": [

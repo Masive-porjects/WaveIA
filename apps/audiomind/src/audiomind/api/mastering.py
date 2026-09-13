@@ -107,8 +107,12 @@ def _build_preset_params(preset_id: str) -> MasteringParameters:
         transient_boost_db=1.0 if entry.get("eq_character") == "punch" else 0.5,
         saturation_drive_db=entry.get("saturation", {}).get("drive_max", 0) if entry.get("saturation") else 0.0,
         saturation_warmth_db=1.0 if entry.get("saturation") else 0.0,
-        stereo_width=1.2 if entry.get("spatial") else 1.0,
+        # Declared stereo_width wins (espacial ships 1.4); the legacy
+        # fallback (1.2 for spatial presets, 1.0 otherwise) keeps claridad
+        # unchanged and gives cinematico (no spatial flag) width 1.0.
+        stereo_width=entry.get("stereo_width", 1.2 if entry.get("spatial") else 1.0),
         haas_delay_ms=5.0 if entry.get("spatial") else 0.0,
+        eq_bands=entry.get("eq_bands", []),
         output_bit_depth=24,
         target_lufs_db=entry.get("target_lufs"),
     )
