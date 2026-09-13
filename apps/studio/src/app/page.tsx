@@ -86,6 +86,21 @@ const TABS: { key: MasteringTab; label: string }[] = [
   { key: "album", label: "Álbum" },
 ];
 
+/* ── Active-preset readiness ─────────────────────────
+   The mastered URL for the ACTIVE preset may only be requested once that
+   preset's master is completed. Guarding with the previous preset's
+   `mastered_path` caused 404 races when switching presets during a slow
+   render: the fetch asked for `activePresetId` audio that was not ready. */
+function isPresetCompleted(
+  session: SessionData,
+  presetId: string | null | undefined,
+): boolean {
+  if (!presetId) {
+    return Boolean(session.mastered_path);
+  }
+  return session.preset_masters?.[presetId]?.status === "completed";
+}
+
 /* ── Genre-to-params mapping ────────────────────────── */
 
 function genreToParams(genre: string | null): MasteringParameters {
@@ -1387,7 +1402,7 @@ export default function Home() {
                   <Player
                     originalUrl={getAudioUrl(session.session_id, "original")}
                     masteredUrl={
-                      session.mastered_path
+                      isPresetCompleted(session, activePresetId)
                         ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
                         : null
                     }
@@ -1575,7 +1590,7 @@ export default function Home() {
                     <Player
                       originalUrl={getAudioUrl(session.session_id, "original")}
                       masteredUrl={
-                        session.mastered_path
+                        isPresetCompleted(session, activePresetId)
                           ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
                           : null
                       }
