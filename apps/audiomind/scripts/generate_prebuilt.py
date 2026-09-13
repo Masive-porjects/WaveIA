@@ -12,21 +12,24 @@ prebuilt master matches a full live run. Outputs smaller than 1 KiB are
 treated as broken artifacts (a mastered WAV is always larger) and deleted,
 never counted as success.
 
-Usage:
-    python scripts/generate_prebuilt.py path/to/track.wav
+Usage (from apps/audiomind):
+    uv run --project . --extra dev python scripts/generate_prebuilt.py path/to/track.wav
         [--presets fuego,claridad] [--force]
-    python scripts/generate_prebuilt.py --all path/to/tracks/
+    uv run --project . --extra dev python scripts/generate_prebuilt.py --all path/to/tracks/
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-# Ensure backend/ is on sys.path so audiomind.config resolves
+# Make audiomind resolvable from a bare interpreter too: the package lives
+# under the src layout (apps/audiomind/src/audiomind), so both the repo dir
+# and its src/ subdir are put on sys.path.
 _HERE = Path(__file__).resolve().parent
 _BACKEND = _HERE.parent
-if str(_BACKEND) not in sys.path:
-    sys.path.insert(0, str(_BACKEND))
+for _entry in (str(_BACKEND), str(_BACKEND / "src")):
+    if _entry not in sys.path:
+        sys.path.insert(0, _entry)
 
 # Windows console may default to cp1252 — force UTF-8 for progress output
 try:
