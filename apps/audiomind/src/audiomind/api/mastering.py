@@ -619,7 +619,9 @@ async def process_session(
             else Path(session.original_path).stem
         )
         prebuilt_file = settings.prebuilt_dir / f"{original_stem}_{preset_id}.wav"
-        if prebuilt_file.exists() and prebuilt_file.stat().st_size > 0:
+        # A mastered WAV is always > 1 KiB; smaller files are broken stubs
+        # and must never be served as a master.
+        if prebuilt_file.exists() and prebuilt_file.stat().st_size > 1024:
             # Copy pre-built master into session output dir
             shutil.copy2(prebuilt_file, output_path)
             session.mastered_path = str(output_path)
@@ -664,7 +666,9 @@ async def process_session(
             and entry.get("output_path")
         ):
             cached_path = Path(entry["output_path"])
-            if cached_path.exists() and cached_path.stat().st_size > 0:
+            # A mastered WAV is always > 1 KiB; smaller files are broken
+            # stubs and must never be served as a master.
+            if cached_path.exists() and cached_path.stat().st_size > 1024:
                 shutil.copy2(cached_path, output_path)
                 session.mastered_path = str(output_path)
                 session.parameters = params

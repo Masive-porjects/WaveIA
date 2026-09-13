@@ -18,12 +18,19 @@ from audiomind.models.audio import ProcessingStatus
 
 client = TestClient(app)
 
+# The endpoint refuses cache files < 1 KiB (broken stubs), so the fake
+# master must be well above that to be served like a real WAV would be.
+FAKE_PREBUILT = b"FAKE-PREBUILT-WAV-CONTENT" * 256
+
 
 @pytest.fixture(autouse=True)
-def _fresh_store(monkeypatch):
+def _fresh_store(monkeypatch, tmp_path):
     sessions.clear()
     # Force development mode so require_license allows all requests
     monkeypatch.setattr(settings, "license_key", "")
+    # Point the prebuilt cache at a throwaway dir so the tests never
+    # leave stub files behind in the real prebuilt/ cache.
+    monkeypatch.setattr(settings, "prebuilt_dir", tmp_path / "prebuilt")
     yield
     sessions.clear()
 
@@ -55,7 +62,7 @@ class TestPrebuiltLookup:
         # Place a pre-built master keyed by the ORIGINAL stem
         prebuilt = settings.prebuilt_dir / f"{Path('mi_tema.wav').stem}_fuego.wav"
         prebuilt.parent.mkdir(parents=True, exist_ok=True)
-        prebuilt.write_bytes(b"FAKE-PREBUILT-WAV-CONTENT")
+        prebuilt.write_bytes(FAKE_PREBUILT)
 
         # DSP must NOT run on a cache hit
         import audiomind.api.mastering as mastering_mod
@@ -77,7 +84,7 @@ class TestPrebuiltLookup:
         assert data["mastered_path"], "mastered_path must be set"
         # The copied file exists and equals the prebuilt bytes
         assert Path(data["mastered_path"]).exists()
-        assert Path(data["mastered_path"]).read_bytes() == b"FAKE-PREBUILT-WAV-CONTENT"
+        assert Path(data["mastered_path"]).read_bytes() == FAKE_PREBUILT
         # No analysis was run either (DSP would have needed it)
         assert data["analysis"] is None or True  # analysis untouched by this path
 
