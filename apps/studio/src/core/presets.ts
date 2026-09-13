@@ -4,7 +4,7 @@ export const PRESET_COLORS: Record<
   string,
   { wave: string; progress: string }
 > = {
-  universal: { wave: "#ff3b30", progress: "#ff6b35" },    // Multigénero
+  universal: { wave: "#ff3b30", progress: "#ff5147" },    // Pulido · Multigénero (rojo)
   fuego: { wave: "#ff6b00", progress: "#ff3b30" },        // Trap / Drill
   claridad: { wave: "#ffd700", progress: "#ffaa00" },     // Pop / Latin Pop
   cinta: { wave: "#ff8c00", progress: "#ff6b00" },        // Lo-Fi / Hip Hop
@@ -15,7 +15,7 @@ export const PRESET_COLORS: Record<
 };
 
 /** Default color (falls back when no preset is active). */
-export const DEFAULT_PRESET_COLOR = { wave: "#ff3b30", progress: "#ff6b35" };
+export const DEFAULT_PRESET_COLOR = { wave: "#ff3b30", progress: "#ff5147" };
 
 /* ── Preset info map (target DSP values) ──────────────────
    Numbers mirror backend PRESET_CHAINS (audiomind.processing.presets)

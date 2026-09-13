@@ -772,13 +772,13 @@ export default function Player({
             className="absolute inset-0 opacity-0 pointer-events-none"
           />
 
-          {/* Original waveform */}
+          {/* Original waveform — always neutral gray, never tinted by the
+              accent or the active preset. Color belongs to the mastered
+              side of the A/B. */}
           <div
             ref={overlayOrigRef}
             className="absolute inset-0"
-            style={{
-              filter: isPlaying && source === "original" ? "drop-shadow(0 0 12px var(--accent-primary)) saturate(1.15)" : "none",
-            }}
+            style={{ filter: "none" }}
           />
 
           {/* Mastered waveform */}
@@ -801,15 +801,22 @@ export default function Player({
             }}
           />
 
-          {/* Animated playhead with glow */}
+          {/* Animated playhead with glow — gray over the unprocessed
+              sides (Original / Referencia); accent only on the master. */}
           {duration > 0 && (
             <div
               className="absolute top-0 bottom-0 w-0.5 z-[40] pointer-events-none"
               style={{
                 left: `${(currentTime / duration) * 100}%`,
                 transform: "translateX(-50%)",
-                background: "var(--accent-primary)",
-                boxShadow: "0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary)",
+                background:
+                  source === "mastered"
+                    ? "var(--accent-primary)"
+                    : "#9aa3ad",
+                boxShadow:
+                  source === "mastered"
+                    ? "0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary)"
+                    : "0 0 8px rgba(154,163,173,0.5)",
                 transition: "left 60ms linear",
               }}
             />
