@@ -835,11 +835,12 @@ export default function Home() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        // With an active preset the file is that preset's master — name it so
-        // the download doesn't collide with the unparametrized one.
-        a.download = activePresetId
-          ? `brikmaster_${session.session_id}_${activePresetId}.${format}`
-          : `brikmaster_${session.session_id}.${format}`;
+        // Name it after the original upload so the export stays recognizable:
+        // "beatRap.wav" → "BeatRapMasterizado.wav" (first letter capitalized).
+        const stem = session.original_filename
+          ? session.original_filename.replace(/\.[^.]+$/, "")
+          : "brikmaster";
+        a.download = `${stem.charAt(0).toUpperCase()}${stem.slice(1)}Masterizado.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

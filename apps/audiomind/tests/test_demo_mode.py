@@ -234,6 +234,48 @@ class TestDemoDownload:
         assert resp.status_code == 200
         assert resp.content == fuego_path.read_bytes()
 
+    def test_download_filename_uses_original_title(self, monkeypatch):
+        """Content-Disposition names the master after the original upload:
+        'beatRap.wav' → 'BeatRapMasterizado.wav' (first letter capitalized)."""
+        import audiomind.api.mastering as mastering_mod
+
+        monkeypatch.setattr(mastering_mod, "process_audio", _make_process_stub())
+        monkeypatch.setattr(mastering_mod, "analyze_audio", lambda _p: _DUMMY_ANALYSIS)
+
+        sid = _make_session()
+        sessions[sid].original_filename = "beatRap.wav"
+        client.post(f"/api/session/{sid}/process?preset_id=universal", json={})
+
+        resp = client.get(f"/api/session/{sid}/download/wav?preset_id=universal")
+        assert resp.status_code == 200
+        assert resp.headers["content-disposition"] == (
+            'attachment; filename="BeatRapMasterizado.wav"'
+        )
+
+        resp_mp3 = client.get(f"/api/session/{sid}/download/mp3?preset_id=universal")
+        if resp_mp3.status_code == 200:
+            # MP3 conversion needs ffmpeg on PATH — environmental; name logic
+            # is the same, so assert the header only when conversion ran.
+            assert resp_mp3.headers["content-disposition"] == (
+                'attachment; filename="BeatRapMasterizado.mp3"'
+            )
+
+    def test_download_filename_falls_back_without_original(self, monkeypatch):
+        """Sessions without an original filename keep the legacy name."""
+        import audiomind.api.mastering as mastering_mod
+
+        monkeypatch.setattr(mastering_mod, "process_audio", _make_process_stub())
+        monkeypatch.setattr(mastering_mod, "analyze_audio", lambda _p: _DUMMY_ANALYSIS)
+
+        sid = _make_session()
+        client.post(f"/api/session/{sid}/process?preset_id=fuego", json={})
+
+        resp = client.get(f"/api/session/{sid}/download/wav?preset_id=fuego")
+        assert resp.status_code == 200
+        assert resp.headers["content-disposition"] == (
+            'attachment; filename="BrikmasterFinal.wav"'
+        )
+
 
 # ── Normal mode prerender ────────────────────────────────────────────
 

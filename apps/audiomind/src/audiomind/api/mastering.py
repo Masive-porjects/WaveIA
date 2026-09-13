@@ -1353,6 +1353,13 @@ async def download_audio(
     if format not in ("wav", "mp3"):
         raise HTTPException(status_code=400, detail="Format must be 'wav' or 'mp3'")
 
+    # Name the download after the original upload: "beatRap.wav" → "BeatRapMasterizado.wav"
+    if session.original_filename:
+        stem = Path(session.original_filename).stem
+        display_name = f"{stem[:1].upper()}{stem[1:]}Masterizado"
+    else:
+        display_name = "BrikmasterFinal"
+
     if format == "mp3":
         import subprocess
         import shutil
@@ -1383,13 +1390,13 @@ async def download_audio(
         return FileResponse(
             str(mp3_path),
             media_type="audio/mpeg",
-            filename="BrikmasterFinal.mp3",
+            filename=f"{display_name}.mp3",
         )
 
     return FileResponse(
         source,
         media_type="audio/wav",
-        filename="BrikmasterFinal.wav",
+        filename=f"{display_name}.wav",
     )
 
 

@@ -60,6 +60,7 @@ export interface SessionData {
   status: "uploaded" | "analyzing" | "processing" | "completed" | "error";
   progress: number;
   original_path: string | null;
+  original_filename: string | null;
   mastered_path: string | null;
   analysis: AnalysisResult | null;
   parameters: MasteringParameters;
