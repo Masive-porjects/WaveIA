@@ -998,6 +998,35 @@ async def render_reference(
     )
 
 
+@router.post("/session/{session_id}/reset")
+async def reset_session_master(session_id: str) -> SessionData:
+    """Revert the mastered state, leaving only the uploaded original.
+
+    Clears every master pointer and per-preset output and returns the
+    session to the pre-master state (``uploaded``). The rendered WAV files
+    stay on disk, untracked by the session — a later preset selection
+    re-masters normally. The uploaded original and its analysis are
+    untouched.
+    """
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.mastered_path = None
+    session.master_result = None
+    session.mastering_report = None
+    session.validation = None
+    session.reference_path = None
+    session.reference_filename = None
+    session.reference_comparison = None
+    session.preset_masters = {}
+    session.status = ProcessingStatus.UPLOADED
+    session.progress = 0.0
+    session.error = None
+    save_sessions(sessions)
+    return session
+
+
 @router.get("/session/{session_id}/audio/reference/{preset_id}")
 async def get_reference_audio(session_id: str, preset_id: str):
     """Serve the rendered Crudo reference WAV for playback."""

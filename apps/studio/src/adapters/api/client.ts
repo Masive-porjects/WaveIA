@@ -238,6 +238,19 @@ export async function processAudio(
   return res.json();
 }
 
+export async function resetSession(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<SessionData> {
+  const res = await fetch(`${API_BASE}/session/${sessionId}/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...licenseHeaders() },
+    signal,
+  });
+  if (!res.ok) throw new Error("Reset failed");
+  return res.json();
+}
+
 export function getAudioUrl(
   sessionId: string,
   type: "original" | "mastered",

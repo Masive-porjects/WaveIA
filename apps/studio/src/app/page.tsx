@@ -46,6 +46,7 @@ import StereoField from "@/components/StereoField";
 import {
   uploadAudio,
   processAudio,
+  resetSession,
   getAudioUrl,
   getSession,
   downloadMastered,
@@ -774,10 +775,25 @@ export default function Home() {
     [session, completeProgress, params],
   );
 
-  /* ── Reset modules to defaults ──────────────────── */
-  const handleReset = useCallback(() => {
+  /* ── Reset: revert the current master, leaving only the original ── */
+  const handleReset = useCallback(async () => {
+    if (!session) return;
+    setProcessing(true);
+    setError(null);
+    try {
+      const s = await resetSession(session.session_id);
+      setSession(s);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Reset failed";
+      setError(msg);
+    } finally {
+      setProcessing(false);
+    }
+    // Volvemos parámetros y preset al estado inicial; el backend ya limpió
+    // los masters, así el Player queda mostrando solo el original.
     setParams(DEFAULT_PARAMS);
-  }, []);
+    setActivePresetId(null);
+  }, [session]);
 
   /* ── Stem split ────────────────────────────────── */
   const handleStemSplit = useCallback(async () => {
