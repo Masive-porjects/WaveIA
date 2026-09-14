@@ -21,7 +21,7 @@ Hackaton-midiMastering/05_live_engine_gestos_a_master.md
 Hackaton-midiMastering/07_estrategia_equipo_5devs.md
 ```
 
-Todos los valores numéricos de este prompt (presets, rangos, tokens, endpoints) provienen de esos documentos. **No inventes valores DSP ni de diseño: extraelos de los fuentes.** Si un detalle no está en los fuentes ni en este prompt, usa un valor razonable y documéntalo en un TODO.
+Todos los valores numéricos de este prompt (presets, rangos, tokens, endpoints) provienen de esos documentos. **No inventes valores DSP ni de diseño: extráelos de los fuentes.** Si un detalle no está en los fuentes ni en este prompt, usa un valor razonable y documéntalo en un TODO.
 
 ---
 
@@ -332,7 +332,7 @@ pytest tests/ -q
 - Rail lateral: Home · Library · Estudio (abre Macro-Carácter) · **★ Live (nueva)** · Guides · ThemeToggle.
 - `page.tsx`: orquestación. Estados: subir audio → análisis (polling 500 ms, timeout 90 s) → procesar (timeout 600 s, AbortController) → player A/B + download.
 - Componentes: DropZone, ModulePanel (8 cards macro + Ajuste Fino con 9 knobs: Reverb wet 0–1 .05, Brillo ±6 .5, Ratio 1–10 .5, Ceiling −3…0 .1, Punch 0–6 .5, Drive 0–10 .5, Warmth ±6 .5, Width .5–2 .1, Haas 0–40 ms 1), PlatformSelector (Automático/Spotify −14/Apple −16...), Player (2 WaveSurfer apilados), AnalysisPanel (meters LUFS/TruePeak/Crest + métricas), ProcessingOverlay (anillo SVG progreso), LicenseGuard (sessionStorage `waveai_license_key`, header `X-License-Key`).
-- Microcopy en español rioplatense (voseo): "Subí", "Ajustá", "Probá de nuevo".
+- Microcopy en español latino neutro/colombiano (sin voseo): "Sube tu audio", "Ajusta", "Prueba de nuevo".
 - Motion: GSAP + Framer Motion; helpers `fadeUp` y `VIEW_TRANSITION` en `lib/motion.ts`; todo con guard `prefers-reduced-motion`; ambient (FloatingGhosts 8, FloatingNotes 16, BigGhostWithNotes) seeded/determinista, `aria-hidden`.
 
 ### 8.2 Tokens de diseño (`globals.css`) — valores exactos (dark default)
@@ -388,7 +388,7 @@ Reglas NO negociables:
 ### 8.4 Pestaña Live (`components/live/`)
 - `LiveView.tsx`: 3 columnas — cámara (`CameraOverlay`, getUserMedia) | cadena FX (`FxSlotPanel` con 4 slots, cada uno con Knob3D + `GestureBadge` "pulgar derecho → Filtro") | meters + estado (`LiveMeters`, badge de conexión, botón grabar).
 - Knobs también operables con mouse/teclado (accesibilidad; funciona sin gestos).
-- Empty states: sin master → "Subí un audio para masterizar" (CTA → Estudio); bridge caído → banner con "Seguí con el mouse".
+- Empty states: sin master → "Sube un audio para masterizar" (CTA → Estudio); bridge caído → banner con "Sigue con el mouse".
 
 ### 8.5 Verificación studio
 ```bash

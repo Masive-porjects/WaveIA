@@ -589,7 +589,7 @@ class MasteringReport(BaseModel):
         lra: Approximate Loudness Range (EBU 3342-style) in LU.
         crest_factor_db: Measured crest factor of the delivered file.
         target_lufs: The ACTUAL loudness target used (None = none applied).
-        warnings: Input QC / delivery warnings, in Spanish (Rioplatense).
+        warnings: Input QC / delivery warnings, in Spanish (neutral Latin American).
     """
 
     input_sr: int | None = None

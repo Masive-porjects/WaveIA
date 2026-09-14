@@ -1,6 +1,6 @@
 # AGENTS.md — Guía para agentes de código
 
-Este repo es **IA-first**: está diseñado para que agentes (Claude Code, Codex, OpenCode, Hermes, etc.) trabajen sin romper nada. Leé esto completo antes de escribir código.
+Este repo es **IA-first**: está diseñado para que agentes (Claude Code, Codex, OpenCode, Hermes, etc.) trabajen sin romper nada. Lee esto completo antes de escribir código.
 
 ## Qué es esto
 
@@ -11,8 +11,8 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 ## LEER PRIMERO (obligatorio antes de escribir código)
 
 0. `docs/README.md` — índice central de documentación (mapa de qué leer y dónde).
-1. `docs/runbooks/SETUP.md` — runbook de entorno verificado (venv, bun, Convex, stack local, pitfalls reales). Seguilo literal si el entorno no está levantado.
-2. `docs/reference/specs/08_implementacion_llm.md` — prompt de implementación con TODOS los valores exactos (presets, rangos, tokens, endpoints, fases, criterios de éxito, pitfalls). **No inventes valores DSP ni de diseño: extraelos de los fuentes.**
+1. `docs/runbooks/SETUP.md` — runbook de entorno verificado (venv, bun, Convex, stack local, pitfalls reales). Síguelo literal si el entorno no está levantado.
+2. `docs/reference/specs/08_implementacion_llm.md` — prompt de implementación con TODOS los valores exactos (presets, rangos, tokens, endpoints, fases, criterios de éxito, pitfalls). **No inventes valores DSP ni de diseño: extráelos de los fuentes.**
 3. `docs/archive/INTEGRATION_REPORT.md` — estado del bloque de integración.
 4. Según el área: `docs/reference/specs/03_*.md` (backend mastering), `04_*.md` (sistema de diseño), `05_*.md` (live engine).
 
@@ -29,19 +29,19 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 
 ## Reglas NO negociables (de la spec 08 §11–12)
 
-- **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo. Si cambia, regenerá tipos con `packages/contracts/scripts/gen_types.sh` (TS → `studio/src/lib/live/liveParams.gen.ts`, Python → bridge). Nunca edites los tipos generados a mano.
-- **Neutral = bypass**: en el backend, parámetro neutral = audio idéntico (bypass bit-exacto); en el Live Engine, defaults del schema = master idéntico al original. Preservalo en TODAS las rutas.
+- **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo. Si cambia, regenera tipos con `packages/contracts/scripts/gen_types.sh` (TS → `studio/src/lib/live/liveParams.gen.ts`, Python → bridge). Nunca edites los tipos generados a mano.
+- **Neutral = bypass**: en el backend, parámetro neutral = audio idéntico (bypass bit-exacto); en el Live Engine, defaults del schema = master idéntico al original. Presérvalo en TODAS las rutas.
 - **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado. Mensajes completos (no deltas), el último estado gana; el navegador ignora mensajes con `ts` menor al último aplicado.
 - **Todo cambio de parámetro Web Audio con `setTargetAtTime(value, ctx.currentTime, 0.02)` — NUNCA asignación directa** (anti-zipper).
 - **Escalado logarítmico del filtro**: `filter_cutoff = 200 * (12000/200)^(v/127)` (200 Hz–12 kHz ≈ 6 octavas; lineal produce saltos).
 - **Sesiones del backend en memoria** (dict + `SessionCache`) — se pierden al reiniciar el backend. `ProcessingStatus`: `uploaded → analyzing → processing → completed | error`.
 - **Los knobs del Live Engine NO son `MasteringParameters`** — no reprocesar el track; son nodos Web Audio.
-- **El limiter es 8× oversampling** (si tocás MasteringGuide escribí 8×, no 4×).
+- **El limiter es 8× oversampling** (si tocas MasteringGuide escribe 8×, no 4×).
 - **Microcopy en español latino neutro/colombiano** (sin voseo): "Cargá" NO — "Carga tu audio", "Ajusta", "Prueba de nuevo", "Elige", "Toca".
 - **Socket caído > 2 s → Live Engine vuelve a neutral** (defaults del schema). Heartbeat cada 5 s.
 - **SOLID**: SRP por módulo, Strategy para slots FX, DIP hacia los contratos.
 
-## Comandos de verificación (corré esto antes de declarar algo terminado)
+## Comandos de verificación (corre esto antes de declarar algo terminado)
 
 ```bash
 # Backend

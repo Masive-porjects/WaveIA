@@ -9,7 +9,7 @@
 interface ComingSoonNoticeProps {
   /** Título del módulo que llega pronto (ej: "Live Engine"). */
   title: string;
-  /** Mensaje corto en microcopy rioplatense. */
+  /** Mensaje corto en microcopy en español neutro latinoamericano. */
   message: string;
 }
 

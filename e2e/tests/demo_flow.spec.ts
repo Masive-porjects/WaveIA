@@ -54,7 +54,7 @@ test.describe('Demo flow: presets reales on-demand', () => {
     }
   });
 
-  test('Subí el track → preset fuego → master con preset_id → descargá WAV → cinta', async ({ page }) => {
+  test('Sube el track → preset fuego → master con preset_id → descarga WAV → cinta', async ({ page }) => {
     test.setTimeout(400_000);
     const apiRequests = trackApiRequests(page);
 
@@ -62,7 +62,7 @@ test.describe('Demo flow: presets reales on-demand', () => {
     await page.goto('/');
 
     // Resiliencia: si el guard de licencia no llegó al backend al
-    // montar (blip transitorio del server), recargás y el check
+    // montar (blip transitorio del server), recargas y el check
     // corre de nuevo; el resto del flujo sigue igual.
     const licenseError = page.getByText('No se pudo conectar con el servidor de licencias');
     await licenseError.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
@@ -71,7 +71,7 @@ test.describe('Demo flow: presets reales on-demand', () => {
       await licenseError.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
     }
 
-    await expect(page.getByText('Subí tu track para masterizar')).toBeVisible({
+    await expect(page.getByText('Carga tu track para masterizar')).toBeVisible({
       timeout: 20_000,
     });
 

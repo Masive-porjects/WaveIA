@@ -92,7 +92,7 @@ export default function MicButton({
               : transcribing
                 ? "Entendiendo lo que dijiste…"
                 : listening
-                  ? "Te escucho… tocá para enviar"
+                  ? "Te escucho… toca para enviar"
                   : "Toca para hablar"}
           </span>
         </span>

@@ -52,7 +52,7 @@ export interface MasteringReport {
   lra: number | null;
   crest_factor_db: number | null;
   target_lufs: number | null; // target REAL usado (null = no se aplicó loudness)
-  warnings: string[]; // en español rioplatense
+  warnings: string[]; // en español neutro latinoamericano
 }
 
 export interface SessionData {

@@ -17,7 +17,7 @@ const PIPELINE_STEPS = [
     step: "03",
     title: "Compresión Proporcional",
     description:
-      "El umbral de compresión se calcula dinámicamente a partir del RMS real de tu audio. La relación la controlás vos con el módulo 'Fuego / Empuje'. Más ratio = más control de picos; menos ratio = más dinámica natural.",
+      "El umbral de compresión se calcula dinámicamente a partir del RMS real de tu audio. La relación la controlas tú con el módulo 'Fuego / Empuje'. Más ratio = más control de picos; menos ratio = más dinámica natural.",
   },
   {
     step: "04",

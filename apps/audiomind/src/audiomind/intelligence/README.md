@@ -243,7 +243,7 @@ Knowledge Core soporta desde 1 preset hasta 10,000 documentos. La misma estructu
 
 ### 5. Preparado para IA, no dependiente de IA
 
-Knowledge Core es completamente funcional sin Machine Learning. Los agentes humanos (vos) pueden leer, escribir y mantener el conocimiento hoy. Cuando lleguen los modelos, los agentes IA leerán exactamente los mismos archivos.
+Knowledge Core es completamente funcional sin Machine Learning. Los agentes humanos (tú) pueden leer, escribir y mantener el conocimiento hoy. Cuando lleguen los modelos, los agentes IA leerán exactamente los mismos archivos.
 
 ---
 

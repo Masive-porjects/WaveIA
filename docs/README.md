@@ -1,6 +1,6 @@
 # Índice central de documentación — Brikmaster (WaveAI)
 
-Este archivo es la **fuente de la verdad** sobre la documentación del repo: qué documento existe, dónde está, para qué sirve y cuándo leerlo. Si buscás información del proyecto, empezá acá.
+Este archivo es la **fuente de la verdad** sobre la documentación del repo: qué documento existe, dónde está, para qué sirve y cuándo leerlo. Si buscas información del proyecto, empieza acá.
 
 **Brikmaster** (antes WaveAI) es un estudio de mastering asistido por IA + un **Live Engine** Web Audio controlado en tiempo real.
 
@@ -88,7 +88,7 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 | ¿Cómo se ve y se comporta la UI? | `docs/reference/DESIGN.md` + `docs/reference/specs/04_waveai_sistema_diseno.md` |
 | ¿Cómo funciona el Live Engine? | `docs/reference/specs/05_live_engine_gestos_a_master.md` |
 | ¿Qué reglas son no negociables al escribir código? | `AGENTS.md` (raíz) |
-| ¿Cambio el protocolo Live? | `packages/contracts/live_params.schema.json` (fuente de verdad); regenerá tipos con `packages/contracts/scripts/gen_types.sh` |
+| ¿Cambio el protocolo Live? | `packages/contracts/live_params.schema.json` (fuente de verdad); regenera tipos con `packages/contracts/scripts/gen_types.sh` |
 | ¿Qué ve el usuario final? | `docs/manual/USER_MANUAL.md` + `docs/manual/UX_MAP.md` |
 | ¿Métricas y validaciones de la demo? | `docs/evidence/` |
 | ¿Qué pasó con HumanMidi? | `docs/archive/HUMANMIDI_REMOVAL_REPORT.md` |

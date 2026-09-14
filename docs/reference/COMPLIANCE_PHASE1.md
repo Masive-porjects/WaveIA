@@ -118,7 +118,7 @@ Every engine result maps onto a `mastering_report` JSON object
 Fields: `input_sr`, `output_sr`, `output_bit_depth`, `lufs_i`
 (integrated loudness of the delivered file), `true_peak_dbtp`,
 `lra`, `crest_factor_db`, `target_lufs` (the ACTUAL target used;
-`null` = none applied), `warnings` (Spanish, Rioplatense).
+`null` = none applied), `warnings` (Spanish, neutral Latin American).
 
 ## Examples
 

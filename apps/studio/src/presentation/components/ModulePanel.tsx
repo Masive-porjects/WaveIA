@@ -49,7 +49,7 @@ export const PRESETS: MacroPreset[] = [
     title: "Pulido",
     genre: "Multigénero",
     description: "Balance profesional para cualquier género",
-    tooltip: "Cadena equilibrada: ecualización transparente, compresión suave (1.5:1) y limitación a -14 LUFS. Ideal cuando no sabés qué preset elegir — preserva la intención de la mezcla original.",
+    tooltip: "Cadena equilibrada: ecualización transparente, compresión suave (1.5:1) y limitación a -14 LUFS. Ideal cuando no sabes qué preset elegir — preserva la intención de la mezcla original.",
     icon: Sparkles,
     params: { ...DEFAULT_PARAMS, target_lufs_db: -14 },
   },

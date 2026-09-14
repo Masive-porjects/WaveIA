@@ -13,7 +13,7 @@ import { speak } from "@/lib/voice/speak";
 import { VIEW_TRANSITION } from "@/shared/motion";
 
 /**
- * Flujo de intención: subir el track y después contarle al agente cómo querés
+ * Flujo de intención: subir el track y después contarle al agente cómo quieres
  * que suene.
  *
  * Son dos pasos y no uno solo a propósito: el agente calibra las magnitudes con
@@ -25,7 +25,7 @@ type Step = "upload" | "chat";
 
 function bienvenida(fileName: string): string {
   const name = fileName.replace(/\.[^.]+$/, "");
-  return `Escuché "${name}". Contame cómo querés que suene: ¿más cálida, con más pegada, la voz al frente? Decilo con tus palabras, yo lo traduzco.`;
+  return `Escuché "${name}". Cuéntame cómo quieres que suene: ¿más cálida, con más pegada, la voz al frente? Dilo con tus palabras, yo lo traduzco.`;
 }
 
 export default function VozPage() {

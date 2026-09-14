@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   // El modelo es opcional: si no se define, ElevenLabs usa su default. Asi la
   // voz funciona sin necesitar el permiso models_read para descubrir el id.
   if (!enabled || !apiKey || !voiceId) {
-    // 204 = "sintetizalo vos con speechSynthesis". No es un error.
+    // 204 = "sintetízalo tú con speechSynthesis". No es un error.
     return new Response(null, { status: 204 });
   }
 

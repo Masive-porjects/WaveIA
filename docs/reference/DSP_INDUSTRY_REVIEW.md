@@ -104,7 +104,7 @@ removed from `test_engine_smoke.py`; `adaptive_comp.py` docstring updated.
 - Model (TC Electronic / Nugen-style "relative loudness"): perceptual uniformity in sequence — a track with MORE dynamic range has lower energy density, so it needs a slightly HIGHER integrated-LUFS target to feel equally loud next to denser tracks; a dense track gets a LOWER target.
 - Endpoints (`api/batch.py`): `POST /api/album/negotiate` (measurement-only) and `POST /api/album/process` (masters in order, overriding ONLY `target_lufs_db` per track through the existing `process_audio`; replaces session state like the single-track endpoint; `save_sessions` once after all tracks).
 - Failure semantics: guards fail fast (empty → 400, unknown session → 404, missing file → 400); per-track failures never abort the album — the track is marked (null metrics, `within_tolerance=False`, original exception type in `warnings`) and the rest continues.
-- Report: per-track `lufs_deviation_db = output − target`, `within_tolerance` when |deviation| ≤ 1.5 dB (same tolerance as `validation.py`); warnings in Spanish (Rioplatense) for out-of-tolerance tracks, consistent with the engine surfaces.
+- Report: per-track `lufs_deviation_db = output − target`, `within_tolerance` when |deviation| ≤ 1.5 dB (same tolerance as `validation.py`); warnings in Spanish (neutral Latin American) for out-of-tolerance tracks, consistent with the engine surfaces.
 
 ---
 

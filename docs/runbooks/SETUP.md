@@ -47,11 +47,11 @@ grep -hv '^#' apps/bridge/requirements.txt simulator/requirements.txt \
 
 ```bash
 cd apps/studio
-npx convex login        # flujo device: te da URL + código (5 min); autorizá en el navegador
-npx convex dev          # elegí "choose an existing project" (o crealo) → pushea schema, genera:
+npx convex login        # flujo device: te da URL + código (5 min); autoriza en el navegador
+npx convex dev          # elige "choose an existing project" (o créalo) → pushea schema, genera:
                         #   convex/_generated/   (NO se commitea — ver .gitignore)
                         #   .env.local           (NEXT_PUBLIC_CONVEX_URL — NO se commitea)
-                        # queda corriendo como watcher (dejalo en una terminal aparte)
+                        # queda corriendo como watcher (déjalo en una terminal aparte)
 ```
 
 **Esperado:** `✔ Convex functions ready!` y `convex/_generated/api.d.ts` + `server.d.ts` existentes.
@@ -95,7 +95,7 @@ python -m simulator.main --mode server --scenario sweep # desde la raíz
 
 ---
 
-## 6. Verificación (corré esto antes de declarar algo terminado)
+## 6. Verificación (corre esto antes de declarar algo terminado)
 
 ```bash
 # Studio

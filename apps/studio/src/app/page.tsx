@@ -460,7 +460,7 @@ export default function Home() {
       setErrorModal({
         title: "El servidor se reinició",
         message:
-          "La sesión se perdió mientras se procesaba. Recargá la página: si la sesión no se recupera sola, subí el audio de nuevo.",
+          "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
       });
     },
   );
@@ -501,7 +501,7 @@ export default function Home() {
           setErrorModal({
             title: "Tu sesión anterior expiró",
             message:
-              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recargá de nuevo; si no, subí el audio otra vez — es lo único que falta.",
+              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recarga de nuevo; si no, sube el audio otra vez — es lo único que falta.",
           });
         }
       });
@@ -604,7 +604,7 @@ export default function Home() {
               setErrorModal({
                 title: "El servidor se reinició",
                 message:
-                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recargá y debería recuperarse; si no, subí el audio de nuevo.",
+                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recarga y debería recuperarse; si no, sube el audio de nuevo.",
               });
               break;
             case 422:
@@ -941,7 +941,7 @@ export default function Home() {
                   Macro-<span className="serif-accent">Carácter</span>
                 </h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Seleccioná un perfil o ajustá fino abajo
+                  Selecciona un perfil o ajusta fino abajo
                 </p>
               </div>
               <button
@@ -1306,7 +1306,7 @@ export default function Home() {
                       <h1 className="text-2xl md:text-4xl font-bold mb-1 text-knockout"
                         style={{ letterSpacing: "-0.04em" }}
                       >
-                        Masterizá Tu <span className="serif-accent">Música</span>
+                        Masteriza Tu <span className="serif-accent">Música</span>
                       </h1>
 
                       <p className="text-[var(--text-muted)] text-sm">
@@ -1821,7 +1821,7 @@ export default function Home() {
                   ) : (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                       <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitás masterizar un track para ver el campo estéreo.
+                        Primero necesitas masterizar un track para ver el campo estéreo.
                       </p>
                     </div>
                   )}

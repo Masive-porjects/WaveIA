@@ -6,7 +6,7 @@
 
 El studio se lee como un **panel de instrumento hardware oscuro**: superficies casi negras en capas, un único acento teal desaturado (`#627e84`), paneles de vidrio, knobs físicos, y una capa de mascotas contenida (fantasmas + notas musicales) que mantiene la herramienta viva sin sobrecarga decorativa. Referencias citadas en los docs del proyecto: tonalidad Ableton/BandLab.
 
-Tipografía: **Inter** (UI) + **Instrument Serif italic** para acentos de una sola palabra ("Masterizá Tu *Música*", "Macro-*Carácter*") — el acento serif estilo Mindloop.
+Tipografía: **Inter** (UI) + **Instrument Serif italic** para acentos de una sola palabra ("Masteriza Tu *Música*", "Macro-*Carácter*") — el acento serif estilo Mindloop.
 
 **Light theme** soportado vía overrides `html[data-theme="light"]`; script inline `beforeInteractive` en `layout.tsx` restaura el tema persistido (`localStorage` `waveai-theme`) antes de la hidratación (sin flash).
 
@@ -117,5 +117,5 @@ Reglas de interacción:
 - Mobile: hamburguesa toggle icono Menu/X rotado; acciones search/user se ocultan progresivamente (`hidden sm:flex`).
 - Hydration safety: `useIsClient` vía `useSyncExternalStore`; capas ambientales seeded; tema restaurado pre-hydration.
 - Superficie de error: banner tintado rojo (`rgba(220,38,38,…)`) sobre el contenido de módulos; mensajes de timeout con acciones de recuperación explícitas ("Procesar con estos parámetros" retry).
-- Empty states: cada tab de módulo renderiza "Subí un audio…" sin sesión.
-- **Micro-copy: UI en español rioplatense (voseo)** — "Subí", "Ajustá", "Probá de nuevo"; identificadores y comentarios en inglés.
+- Empty states: cada tab de módulo renderiza "Sube un audio…" sin sesión.
+- **Micro-copy: UI en español latino neutro/colombiano (sin voseo)** — "Sube tu audio", "Ajusta", "Prueba de nuevo"; identificadores y comentarios en inglés.

@@ -100,7 +100,7 @@ La lista detallada vive en `docs/reference/specs/04_waveai_sistema_diseno.md`. L
 
 ## Microcopy
 
-- **Español rioplatense (voseo)**: "Subí", "Ajustá", "Probá de nuevo".
+- **Español latino neutro/colombiano (sin voseo)**: "Sube tu audio", "Ajusta", "Prueba de nuevo".
 - Identificadores y comentarios de código en inglés.
 
 ## Fuentes de verdad

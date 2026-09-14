@@ -119,7 +119,7 @@ Left rail                    Canvas (Live mode)                  Right panel
 - Los **mismos `Knob3D`** del Ajuste Fino se reutilizan: al moverlos con el mouse se ve que el gesto los empuja igualmente (o viceversa).
 - El **overlay de cámara** de HumanMidi (landmarks, bbox, FPS) se incrusta en el canvas como fuente de video — la interface es una sola pantalla.
 - Los **meters** del AnalysisPanel (LUFS, True Peak) se reutilizan para la salida en vivo (AnalyserNode → mismos números).
-- Micro-copy rioplatense: "Subí el pulgar pa' abrir el filtro".
+- Micro-copy en español latino neutro/colombiano (sin voseo): "Sube el pulgar para abrir el filtro".
 
 ## 8. Contrato de datos (LiveParams)
 

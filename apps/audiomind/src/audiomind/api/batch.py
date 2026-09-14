@@ -22,7 +22,7 @@ Failure semantics (documented contract):
   original exception type is preserved in the warning (``IOError``,
   ``InputQcError``, …) so callers can react without losing the reason.
 - All statements in English; report-facing warning strings follow the
-  existing Spanish (Rioplatense) convention of the engine/mastering
+  existing Spanish (neutral Latin American) convention of the engine/mastering
   surfaces.
 
 Lightweight imports only: heavy DSP (librosa, the loudness meter, the
@@ -302,7 +302,7 @@ async def process_album(
                 f"El master quedó {abs(deviation):.1f} LUFS {direction} "
                 f"que el objetivo del álbum ({target:g} LUFS)"
             )
-        # Carry the engine's own delivery warnings (Spanish, Rioplatense).
+        # Carry the engine's own delivery warnings (Spanish, neutral Latin American).
         warnings.extend(result.get("warnings", []) or [])
 
         tracks.append(

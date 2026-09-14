@@ -16,7 +16,7 @@
 
 Brikmaster (antes WaveAI) es una sola interfaz de mastering IA:
 
-1. **Studio de mastering IA** — subís un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
+1. **Studio de mastering IA** — subes un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
 2. **Live Engine** — el master se carga en un motor Web Audio en el navegador con FX en tiempo real.
 
 **La unión:** Brikmaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce MIDI (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
@@ -56,7 +56,7 @@ Documentada en detalle en [`docs/reference/COMPLIANCE_PHASE1.md`](docs/reference
 
 ## Cómo correr localmente
 
-Seguí literal `docs/runbooks/SETUP.md` si el entorno no está levantado (venv, bun, stack local, pitfalls reales).
+Sigue literal `docs/runbooks/SETUP.md` si el entorno no está levantado (venv, bun, stack local, pitfalls reales).
 
 ```bash
 # Backend (DSP de mastering)
@@ -93,11 +93,11 @@ npm run e2e                                               # desde apps/studio
 
 ## Reglas no negociables
 
-- **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo — regenerá tipos con `packages/contracts/scripts/gen_types.sh`, nunca edites los generados a mano.
+- **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo — regenera tipos con `packages/contracts/scripts/gen_types.sh`, nunca edites los generados a mano.
 - **Neutral = bypass**: parámetro neutral = audio idéntico (bit-exacto en backend, defaults del schema en Live Engine).
 - **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado; mensajes completos, el último estado gana.
 - **`setTargetAtTime` siempre** (nunca asignación directa en Web Audio — anti-zipper).
-- **Microcopy en español rioplatense** (voseo): "Subí", "Ajustá", "Probá de nuevo".
+- **Microcopy en español latino neutro/colombiano** (sin voseo): "Sube tu audio", "Ajusta", "Prueba de nuevo".
 - **Commits semánticos** (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), sin atribución AI.
 
 ## Advertencias operativas (importantes)

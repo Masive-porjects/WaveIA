@@ -93,7 +93,7 @@ class InputQcError(Exception):
 
 
 def _strict_reject_message(hard_clip_count: int, input_true_peak: float) -> str:
-    """Spanish (Rioplatense) rejection detail surfaced by the API as a 422."""
+    """Spanish (neutral Latin American) rejection detail surfaced by the API as a 422."""
     issues: list[str] = []
     if hard_clip_count > 0:
         issues.append(f"clipping duro ({hard_clip_count} samples)")

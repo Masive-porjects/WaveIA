@@ -240,7 +240,7 @@ export default function ChatPanel({
               className="text-2xl font-medium tracking-tight"
               style={{ color: "var(--text-primary)", letterSpacing: "-0.03em" }}
             >
-              ¿Cómo querés que <span className="serif-accent">suene</span>?
+              ¿Cómo quieres que <span className="serif-accent">suene</span>?
             </h2>
             {welcome && (
               <p

@@ -338,7 +338,7 @@ function ValidationBanner({
       </div>
       {validation.suggested_preset_id === "universal" && (
         <p className="text-[11px] mt-1.5" style={{ color: DELTA_WARN }}>
-          Sugerencia: probá Pulido
+          Sugerencia: prueba Pulido
         </p>
       )}
     </div>

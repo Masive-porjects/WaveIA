@@ -8,7 +8,7 @@ La app es una sola página con **2 vistas**:
 
 | Vista | Qué es |
 |---|---|
-| **Subir** | Pantalla de entrada: hero "Masterizá Tu Música", zona de drop, píldoras "-14 LUFS Standard · 4 Módulos DSP · Calidad Profesional" |
+| **Subir** | Pantalla de entrada: hero "Masteriza Tu Música", zona de drop, píldoras "-14 LUFS Standard · 4 Módulos DSP · Calidad Profesional" |
 | **Mastering** | Se desbloquea al subir un track: navbar, player, presets, dock de módulos, panel de entrega, reporte y descargas |
 
 Dentro de mastering hay **2 modos de trabajo**: toggle **"Manual" / "Asistente IA"** (IA = chat agente con recomendaciones; Manual = tarjetas de presets + ajuste fino).
@@ -17,7 +17,7 @@ Dentro de mastering hay **2 modos de trabajo**: toggle **"Manual" / "Asistente I
 
 ## Paso 1 — Licencia (primera vez)
 
-- Modo licenciado: **"Sistema Protegido. Ingresá tu clave de licencia para continuar."** → pegás la clave → **"Activar"**.
+- Modo licenciado: **"Sistema Protegido. Ingresa tu clave de licencia para continuar."** → pegas la clave → **"Activar"**.
 - La clave se guarda en la sesión del navegador y se envía como header `X-License-Key` en cada proceso/descarga.
 - Fallas: **"No se pudo conectar con el servidor de licencias."** (servidor caído) o **"Error al activar la licencia"** (clave inválida).
 - Desarrollo local sin `AUDIOMIND_LICENSE_KEY` configurada → desbloqueado automáticamente.
@@ -28,7 +28,7 @@ Dentro de mastering hay **2 modos de trabajo**: toggle **"Manual" / "Asistente I
 ## Paso 2 — Subir un track
 
 - **Formatos**: WAV y MP3, hasta **50 MB**.
-- Arrastrás el archivo o tocás **"Seleccionar archivo"**.
+- Arrastras el archivo o tocas **"Seleccionar archivo"**.
 - Errores previos a subir:
   - "Formato no soportado" — *"Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!"*
   - "Archivo demasiado grande" — *"Por favor, sube un archivo que pese menos de 50MB. ¡Mantengamos el estudio ágil!"*
@@ -63,7 +63,7 @@ Al clickear un preset se **procesa automáticamente** y queda indicado como acti
 
 **"Ajuste Fino"** (desplegable bajo los presets): 9 perillas — Reverb, Brillo, Ratio, Ceiling, Punch, Drive, Warmth, Width, Haas — más **"Restablecer"**.
 
-> 💡 En modo Manual las perillas **no se aplican en vivo**: cambiás los parámetros y el cambio se aplica al tocar **"Procesar con estos parámetros"**. Los presets, en cambio, procesan solos al seleccionarlos.
+> 💡 En modo Manual las perillas **no se aplican en vivo**: cambias los parámetros y el cambio se aplica al tocar **"Procesar con estos parámetros"**. Los presets, en cambio, procesan solos al seleccionarlos.
 
 > 💡 **Caché de presets**: si ya escuchaste un preset en este track, al volver a tocarlo se restaura al instante (sin reprocesar). Se limpia sola al cambiar de track.
 
@@ -73,7 +73,7 @@ Al clickear un preset se **procesa automáticamente** y queda indicado como acti
 
 **1. Modo de procesamiento** | **"Creativo"** vs **"Transparente"**
 - **Creativo** (master): *"Cadena completa: ecualización, compresión, saturación, loudness."*
-- **Transparente**: *"Solo entrega: loudness (si hay target/plataforma), limiter, SRC y bit depth. No moldea el timbre."* — passthrough bit-exacto si no cambiás nada; las perillas creativas se desactivan.
+- **Transparente**: *"Solo entrega: loudness (si hay target/plataforma), limiter, SRC y bit depth. No moldea el timbre."* — passthrough bit-exacto si no cambias nada; las perillas creativas se desactivan.
 
 **2. Plataforma de entrega** → target de loudness + techo:
 
@@ -84,7 +84,7 @@ Al clickear un preset se **procesa automáticamente** y queda indicado como acti
 | Apple Music | −16 | −1.0 |
 | YouTube | −14 | −1.0 |
 | Tidal | −14 | −1.0 |
-| Personalizado | vos controlás | vos controlás |
+| Personalizado | tú controlas | tú controlas |
 
 Con Automático/Personalizado aparece el selector **"Loudness Target"** (Spotify -14, Deezer -14, SoundCloud -14, etc.).
 
@@ -123,7 +123,7 @@ Cadena real: análisis → gain staging a −6 dBFS → HPF 30 Hz → match EQ p
 | Crest (dB) | Distancia pico/RMS — ¿está aplastado? |
 | Sample rate + bit depth | Formato de salida real |
 
-**Player A/B/C**: **Original** (tag "Raw"), **Master** y **Referencia** (render neutral a igual loudness — *"Mismo volumen que tu master — compará el carácter, no la fuerza."*). Cambio instantáneo de 10 ms.
+**Player A/B/C**: **Original** (tag "Raw"), **Master** y **Referencia** (render neutral a igual loudness — *"Mismo volumen que tu master — compara el carácter, no la fuerza."*). Cambio instantáneo de 10 ms.
 
 **Descargas**: **WAV** y **MP3** → `brikmaster_{session_id}.wav/.mp3`. **"Compartir"** → tarjeta 1200×630 con stats y "masterizado con Brikmaster" (Web Share o PNG).
 
@@ -133,14 +133,14 @@ Cadena real: análisis → gain staging a −6 dBFS → HPF 30 Hz → match EQ p
 
 | Error | Causa | Qué hacer |
 |---|---|---|
-| "El análisis del audio tardó demasiado…" | Backend lento (> 90 s) | Reintentá subiendo el track |
-| "El procesamiento tardó demasiado y se canceló" | Proceso > 10 min | Probá de nuevo |
+| "El análisis del audio tardó demasiado…" | Backend lento (> 90 s) | Reintenta subiendo el track |
+| "El procesamiento tardó demasiado y se canceló" | Proceso > 10 min | Prueba de nuevo |
 | Detalle de error 422 (QC estricto) | Material dañado (clipping / TP ≥ −0.3 dB) | El backend da el detalle exacto |
-| "Tu sesión anterior expiró" | Servidor reiniciado, storage sin persistir | Subí el audio de nuevo |
-| "Algo salió mal en el estudio" | Error 5xx / saturación | Esperá y reintentá |
+| "Tu sesión anterior expiró" | Servidor reiniciado, storage sin persistir | Sube el audio de nuevo |
+| "Algo salió mal en el estudio" | Error 5xx / saturación | Espera y reintenta |
 
 ---
 
 ## Live Engine (pestaña del dock)
 
-Requisito: haber masterizado un track (si no: *"Primero necesitás masterizar un track para activar el motor en vivo."*). Bridge MIDI → WebSocket `:8765` → FX en vivo (filtro, drive, delay, echo, reverb). Si el socket se cae > 2 s, el engine **vuelve solo a neutral** para no sonar roto.
+Requisito: haber masterizado un track (si no: *"Primero necesitas masterizar un track para activar el motor en vivo."*). Bridge MIDI → WebSocket `:8765` → FX en vivo (filtro, drive, delay, echo, reverb). Si el socket se cae > 2 s, el engine **vuelve solo a neutral** para no sonar roto.
