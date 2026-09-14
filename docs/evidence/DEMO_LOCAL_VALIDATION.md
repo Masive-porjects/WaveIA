@@ -107,4 +107,4 @@ Nota: `e2e/tests/live_params.spec.ts` y `master_to_live.spec.ts` fallan en **col
 
 - **El demo 4-min funciona correctamente en esta máquina**: gates, cache, concurrencia, on-demand y salidas íntegras.
 - La máquina local (16 GB) tiene holgura de sobra; el safety gate quedó en 42.5% del pico teórico.
-- **Hallazgo clave:** el pico de RAM por job es alto (el input de 42 MB → 6.9 GB de working set ≈ ×165). Esto no afecta lo local, pero **determina el veredicto de despliegue** (ver `DEMO_DEPLOYMENT_PLAN.md`).
+- **Hallazgo clave:** el pico de RAM por job es alto (el input de 42 MB → 6.9 GB de working set ≈ ×165). Esto no afecta lo local, pero **determina el veredicto de despliegue** (ver `../runbooks/DEMO_DEPLOYMENT_PLAN.md`).

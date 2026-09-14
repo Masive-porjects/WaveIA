@@ -35,11 +35,11 @@ MIDI Source → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
 | `simulator/` | Python | Emisor de `LiveParams` sintéticos |
 | `e2e/` | Playwright | master → live |
-| `docs/` | Markdown | Especificaciones, setup, reportes de integración |
+| `docs/` | Markdown | Especificaciones, setup, reportes de integración — índice central en [`docs/README.md`](docs/README.md) |
 
 ## Compliance Phase 1 (feature destacada)
 
-Documentada en detalle en [`docs/COMPLIANCE_PHASE1.md`](docs/COMPLIANCE_PHASE1.md). Agrega al motor y a la UI:
+Documentada en detalle en [`docs/reference/COMPLIANCE_PHASE1.md`](docs/reference/COMPLIANCE_PHASE1.md). Agrega al motor y a la UI:
 
 - **Modo Transparente** (`processing_mode: "transparent"`): passthrough bit-exacto — si ningún parámetro cambia el audio, el master es idéntico al original (regla "neutral = bypass").
 - **`platform_target`**: `spotify`, `apple_music`, `youtube`, `tidal`, `custom` — aplica defaults de loudness/ceiling (Spotify → −14 LUFS / −1.0 dBTP, Apple Music → −16 / −1.0, etc.) con espejo en la UI vía `PLATFORM_DEFAULTS`.
@@ -56,7 +56,7 @@ Documentada en detalle en [`docs/COMPLIANCE_PHASE1.md`](docs/COMPLIANCE_PHASE1.m
 
 ## Cómo correr localmente
 
-Seguí literal `docs/SETUP.md` si el entorno no está levantado (venv, bun, stack local, pitfalls reales).
+Seguí literal `docs/runbooks/SETUP.md` si el entorno no está levantado (venv, bun, stack local, pitfalls reales).
 
 ```bash
 # Backend (DSP de mastering)

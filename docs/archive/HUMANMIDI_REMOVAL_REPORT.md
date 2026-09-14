@@ -20,7 +20,7 @@ Estructura delimitada: `src/core/`, `src/gestures/`, `src/mappers/`, `src/ui/`, 
 
 | Archivo | Propósito |
 |---------|-----------|
-| `docs/hackaton-specs/02_humanmidi_capa_performance.md` | Spec exclusiva de HumanMidi (capa de performance: gestos → MIDI) |
+| `docs/reference/specs/02_humanmidi_capa_performance.md` | Spec exclusiva de HumanMidi (capa de performance: gestos → MIDI) |
 | `scripts/start/start-humanmidi.bat` | Script de arranque Windows exclusivo |
 | `apps/studio/src/presentation/components/live/CameraOverlay.tsx` | Overlay de cámara: getUserMedia + MediaPipe landmarks. **Causa del request de cámara** |
 | `apps/studio/src/presentation/components/live/GestureBadge.tsx` | Badge que mostraba qué gesto controla un parámetro |
@@ -52,23 +52,23 @@ Estructura delimitada: `src/core/`, `src/gestures/`, `src/mappers/`, `src/ui/`, 
 |---------|--------|
 | `AGENTS.md` | Línea "midiMastering = ... + HumanMidi..." → "WaveAI = mastering IA + Live Engine"; pipeline quitó Camera/MediaPipe; fila `apps/humanmidi/` eliminada del mapa; reglas `mediapipe==0.10.14` + entry point de HumanMidi eliminadas; verificación # HumanMidi eliminada; SOLID quitó "gestos" |
 | `README.md` | "Une dos proyectos" → "solución unificada"; HumanMidi reemplazado por "Live Engine"; pipeline quitó Camera/MediaPipe; fila humanmidi eliminada del mapa; ejecución y tests HumanMidi eliminados; regla mediapipe eliminada |
-| `docs/SETUP.md` | Stack quitó HumanMidi; Python 3.12 motivo actualizado; fila macOS arm64 eliminada (mediapipe); instalación venv quitó requirements de humanmidi + mediapipe (linea de filtro); esperado cambió `import rtmidi, websockets, mido`; T4 ahora es solo Simulator; pytest humanmidi eliminado; pitfalls 1-3 (mediapipe) eliminados; estado conocido: humanmidi "bloqueado" → "removido" |
-| `docs/UX_MAP.md` | Diagrama mermaid: `CameraOverlay<br/>MediaPipe + gestos` → `Input<br/>fuente de audio` |
-| `docs/USER_MANUAL.md` | Sección Live Engine: "Cámara → MediaPipe → gestos → bridge MIDI" → "Bridge MIDI" |
-| `docs/INTEGRATION_REPORT.md` | Architectura/Tree: columna humanmidi eliminada, fila humanmidi eliminada del árbol, CameraOverlay/GestureBadge eliminados de la UI list. Blocks Summary: Block B marcado `❌ Removed (2026-09-11)`. Sección Block B reemplazada con nota de eliminación + archivo histórico. Next Steps: "MIDI controller + camera" → "MIDI controller". CameraOverlay eliminado de hardening + lint list. Commit humanmidi marcado `removed 2026-09-11` |
+| `docs/runbooks/SETUP.md` | Stack quitó HumanMidi; Python 3.12 motivo actualizado; fila macOS arm64 eliminada (mediapipe); instalación venv quitó requirements de humanmidi + mediapipe (linea de filtro); esperado cambió `import rtmidi, websockets, mido`; T4 ahora es solo Simulator; pytest humanmidi eliminado; pitfalls 1-3 (mediapipe) eliminados; estado conocido: humanmidi "bloqueado" → "removido" |
+| `docs/manual/UX_MAP.md` | Diagrama mermaid: `CameraOverlay<br/>MediaPipe + gestos` → `Input<br/>fuente de audio` |
+| `docs/manual/USER_MANUAL.md` | Sección Live Engine: "Cámara → MediaPipe → gestos → bridge MIDI" → "Bridge MIDI" |
+| `docs/archive/INTEGRATION_REPORT.md` | Architectura/Tree: columna humanmidi eliminada, fila humanmidi eliminada del árbol, CameraOverlay/GestureBadge eliminados de la UI list. Blocks Summary: Block B marcado `❌ Removed (2026-09-11)`. Sección Block B reemplazada con nota de eliminación + archivo histórico. Next Steps: "MIDI controller + camera" → "MIDI controller". CameraOverlay eliminado de hardening + lint list. Commit humanmidi marcado `removed 2026-09-11` |
 
 ### 3.4 Specs históricos (con header de deprecación, contenido preservado)
 
 | Archivo | Header añadido |
 |---------|---------------|
-| `docs/hackaton-specs/README.md` | "HumanMidi fue REMOVIDO del producto"; idea 1 tachada; archivo `02_humanmidi` eliminado del índice |
-| `docs/hackaton-specs/01_vision_unificada.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi removido" |
-| `docs/hackaton-specs/05_live_engine_gestos_a_master.md` | "⚠️ 2026-09-11 · ACTUALIZADO: HumanMidi removido; Live Engine se conserva, efectos controlados por MIDI (externo o Simulator)" |
-| `docs/hackaton-specs/06_roadmap_unificado.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi removido" |
-| `docs/hackaton-specs/07_estrategia_equipo_5devs.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi (Dev 4) removido" |
-| `docs/hackaton-specs/08_implementacion_llm.md` | "⚠️ 2026-09-11 · ACTUALIZADO: fases de visión/cámara/gestos no implementar; WaveAI + Live Engine + Bridge + Simulator vigentes" |
-| `PLAN.md` | "⚠️ 2026-09-11: HumanMidi removido; Live Engine y Bridge mantienen" |
-| `docs/WORKPLAN.md` | "⚠️ 2026-09-11: HumanMidi removido" |
+| `docs/reference/specs/README.md` | "HumanMidi fue REMOVIDO del producto"; idea 1 tachada; archivo `02_humanmidi` eliminado del índice |
+| `docs/reference/specs/01_vision_unificada.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi removido" |
+| `docs/reference/specs/05_live_engine_gestos_a_master.md` | "⚠️ 2026-09-11 · ACTUALIZADO: HumanMidi removido; Live Engine se conserva, efectos controlados por MIDI (externo o Simulator)" |
+| `docs/reference/specs/06_roadmap_unificado.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi removido" |
+| `docs/reference/specs/07_estrategia_equipo_5devs.md` | "⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO: HumanMidi (Dev 4) removido" |
+| `docs/reference/specs/08_implementacion_llm.md` | "⚠️ 2026-09-11 · ACTUALIZADO: fases de visión/cámara/gestos no implementar; WaveAI + Live Engine + Bridge + Simulator vigentes" |
+| `docs/archive/PLAN.md` | "⚠️ 2026-09-11: HumanMidi removido; Live Engine y Bridge mantienen" |
+| `docs/archive/WORKPLAN.md` | "⚠️ 2026-09-11: HumanMidi removido" |
 
 ---
 
@@ -84,7 +84,7 @@ Estructura delimitada: `src/core/`, `src/gestures/`, `src/mappers/`, `src/ui/`, 
 
 | Paquete | Motivo | Aparecía en |
 |---------|--------|-------------|
-| `mediapipe` (pin 0.10.14/0.10.33) | Hand tracking via MediaPipe | `apps/humanmidi/requirements.txt`, docs/SETUP.md, 08_implementacion_llm |
+| `mediapipe` (pin 0.10.14/0.10.33) | Hand tracking via MediaPipe | `apps/humanmidi/requirements.txt`, docs/runbooks/SETUP.md, 08_implementacion_llm |
 | `opencv-python` | Captura de cámara | `apps/humanmidi/requirements.txt` |
 
 **Paquetes que se conservan** (no son exclusivos de HumanMidi):
@@ -126,9 +126,9 @@ Estructura delimitada: `src/core/`, `src/gestures/`, `src/mappers/`, `src/ui/`, 
 
 ### 6.4 Docs históricos (con header de eliminación)
 
-`PLAN.md`, `WORKPLAN.md`, `docs/hackaton-specs/` (01, 05, 06, 07, 08, README) — todos portan header `⚠️ 2026-09-11 · HISTÓRICO/ACTUALIZADO` indicando que HumanMidi fue removido, con referencias a este reporte.
+`docs/archive/PLAN.md`, `docs/archive/WORKPLAN.md`, `docs/reference/specs/` (01, 05, 06, 07, 08, README) — todos portan header `⚠️ 2026-09-11 · HISTÓRICO/ACTUALIZADO` indicando que HumanMidi fue removido, con referencias a este reporte.
 
-`DEMO_FEASIBILITY.md` — documento de factibilidad que incluyó la recomendación de eliminar HumanMidi (mantenido como evidencia de decisión).
+`../evidence/DEMO_FEASIBILITY.md` — documento de factibilidad que incluyó la recomendación de eliminar HumanMidi (mantenido como evidencia de decisión).
 
 ---
 

@@ -1,6 +1,6 @@
 # 08 — Prompt de Implementación para LLM: crear midiMastering completo
 
-> **⚠️ 2026-09-11 · ACTUALIZADO:** El prompt originalmente incluía HumanMidi (gestos → MIDI). HumanMidi fue **removido del producto**; las fases de visión/cámara/gestos de este prompt no deben implementarse. El resto (WaveAI mastering + Live Engine + Bridge MIDI + Simulator) sigue vigente. Ver `HUMANMIDI_REMOVAL_REPORT.md`.
+> **⚠️ 2026-09-11 · ACTUALIZADO:** El prompt originalmente incluía HumanMidi (gestos → MIDI). HumanMidi fue **removido del producto**; las fases de visión/cámara/gestos de este prompt no deben implementarse. El resto (WaveAI mastering + Live Engine + Bridge MIDI + Simulator) sigue vigente. Ver `../../archive/HUMANMIDI_REMOVAL_REPORT.md`.
 
 > **Qué es este documento:** un prompt de implementación autocontenido para que un agente de código (Claude Code, Codex, OpenCode, etc.) genere el proyecto **midiMastering** completo: mastering offline (WaveAI) + Live Engine Web Audio + bridge de gestos (HumanMidi → FX en vivo).
 >

@@ -90,7 +90,7 @@ Colocación: campos detrás de toda la app (z 1–2), el hero detrás de la card
 
 ## Componentes core
 
-La lista detallada vive en `docs/hackaton-specs/04_waveai_sistema_diseno.md`. Los principales son `DropZone`, `ModulePanel`, `PlatformSelector`, `ProcessingOverlay`, `LicenseGuard`, `AnalysisPanel`, `SignalChain`, `StereoField` y los live `Knob3D`, `LiveView`.
+La lista detallada vive en `docs/reference/specs/04_waveai_sistema_diseno.md`. Los principales son `DropZone`, `ModulePanel`, `PlatformSelector`, `ProcessingOverlay`, `LicenseGuard`, `AnalysisPanel`, `SignalChain`, `StereoField` y los live `Knob3D`, `LiveView`.
 
 ## Responsive
 
@@ -105,7 +105,7 @@ La lista detallada vive en `docs/hackaton-specs/04_waveai_sistema_diseno.md`. Lo
 
 ## Fuentes de verdad
 
-- `docs/hackaton-specs/04_waveai_sistema_diseno.md` — spec completa del sistema de diseño.
+- `docs/reference/specs/04_waveai_sistema_diseno.md` — spec completa del sistema de diseño.
 - `apps/studio/src/app/globals.css` — tokens y utilidades CSS.
 - `apps/studio/src/shared/motion.ts` — helpers de animación.
 - `apps/studio/src/core/presets.ts` — colores e información de presets.

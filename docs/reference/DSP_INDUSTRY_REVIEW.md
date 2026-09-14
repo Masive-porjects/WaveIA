@@ -1,7 +1,7 @@
 # DSP Industry Review — Mastering Chain vs Professional Practice
 
 > Status: 2026-09-05. Phases A, B, C and D landed; P2 items remain open.
-> Companion: `docs/COMPLIANCE_PHASE1.md` (delivery contract), `docs/INTEGRATION_REPORT.md` (integration state).
+> Companion: `docs/reference/COMPLIANCE_PHASE1.md` (delivery contract), `docs/archive/INTEGRATION_REPORT.md` (integration state).
 
 ## Purpose
 

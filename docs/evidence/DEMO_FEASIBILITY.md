@@ -179,7 +179,7 @@ Ya existen en el repo (sin confirmar):
 
 | Archivo | Estado |
 |---------|--------|
-| `docs/DEMO_RESOURCE_AUDIT.md` | Untracked — auditoría de recursos |
+| `docs/evidence/DEMO_RESOURCE_AUDIT.md` | Untracked — auditoría de recursos |
 | `e2e/tests/demo_flow.spec.ts` | Untracked — E2E demo completo |
 | `e2e/fixtures/generate_demo_fixture.py` | Untracked — generador de fixture |
 | `apps/audiomind/tests/test_demo_mode.py` | Untracked — tests demo |
@@ -244,7 +244,7 @@ Modified files:
 
 Untracked files:
   apps/audiomind/tests/create_test_wav.py
-  docs/DEMO_RESOURCE_AUDIT.md
+  docs/evidence/DEMO_RESOURCE_AUDIT.md
   e2e/fixtures/generate_demo_fixture.py
   e2e/tests/demo_flow.spec.ts
   playwright-report/

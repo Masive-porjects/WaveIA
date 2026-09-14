@@ -2,7 +2,7 @@
 
 > **Branch:** `demo/vercel-railway-client` · **Remote:** `waveia` → https://github.com/waveiamusic/WaveIA.git
 > **Status:** prepared — no deployment executed, no credentials used.
-> **Architecture source of truth:** `docs/DEMO_DEPLOYMENT_PLAN.md` (LOCKED). This runbook does not change it.
+> **Architecture source of truth:** `docs/runbooks/DEMO_DEPLOYMENT_PLAN.md` (LOCKED). This runbook does not change it.
 > **Date:** 2026-09-12
 
 ---

@@ -1,7 +1,7 @@
 # PLAN.md — División de trabajo (5 personas)
 
 > Fuente de verdad de **quién hace qué**.
-> Las reglas técnicas no negociables siguen viviendo en [`AGENTS.md`](AGENTS.md).
+> Las reglas técnicas no negociables siguen viviendo en [`AGENTS.md`](../../AGENTS.md).
 > Los contratos de datos son la única interfaz entre módulos.
 >
 > **⚠️ 2026-09-11:** HumanMidi (área de David, `apps/humanmidi/`) fue **removido del producto**. Las referencias de este plan quedan como histórico; el Live Engine y el Bridge se mantienen. Ver `HUMANMIDI_REMOVAL_REPORT.md`.
@@ -326,4 +326,4 @@ David    ──[live_params]─────────> Andrés  (UI del Live) 
 - Instalado y verificado localmente: `apps/studio` (:3000), `apps/audiomind`, `apps/bridge`, `apps/humanmidi`, `ffmpeg`.
 - **Falta por crear:** `apps/studio/convex/`, `apps/agent/`, los 3 schemas nuevos.
 
-Cómo levantar cada pieza: ver [`README.md`](README.md).
+Cómo levantar cada pieza: ver [`README.md`](../../README.md).

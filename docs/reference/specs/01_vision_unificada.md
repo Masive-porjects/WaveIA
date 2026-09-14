@@ -1,6 +1,6 @@
 # 01 — Visión Unificada: Masterizar primero, Tocar el resultado en vivo
 
-> **⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO:** HumanMidi (gestos de mano → MIDI) fue removido del producto. La visión vigente = **WaveAI** (mastering offline) + **Live Engine** (FX en vivo controlados por MIDI vía Bridge). Ver `HUMANMIDI_REMOVAL_REPORT.md`.
+> **⚠️ 2026-09-11 · DOCUMENTO HISTÓRICO:** HumanMidi (gestos de mano → MIDI) fue removido del producto. La visión vigente = **WaveAI** (mastering offline) + **Live Engine** (FX en vivo controlados por MIDI vía Bridge). Ver `../../archive/HUMANMIDI_REMOVAL_REPORT.md`.
 
 ## 1. Por qué unir estas dos ideas
 

@@ -129,6 +129,6 @@ python -m simulator.main --mode server --scenario sweep       # WS mock :8765
 ## 8. Estado conocido del repo (2026-08-29)
 
 - ✅ bridge 53/53 · studio tsc (salvo mastering.ts) + 6/6 vitest + build · contrato live_params congelado
-- ✅ HumanMidi **removido del producto** (2026-09-11) — ver `HUMANMIDI_REMOVAL_REPORT.md`
+- ✅ HumanMidi **removido del producto** (2026-09-11) — ver `../archive/HUMANMIDI_REMOVAL_REPORT.md`
 - ⚠️ Convex: deployment de David `proper-scorpion-625` (WaveIA) — el del equipo llega cuando Tomás comparta el suyo
 - ⚠️ CI inexistente — la verificación es manual (sección 6)

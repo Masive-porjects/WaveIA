@@ -65,7 +65,7 @@ Este documento **NO declara "Hobby = NO-GO" como hecho confirmado**: el límite 
 
 Con un servicio real configurado a **8 GB por réplica** (máximo anunciado del plan), 240 s queda **POTENCIALMENTE dentro del límite, pero con poco margen** (6.95 GB ≈ 87 % de 8 GB). Eso requiere canary real (§2, etapas 4–6): los picos de la tabla son la guía para elegir el plan de RAM; el veredicto final se toma con jobs reales en Railway.
 
-Los picos medidos (validación local, `DEMO_LOCAL_VALIDATION.md`) corresponden **exclusivamente al backend Railway** — el frontend Vercel no necesita esa RAM.
+Los picos medidos (validación local, `../evidence/DEMO_LOCAL_VALIDATION.md`) corresponden **exclusivamente al backend Railway** — el frontend Vercel no necesita esa RAM.
 
 Plan mínimo sugerido por canary (ver §2): 45–60 s → **≥2 GB**; 210 s → **≥6 GB**; 240 s → **≥8 GB** (o aplicar la optimización de pico §3 antes de la etapa 240 s).
 
@@ -73,7 +73,7 @@ Plan mínimo sugerido por canary (ver §2): 45–60 s → **≥2 GB**; 210 s →
 
 ## 2. Orden de deployment (bloqueado)
 
-1. Validación local completa — ✅ `DEMO_LOCAL_VALIDATION.md`
+1. Validación local completa — ✅ `../evidence/DEMO_LOCAL_VALIDATION.md`
 2. Commits/push de la rama Demo — ✅ `demo/vercel-railway-client` (aprobado y ejecutado)
 3. Railway **BACKEND solamente** (nunca `apps/studio`)
 4. Railway canary: **15 / 45 / 60 s**
