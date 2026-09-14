@@ -53,7 +53,7 @@ Al clickear un preset se **procesa automáticamente** y queda indicado como acti
 | Preset | Género | Qué hace |
 |---|---|---|
 | **Pulido** | Multigénero | Balance profesional: EQ transparente, compresión suave (1.5:1), -14 LUFS |
-| **Brutal** | Trap / Drill | Compresión agresiva (5:1), pegada máxima, -12 LUFS sin atenuación de plataformas |
+| **Brutal** | Trap / Drill | Compresión agresiva (5:1), pegada máxima, -12 LUFS (ideal radio/clubs; las plataformas normalizan el volumen por igual) |
 | **Cristalino** | Pop / Latin Pop | +4 dB de brillo y apertura estéreo (Haas 6 ms) |
 | **Vintage** | Lo-Fi / Hip Hop | Saturación tipo cinta analógica (+3 dB drive, +4 dB warmth) |
 | **Crudo** | Acústico / Folk | Mínimo procesamiento, dinámica orgánica, techo -2 dB |
