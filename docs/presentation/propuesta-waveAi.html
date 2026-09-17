@@ -187,6 +187,41 @@
     }
     @media(max-width:768px){ .main { margin-left: 0; padding-bottom: 56px; } }
 
+    /* ── DECK (modo presentación) ── */
+    .slide:not(.active) { display: none !important; }
+    .hero.slide { min-height: 100vh; }
+    .pull.slide { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
+    section.slide > .sec-pad {
+      min-height: 100vh;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .slide .foot {
+      display: block; border-top: none;
+      padding: 24px 0 0; margin-top: auto;
+    }
+
+    .deck-controls {
+      position: fixed; right: 20px; bottom: 20px; z-index: 100;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .deck-btn {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink3); font-size: 15px;
+      background: var(--sb-bg);
+      border: 1px solid var(--line); border-radius: 8px;
+      cursor: pointer; backdrop-filter: blur(16px);
+      transition: color .2s, border-color .2s;
+    }
+    .deck-btn:hover { color: var(--accent); border-color: var(--accent2); }
+    .deck-btn:disabled { opacity: .35; cursor: default; }
+    .deck-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: .1em; color: var(--ink3);
+      min-width: 42px; text-align: center;
+    }
+    @media(max-width:768px){ .deck-controls { right: 12px; bottom: 64px; } }
+
     /* ── HERO ── */
     .hero {
       min-height: 100vh;
@@ -431,6 +466,11 @@
 
       .foot { padding: 24px !important; }
 
+      /* deck → una slide por página */
+      .slide { display: block !important; min-height: auto !important; page-break-after: always; }
+      .pull.slide, section.slide > .sec-pad { display: block !important; min-height: auto !important; }
+      .deck-controls { display: none !important; }
+
       a { text-decoration: none !important; }
       a[href^="mailto"]::after { content: " (" attr(href) ")"; font-size: 10px; color: var(--ink3); }
 
@@ -486,7 +526,7 @@
   <div class="main">
 
     <!-- HERO -->
-    <div class="hero" id="i">
+    <div class="hero slide" id="i">
       <div class="hero-left">
         <div class="eyebrow">WaveAI · Documento de propuesta · 2026</div>
         <h1 class="hero-title">
@@ -529,12 +569,12 @@
     </div>
 
     <!-- PULL QUOTE -->
-    <div class="pull r">
+    <div class="pull slide r">
       <blockquote>Si no ajusta nada,<br>el audio queda <em>intacto</em>.</blockquote>
     </div>
 
     <!-- P — PLATAFORMAS -->
-    <section id="p">
+    <section id="p" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">01</span>
@@ -576,7 +616,7 @@
     </section>
 
     <!-- F — FLUJO -->
-    <section id="f">
+    <section id="f" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">02</span>
@@ -602,7 +642,7 @@
     </section>
 
     <!-- C — COMPARATIVA -->
-    <section id="c">
+    <section id="c" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">03</span>
@@ -634,7 +674,7 @@
     </section>
 
     <!-- E — ENTREGABLES -->
-    <section id="e">
+    <section id="e" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">04</span>
@@ -666,7 +706,7 @@
     </section>
 
     <!-- R — REFERENCIAS -->
-    <section id="r">
+    <section id="r" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">05</span>
@@ -682,7 +722,7 @@
     </section>
 
     <!-- X — CONTACTO -->
-    <section id="x">
+    <section id="x" class="slide">
       <div class="sec-pad">
         <div class="sec-head r">
           <span class="sec-num">06</span>
@@ -710,18 +750,22 @@
             </ul>
           </div>
         </div>
+        <div class="foot">
+          <div class="foot-s">
+            <img class="brand-logo" src="waveai-logo.jpg" alt="WaveAI" width="24" height="24">
+            <span class="foot-t">Hecho por WaveAI · 2026</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- FOOTER -->
-    <div class="foot">
-      <div class="foot-n" style="visibility:hidden">.</div>
-      <div class="foot-s">
-        <img class="brand-logo" src="waveai-logo.jpg" alt="WaveAI" width="24" height="24">
-        <span class="foot-t">Hecho por WaveAI · 2026</span>
-      </div>
-    </div>
+  </div>
 
+  <!-- ─── DECK CONTROLS ─── -->
+  <div class="deck-controls" title="Navega con las flechas ← →">
+    <button id="prevSlide" class="deck-btn" title="Anterior">←</button>
+    <span id="deckCounter" class="deck-count">1 / 8</span>
+    <button id="nextSlide" class="deck-btn" title="Siguiente">→</button>
   </div>
 
   <script>
@@ -740,22 +784,51 @@
     }, { threshold: 0.08 });
     document.querySelectorAll(".r").forEach(el => obs.observe(el));
 
-    /* ── ACTIVE NAV ── */
-    const sections = document.querySelectorAll('section[id], .hero[id]');
-    const links = document.querySelectorAll('.nav-link');
-    const navObs = new IntersectionObserver(entries => {
-      for (const e of entries) {
-        if (e.isIntersecting) {
-          links.forEach(l => l.classList.remove('active'));
-          const id = e.target.id || (e.target.querySelector('[id]') && e.target.querySelector('[id]').id);
-          if (id) {
-            const match = document.querySelector(`.nav-link[href="#${id}"]`);
-            if (match) match.classList.add('active');
-          }
-        }
-      }
-    }, { threshold: 0.3 });
-    sections.forEach(s => navObs.observe(s));
+    /* ── DECK NAV ── */
+    const slides = [...document.querySelectorAll('.slide')];
+    const links = [...document.querySelectorAll('.nav-link')];
+    const counter = document.getElementById('deckCounter');
+    const prevBtn = document.getElementById('prevSlide');
+    const nextBtn = document.getElementById('nextSlide');
+    let cur = 0;
+
+    function go(i) {
+      cur = Math.max(0, Math.min(slides.length - 1, i));
+      slides.forEach((s, j) => s.classList.toggle('active', j === cur));
+      const id = slides[cur].id;
+      if (id) links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+      counter.textContent = (cur + 1) + ' / ' + slides.length;
+      prevBtn.disabled = cur === 0;
+      nextBtn.disabled = cur === slides.length - 1;
+      window.scrollTo(0, 0);
+    }
+
+    links.forEach(l => l.addEventListener('click', e => {
+      e.preventDefault();
+      const i = slides.findIndex(s => s.id === l.getAttribute('href').slice(1));
+      if (i > -1) go(i);
+    }));
+    prevBtn.addEventListener('click', () => go(cur - 1));
+    nextBtn.addEventListener('click', () => go(cur + 1));
+
+    addEventListener('keydown', e => {
+      if (e.target.matches('input, textarea')) return;
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+      else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+      else if (e.key === 'Home') go(0);
+      else if (e.key === 'End') go(slides.length - 1);
+    });
+
+    let touchY = null;
+    addEventListener('touchstart', e => touchY = e.touches[0].clientY, { passive: true });
+    addEventListener('touchend', e => {
+      if (touchY === null) return;
+      const d = touchY - e.changedTouches[0].clientY;
+      if (Math.abs(d) > 60) go(cur + (d > 0 ? 1 : -1));
+      touchY = null;
+    }, { passive: true });
+
+    go(0);
 
     /* ── FLOATING NOTES ── */
     const fx = document.getElementById("fx");
