@@ -52,7 +52,7 @@ Documentada en detalle en [`docs/reference/COMPLIANCE_PHASE1.md`](docs/reference
 - **Panel de entrega flotante**: FAB "Entrega" (abajo a la derecha) → modo/plataforma/SR/bits/QC estricto en un sheet que no ensucia el lienzo.
 - **Reporte del motor flotante**: píldora compacta abajo a la izquierda con `LUFS · dBTP · SR · bits` que se expande a la tarjeta completa (`MasteringReportCard`).
 - **Chip de track con género**: en la navbar muestra el **género detectado** (reggaetón, pop, rock…) en vez del UUID interno del archivo.
-- **Marca WaveAI**: textos visibles (navbar, login, drawer, licencia, guía, compartir) — los assets `public/brand/WaveAI.svg` y `WaveAI.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
+- **Marca WaveAI**: textos visibles (navbar, welcome gate, drawer, guía, compartir) — los assets `public/brand/WaveAI.svg` y `WaveAI.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
 
 ## Cómo correr localmente
 

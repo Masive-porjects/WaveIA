@@ -47,7 +47,7 @@ Verified source: `config.py` lines 40–55 (license, prerender, concurrency, dur
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `https://<backend-railway>/api` | Contract: must end in `/api` (backend mounts all routers under that prefix). Trailing slash / double `/api` are auto-normalized client-side. Inlined at build time — set it before the first deploy. |
 | `NEXT_PUBLIC_BASE_PATH` | **leave unset** | `""` = serve at the Vercel domain root. Only needed if the app is later mounted under a subpath (e.g. `/waveai`). |
-| `NEXT_PUBLIC_REQUIRE_AUTH` | **leave unset** | Auth is disabled (`AuthGuard` only enforces when `= "1"`). |
+| ~~`NEXT_PUBLIC_REQUIRE_AUTH`~~ | **removed** | The login flow was removed from the frontend — the env var no longer does anything. |
 | `NEXT_PUBLIC_CONVEX_URL` | **not needed** | `ConvexClientProvider` is a passthrough; the app has zero `convex/_generated` imports today. |
 | `ELEVENLABS_*` | **not needed** | Voice agent runtime is off in the demo UI. |
 
