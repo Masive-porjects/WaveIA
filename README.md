@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="apps/studio/public/brand/mascota.png" alt="WaveAI — el fantasma beige con la lágrima-nota" width="160">
+<img src="apps/studio/public/brand/waveai-logo.jpg" alt="WaveAI — logo" width="320">
 
 # WaveAI
 
 **Estudio de mastering asistido por IA + Live Engine controlado por gestos.**
 
-<sub>El fantasma beige `#D6C9A9` es la mascota y el favicon de la app.</sub>
+<sub>La onda púrpura→cian es la marca, el favicon y el icono de la app.</sub>
 
 </div>
 
@@ -52,7 +52,8 @@ Documentada en detalle en [`docs/reference/COMPLIANCE_PHASE1.md`](docs/reference
 - **Panel de entrega flotante**: FAB "Entrega" (abajo a la derecha) → modo/plataforma/SR/bits/QC estricto en un sheet que no ensucia el lienzo.
 - **Reporte del motor flotante**: píldora compacta abajo a la izquierda con `LUFS · dBTP · SR · bits` que se expande a la tarjeta completa (`MasteringReportCard`).
 - **Chip de track con género**: en la navbar muestra el **género detectado** (reggaetón, pop, rock…) en vez del UUID interno del archivo.
-- **Marca WaveAI**: textos visibles (navbar, welcome gate, drawer, guía, compartir) — los assets `public/brand/WaveAI.svg` y `WaveAI.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
+- **Marca WaveAI**: textos visibles (navbar, welcome gate, drawer, guía, compartir) — los assets `public/brand/WaveAI.svg` y `WaveAI.png` alimentan la tarjeta de compartir. El favicon/icono es la onda púrpura→cian (`src/app/icon.jpg` + `apple-icon.jpg`, fuente en `public/brand/waveai-logo.jpg`).
+- **Acceso directo sin login**: el studio no tiene flujo de autenticación — entra directo al mastering tras el welcome gate (la ruta `/login`, el middleware y los componentes de auth fueron removidos; `convex/auth.ts` queda disponible para un futuro login real).
 
 ## Cómo correr localmente
 
@@ -99,7 +100,7 @@ python -m simulator.main --mode server --scenario sweep   # desde la raíz
 npm run e2e                                               # desde apps/studio
 ```
 
-> Nota lint: `eslint src` reporta 0 errores (34 warnings no-funcionales). Los 2 errores históricos (`page.tsx`, `useRole.ts`) fueron corregidos con el patrón de ajuste de estado durante render / lazy init.
+> Nota lint: `eslint src` reporta 0 errores (34 warnings no-funcionales). Los errores históricos fueron corregidos con el patrón de ajuste de estado durante render / lazy init (`useRole.ts` ya no existe — removido junto al flujo de login).
 
 ## Reglas no negociables
 
