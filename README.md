@@ -68,8 +68,18 @@ cd apps/studio && bun install && bun run dev
 # → http://localhost:3000
 
 # Bridge (Live Engine)
-cd apps/bridge && python main.py                 # WS :8765
+cd apps/bridge && python -m src.main             # WS :8765
 ```
+
+**Windows — scripts de arranque** (`scripts/`): `scripts\start\start-all.bat` levanta los 3 servicios en ventanas separadas (con `-Simulator` levanta el mock en vez del bridge), `scripts\stop\stop-all.bat` los detiene y `scripts\verify\verify-all.bat` hace health checks. Requieren el `.venv` de la raíz creado según `SETUP.md`.
+
+**Docker** (sin instalar Python/bun en el host):
+
+```bash
+docker compose up --build   # studio :3000 + audiomind :8000 + simulator :8765
+```
+
+Detalles y decisiones (por qué el bridge no va en contenedor, volúmenes, build-args): `docs/runbooks/DOCKER.md`.
 
 ## Verificación
 

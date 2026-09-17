@@ -46,6 +46,7 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 | Documento | Para qué sirve | Estado |
 |---|---|---|
 | [`SETUP.md`](runbooks/SETUP.md) | Levantar el entorno local (venv, bun, Convex, stack, pitfalls reales) | **Vigente (verificado)** |
+| [`DOCKER.md`](runbooks/DOCKER.md) | Stack local con Docker Compose (sin instalar Python/bun en el host) | **Vigente** |
 | [`DEPLOY_RUNBOOK.md`](runbooks/DEPLOY_RUNBOOK.md) | Deploy de la demo en Vercel + Railway | Preparado (no ejecutado) |
 | [`DEMO_DEPLOYMENT_PLAN.md`](runbooks/DEMO_DEPLOYMENT_PLAN.md) | Plan de despliegue de la demo (arquitectura vinculante) | **LOCKED** (no negociable) |
 
