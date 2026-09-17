@@ -1358,7 +1358,7 @@ async def download_audio(
         stem = Path(session.original_filename).stem
         display_name = f"{stem[:1].upper()}{stem[1:]}Masterizado"
     else:
-        display_name = "BrikmasterFinal"
+        display_name = "WaveAIFinal"
 
     if format == "mp3":
         import subprocess

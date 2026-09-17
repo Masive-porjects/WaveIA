@@ -839,7 +839,7 @@ export default function Home() {
         // "beatRap.wav" → "BeatRapMasterizado.wav" (first letter capitalized).
         const stem = session.original_filename
           ? session.original_filename.replace(/\.[^.]+$/, "")
-          : "brikmaster";
+          : "waveai";
         a.download = `${stem.charAt(0).toUpperCase()}${stem.slice(1)}Masterizado.${format}`;
         document.body.appendChild(a);
         a.click();
@@ -1118,7 +1118,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <div className="rounded-full px-4 py-2 glass">
             <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-              Brik<span className="text-[var(--accent-primary)]">master</span>
+              Wave<span className="text-[var(--accent-primary)]">AI</span>
             </span>
           </div>
 

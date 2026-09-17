@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 
-# Inicia un solo servicio de Brikmaster en una ventana de PowerShell separada.
+# Inicia un solo servicio de WaveAI en una ventana de PowerShell separada.
 # Guarda el PID en scripts/.pids para poder detenerlo con stop-all.ps1.
 
 param(

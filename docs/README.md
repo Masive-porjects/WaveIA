@@ -1,8 +1,8 @@
-# Índice central de documentación — Brikmaster (WaveAI)
+# Índice central de documentación — WaveAI
 
 Este archivo es la **fuente de la verdad** sobre la documentación del repo: qué documento existe, dónde está, para qué sirve y cuándo leerlo. Si buscas información del proyecto, empieza acá.
 
-**Brikmaster** (antes WaveAI) es un estudio de mastering asistido por IA + un **Live Engine** Web Audio controlado en tiempo real.
+**WaveAI** es un estudio de mastering asistido por IA + un **Live Engine** Web Audio controlado en tiempo real.
 
 ```
 Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → Knobs/Meters/Audio

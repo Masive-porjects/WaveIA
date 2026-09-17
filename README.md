@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="apps/studio/public/brand/mascota.png" alt="Brikmaster — el fantasma beige con la lágrima-nota" width="160">
+<img src="apps/studio/public/brand/mascota.png" alt="WaveAI — el fantasma beige con la lágrima-nota" width="160">
 
-# Brikmaster
+# WaveAI
 
 **Estudio de mastering asistido por IA + Live Engine controlado por gestos.**
 
-<sub>Anteriormente *WaveAI* — rebrand a **Brikmaster** (el fantasma beige `#D6C9A9` es la mascota y el favicon de la app).</sub>
+<sub>El fantasma beige `#D6C9A9` es la mascota y el favicon de la app.</sub>
 
 </div>
 
@@ -14,12 +14,12 @@
 
 ## Qué es
 
-Brikmaster (antes WaveAI) es una sola interfaz de mastering IA:
+WaveAI es una sola interfaz de mastering IA:
 
 1. **Studio de mastering IA** — subes un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
 2. **Live Engine** — el master se carga en un motor Web Audio en el navegador con FX en tiempo real.
 
-**La unión:** Brikmaster masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce MIDI (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
+**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce MIDI (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
 
 ```
 MIDI Source → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
@@ -52,7 +52,7 @@ Documentada en detalle en [`docs/reference/COMPLIANCE_PHASE1.md`](docs/reference
 - **Panel de entrega flotante**: FAB "Entrega" (abajo a la derecha) → modo/plataforma/SR/bits/QC estricto en un sheet que no ensucia el lienzo.
 - **Reporte del motor flotante**: píldora compacta abajo a la izquierda con `LUFS · dBTP · SR · bits` que se expande a la tarjeta completa (`MasteringReportCard`).
 - **Chip de track con género**: en la navbar muestra el **género detectado** (reggaetón, pop, rock…) en vez del UUID interno del archivo.
-- **Marca Brikmaster**: rebrand completo de los textos visibles (navbar, login, drawer, licencia, guía, compartir) — los assets `public/brand/BrikMaster.svg` y `BrikMasters.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
+- **Marca WaveAI**: textos visibles (navbar, login, drawer, licencia, guía, compartir) — los assets `public/brand/WaveAI.svg` y `WaveAI.png` alimentan la tarjeta de compartir. El favicon es el fantasma beige con ojos (`src/app/icon.svg`).
 
 ## Cómo correr localmente
 

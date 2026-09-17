@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 
-# Inicia todos los servicios de Brikmaster en ventanas de PowerShell separadas.
+# Inicia todos los servicios de WaveAI en ventanas de PowerShell separadas.
 # Guarda los PIDs en scripts/.pids para poder detenerlos con stop-all.ps1.
 #
 # Uso:

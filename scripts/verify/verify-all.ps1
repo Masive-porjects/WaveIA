@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 
-# Verifica que los servicios de Brikmaster esten realmente levantados.
+# Verifica que los servicios de WaveAI esten realmente levantados.
 # Usa health checks HTTP y conexion TCP al WebSocket del Live Engine.
 # Si existe scripts/.pids verifica solo los servicios listados ahi;
 # si no, verifica los tres por defecto (audiomind, bridge, studio).
