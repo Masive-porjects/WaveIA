@@ -58,11 +58,14 @@ function Wait-ForService {
 
 # bridge y simulator escuchan ambos en :8765 (el simulator es el mock del bridge).
 $checks = @{
-    audiomind = @{ Test = { Test-HealthEndpoint "http://localhost:8000/health" }; MaxAttempts = 15 }
-    bridge    = @{ Test = { Test-TcpPort "localhost" 8765 };                    MaxAttempts = 15 }
-    simulator = @{ Test = { Test-TcpPort "localhost" 8765 };                    MaxAttempts = 15 }
+    # 127.0.0.1 explicito: 'localhost' resuelve ::1 (IPv6) primero y los servers
+    # bindean solo IPv4 — Invoke-WebRequest hace timeout aunque el servicio este OK.
+    # uvicorn tarda en el primer boot (imports de librosa/numba pesan ~1-2 min).
+    audiomind = @{ Test = { Test-HealthEndpoint "http://127.0.0.1:8000/health" }; MaxAttempts = 90 }
+    bridge    = @{ Test = { Test-TcpPort "127.0.0.1" 8765 };                    MaxAttempts = 15 }
+    simulator = @{ Test = { Test-TcpPort "127.0.0.1" 8765 };                    MaxAttempts = 15 }
     # El primer compile de next dev puede tardar bastante mas de 15 s.
-    studio    = @{ Test = { Test-HealthEndpoint "http://localhost:3000" };      MaxAttempts = 45 }
+    studio    = @{ Test = { Test-HealthEndpoint "http://127.0.0.1:3000" };      MaxAttempts = 45 }
 }
 
 $targets = @()

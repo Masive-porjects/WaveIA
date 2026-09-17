@@ -71,7 +71,7 @@ cd apps/studio && bun install && bun run dev
 cd apps/bridge && python -m src.main             # WS :8765
 ```
 
-**Windows — scripts de arranque** (`scripts/`): `scripts\start\start-all.bat` levanta los 3 servicios en ventanas separadas (con `-Simulator` levanta el mock en vez del bridge), `scripts\stop\stop-all.bat` los detiene y `scripts\verify\verify-all.bat` hace health checks. Requieren el `.venv` de la raíz creado según `SETUP.md`.
+**Windows — un solo click** (`scripts/`): doble click en `scripts\start\start-all.bat` hace todo — si falta el entorno corre el setup primero (`.venv`, deps Python, `bun install`, build de `apps/agent`, `.env.local`) y luego levanta los 3 servicios en ventanas separadas con health checks incluidos. `scripts\stop\stop-all.bat` los detiene. Opciones: `scripts\setup\setup.bat` corre solo el setup; por defecto el Live Engine usa el simulator en WS :8765 (sin hardware MIDI); con `-Bridge` arranca el bridge real para un controlador MIDI.
 
 **Docker** (sin instalar Python/bun en el host):
 
