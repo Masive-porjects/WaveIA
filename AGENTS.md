@@ -50,7 +50,7 @@ uvicorn audiomind.main:app --port 8000   # → curl localhost:8000/health
 
 # Bridge
 cd apps/bridge && pytest tests/ -q
-python main.py                            # WS :8765
+python -m src.main                        # WS :8765
 
 # Studio
 cd apps/studio && npm run build && npm run lint

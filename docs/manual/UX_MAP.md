@@ -1,4 +1,4 @@
-# Mapa de UX — Brikmaster Studio
+# Mapa de UX — WaveAI Studio
 
 > Estado del árbol: **septiembre 2026**. Documenta el flujo real de la UI, no la spec 04 (que quedó desactualizada en navegación).
 

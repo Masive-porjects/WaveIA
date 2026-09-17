@@ -1,8 +1,8 @@
-# Índice central de documentación — Brikmaster (WaveAI)
+# Índice central de documentación — WaveAI
 
 Este archivo es la **fuente de la verdad** sobre la documentación del repo: qué documento existe, dónde está, para qué sirve y cuándo leerlo. Si buscas información del proyecto, empieza acá.
 
-**Brikmaster** (antes WaveAI) es un estudio de mastering asistido por IA + un **Live Engine** Web Audio controlado en tiempo real.
+**WaveAI** es un estudio de mastering asistido por IA + un **Live Engine** Web Audio controlado en tiempo real.
 
 ```
 Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
@@ -46,6 +46,7 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 | Documento | Para qué sirve | Estado |
 |---|---|---|
 | [`SETUP.md`](runbooks/SETUP.md) | Levantar el entorno local (venv, bun, Convex, stack, pitfalls reales) | **Vigente (verificado)** |
+| [`DOCKER.md`](runbooks/DOCKER.md) | Stack local con Docker Compose (sin instalar Python/bun en el host) | **Vigente** |
 | [`DEPLOY_RUNBOOK.md`](runbooks/DEPLOY_RUNBOOK.md) | Deploy de la demo en Vercel + Railway | Preparado (no ejecutado) |
 | [`DEMO_DEPLOYMENT_PLAN.md`](runbooks/DEMO_DEPLOYMENT_PLAN.md) | Plan de despliegue de la demo (arquitectura vinculante) | **LOCKED** (no negociable) |
 

@@ -1,4 +1,4 @@
-# Manual de usuario — Brikmaster Studio
+# Manual de usuario — WaveAI Studio
 
 > Versión 0.1 — Mastering profesional asistido por IA.
 
@@ -32,7 +32,7 @@ Dentro de mastering hay **2 modos de trabajo**: toggle **"Manual" / "Asistente I
 - Errores previos a subir:
   - "Formato no soportado" — *"Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!"*
   - "Archivo demasiado grande" — *"Por favor, sube un archivo que pese menos de 50MB. ¡Mantengamos el estudio ágil!"*
-- Mientras sube: overlay **"Subiendo tu track a Brikmaster..."** con % real → al 100%: **"Cargado"** con check.
+- Mientras sube: overlay **"Subiendo tu track a WaveAI..."** con % real → al 100%: **"Cargado"** con check.
 
 ---
 
@@ -125,7 +125,7 @@ Cadena real: análisis → gain staging a −6 dBFS → HPF 30 Hz → match EQ p
 
 **Player A/B/C**: **Original** (tag "Raw"), **Master** y **Referencia** (render neutral a igual loudness — *"Mismo volumen que tu master — compara el carácter, no la fuerza."*). Cambio instantáneo de 10 ms.
 
-**Descargas**: **WAV** y **MP3** → `brikmaster_{session_id}.wav/.mp3`. **"Compartir"** → tarjeta 1200×630 con stats y "masterizado con Brikmaster" (Web Share o PNG).
+**Descargas**: **WAV** y **MP3** → `waveai_{session_id}.wav/.mp3`. **"Compartir"** → tarjeta 1200×630 con stats y "masterizado con WaveAI" (Web Share o PNG).
 
 ---
 

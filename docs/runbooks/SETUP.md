@@ -37,9 +37,16 @@ grep -hv '^#' apps/bridge/requirements.txt simulator/requirements.txt \
   | grep -v '^$' > /tmp/reqs-combined.txt
 
 ./.venv/bin/pip install --retries 15 --timeout 90 -r /tmp/reqs-combined.txt
+
+# AudioMind va editable (src-layout): expone `audiomind.main:app` y sus deps
+# (uvicorn, fastapi, librosa, pedalboard...) al venv compartido.
+./.venv/bin/pip install -e apps/audiomind
 ```
 
-**Esperado:** `import rtmidi, websockets, mido` sin errores.
+**Esperado:** `import rtmidi, websockets, mido` y `uvicorn --version` sin errores.
+
+En Windows el venv queda en `.venv\Scripts\` (no `.venv/bin`):
+`py -3.12 -m venv .venv` y `.\.venv\Scripts\pip install ...`.
 
 ---
 
@@ -81,10 +88,10 @@ cd apps/agent && bun run build && cd ../..
 
 ```bash
 # T1 — AudioMind (DSP)
-cd apps/audiomind && ../.venv/bin/uvicorn audiomind.main:app --port 8000
+cd apps/audiomind && ../../.venv/bin/uvicorn audiomind.main:app --port 8000
 
-# T2 — Bridge (MIDI → WS)
-cd apps/bridge && ../.venv/bin/python main.py          # WS :8765
+# T2 — Bridge (MIDI → WS) — src/main.py usa imports relativos: va como módulo
+cd apps/bridge && ../../.venv/bin/python -m src.main   # WS :8765
 
 # T3 — Studio
 cd apps/studio && bun run dev                           # http://localhost:3000
@@ -105,7 +112,7 @@ npx vitest run          # 6/6 passing (live engine)
 npm run build           # OK
 
 # Python
-cd apps/bridge && ../.venv/bin/python -m pytest tests/ -q      # 53/53 passing
+cd apps/bridge && ../../.venv/bin/python -m pytest tests/ -q      # 53/53 passing
 
 # Integral
 python -m simulator.main --mode server --scenario sweep       # WS mock :8765
