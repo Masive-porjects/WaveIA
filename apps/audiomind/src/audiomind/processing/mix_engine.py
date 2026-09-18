@@ -19,15 +19,24 @@ Paso 02 routing (no pan, no ``pan_report`` key). Paso 04 inserts the
 TEMPO DIMENSION right after the EQ (``dimension.py``: tempo delay +
 Schroeder reverb per stem with pre-delay and return EQ by layering;
 ``dimension_profiles={}`` restores the exact Paso 03 routing — no
-dimension, no ``dimension_report`` key). PASO 05 (this step) inserts the
-COMPRESSOR between the EQ and the dimension/sends (``dynamics.py`` —
-book recipes per stem, drums by spectral segment through the existing
-``LinkwitzRiley4``, breathing at tempo from the measured BPM) and
-compresses the STEREO BUS after the stem sum (Jerry Finn technique, 2–3
-dB total); ``compressor_profiles={}`` restores the exact Paso 04 routing
-— no compressor, no ``compressor_report`` key. Final per-stem chain:
-pan → EQ → compressor → dimension(sends) → bus; the bus compresses after
-the sum.
+dimension, no ``dimension_report`` key). PASO 05 inserted the
+ COMPRESSOR between the EQ and the dimension/sends (``dynamics.py`` —
+ book recipes per stem, drums by spectral segment through the existing
+ ``LinkwitzRiley4``, breathing at tempo from the measured BPM) and
+ compresses the STEREO BUS after the stem sum (Jerry Finn technique, 2–3
+ dB total); ``compressor_profiles={}`` restores the exact Paso 04 routing
+ — no compressor, no ``compressor_report`` key. PASO 06 (this step) adds
+ the GENRE EMPHASIS — the "Interest" balance of the book (Ch8 pág. 58–60,
+ the plan's honest mitigation of the last least-automatable element): the
+ genre detected on the source maps into a vocal-forward/groove-forward
+ weight pair (``emphasis.py``) that scales the per-stem dimension sends
+ INSIDE the engine's standard ranges (reverb mix/size, delay mix) and the
+ bus GR target inside the 2–3 dB recipe band; unknown genre or confidence
+ below ``CONFIDENCE_THRESHOLD`` falls back to the NEUTRAL 0.5/0.5 weights
+ — the exact Paso 05 routing — and ``emphasis_profiles={}`` restores that
+ routing unconditionally (no ``emphasis_report`` key). Final per-stem
+ chain: pan → EQ → compressor → dimension(sends) → bus; the bus
+ compresses after the sum.
 
 Neutrality contract (spec 08): in the backend a neutral parameter equals
 bit-identical audio; the routing equivalent of that contract is 0 dB
@@ -39,7 +48,11 @@ profiles/mix are neutral (or no valid tempo exists — Alex guard), and
 the compressor stage is a same-object no-op for ``None``/empty/ratio-1:1
 profiles (``apply_stem_compression`` enforces the same-object guarantee
 because ``adaptive_comp`` returns a copy in ratio-1 mode — documented in
-``dynamics.py``).
+``dynamics.py``). The Paso 06 emphasis scaling is another neutral no-op:
+at 0.5/0.5 weights the multipliers are exactly 1.0 (scaled profiles
+carry the base values) and the bus falls back to the original
+``apply_bus_compression`` path whenever the scaled GR target equals the
+base one — identical value, identical behaviour.
 """
 
 from __future__ import annotations
@@ -52,14 +65,26 @@ import numpy as np
 import soundfile as sf
 
 from audiomind.config import settings
+from audiomind.processing.adaptive_comp import AdaptiveCompressor
 from audiomind.processing.dimension import (
     DIMENSION_PROFILES,
     apply_stem_dimension,
 )
 from audiomind.processing.dynamics import (
+    BUS_COMPRESSOR_PROFILE,
+    BUS_GR_MAX_DB,
+    BUS_TECHNIQUE_NOTE,
     STEM_COMPRESSOR_PROFILES,
+    _nominal_times,
+    _params_from_profile,
     apply_bus_compression,
     apply_stem_compression,
+)
+from audiomind.processing.emphasis import (
+    GENRE_EMPHASIS_PROFILES,
+    resolve_emphasis,
+    scale_bus_profile,
+    scale_dimension_profile,
 )
 from audiomind.processing.io_write import write_output
 from audiomind.processing.magic_frequencies import MAGIC_PROFILES, apply_stem_eq
@@ -104,6 +129,73 @@ def _measure_input_bpm(input_path: str | Path) -> float | None:
     if not (np.isfinite(tempo_val) and tempo_val > 0.0):
         return None
     return float(tempo_val)
+
+
+def _measure_input_genre(
+    input_path: str | Path,
+) -> tuple[str | None, float | None]:
+    """Genre of the source audio (label + confidence) via the analyzer.
+
+    The full-mix analysis at the end of ``build_mix`` runs on the
+    REFINED mix — too late for the Paso 06 emphasis stage, which must
+    know the material's direction BEFORE routing the stems. This hook
+    measures the genre of the INPUT with the SAME detector the analyzer
+    ships (``analyze_audio``; the ``_detect_genre`` rule set: pop, rock,
+    electronic, hip_hop, reggaeton, jazz, classical, acoustic, metal,
+    other — confidence 0.30–0.85). Returns ``(None, None)`` when the
+    file is missing/undecodable — the emphasis stage then degrades to
+    the NEUTRAL fallback, never a crash (Alex guard, same policy as
+    ``_measure_input_bpm``). Lazy import, same policy as the analyzer.
+    """
+    try:
+        from audiomind.analysis.analyzer import analyze_audio
+
+        result = analyze_audio(str(input_path))
+        return result.detected_genre, result.genre_confidence
+    except Exception:
+        return None, None
+
+
+def _apply_scaled_bus_compression(
+    bus: np.ndarray,
+    sr: int,
+    bpm: float | None,
+    profile: dict[str, Any],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Jerry Finn mix-bus compressor pass with an explicit profile.
+
+    Mirror of ``dynamics.apply_bus_compression`` (same silent/empty
+    no-op guard, same ``AdaptiveCompressor`` pass, same report keys)
+    that takes the profile as an argument instead of the module constant
+    — the Paso 06 emphasis stage moves the GR target INSIDE the 2–3 dB
+    recipe band (``scale_bus_profile``) without touching ``dynamics.py``
+    (fixed Paso 05 API). Reuses the dynamics helpers verbatim; the extra
+    ``bus_gr_target_db`` metadata key is ignored by ``_params_from_profile``
+    (reads its known keys only).
+    """
+    x = np.asarray(bus)
+    if x.size == 0 or not np.any(x):
+        attack, release = _nominal_times(profile, bpm)
+        return bus, {
+            "gr_db": 0.0,
+            "gr_ok": True,
+            "technique": BUS_TECHNIQUE_NOTE,
+            "ratio": float(profile.get("ratio", 1.0)),
+            "attack_ms": attack,
+            "release_ms": release,
+        }
+
+    params = _params_from_profile(profile, bpm)
+    out, diag = AdaptiveCompressor(sr, params).process_with_diagnostics(x)
+    gr_db = round(abs(float(diag["mean_gr_db"])), 2)
+    return out, {
+        "gr_db": gr_db,
+        "gr_ok": bool(gr_db <= BUS_GR_MAX_DB),
+        "technique": BUS_TECHNIQUE_NOTE,
+        "ratio": params.ratio,
+        "attack_ms": params.attack_ms,
+        "release_ms": params.release_ms,
+    }
 
 
 #: Per-stem dimension entry for the no-tempo case (all neutral).
@@ -173,6 +265,9 @@ def build_mix(
     pan_profiles: dict[str, dict[str, Any]] | None = None,
     dimension_profiles: dict[str, dict[str, Any]] | None = None,
     compressor_profiles: dict[str, dict[str, Any]] | None = None,
+    emphasis_profiles: dict[str, dict[str, Any]] | None = None,
+    genre: str | None = None,
+    genre_confidence: float | None = None,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -219,6 +314,30 @@ def build_mix(
             recipe dicts; unmapped stems pass through untouched and do
             not appear in the report (panorama convention), while the bus
             stage stays active whenever the compressors are enabled.
+        emphasis_profiles: Per-genre emphasis weights (Paso 06:
+            ``emphasis.GENRE_EMPHASIS_PROFILES`` — the "Interest" balance
+            of the book, Ch8 pág. 58–60: every analyzer genre maps to a
+            vocal-forward/groove-forward pair, "Dance/Rap → énfasis en
+            groove (kick/bajo); Country/Pop → énfasis en vocal"). ``None``
+            ⇒ emphasis ENABLED by default (Paso 06 behaviour): the genre
+            scales the per-stem dimension sends (reverb mix/size, delay
+            mix — INSIDE the engine's standard ranges) and the bus GR
+            target (inside the 2–3 dB recipe band). Pass ``{}`` to
+            disable emphasis — routing identical to Paso 05 (no
+            ``emphasis_report`` key). A custom dict maps genre labels to
+            ``{"vocal_forward": float, "groove_forward": float}`` pairs
+            in [0, 1] summing to 1.0.
+        genre: Explicit genre label — overrides the source measurement.
+            ``None`` ⇒ measured from ``input_path`` with the analyzer's
+            own detector (``analyze_audio``, lazy import) when emphasis
+            is enabled; a missing/undecodable input degrades to the
+            NEUTRAL fallback, never a crash (Alex guard).
+        genre_confidence: Confidence of the ``genre`` label (the
+            analyzer's 0.30–0.85 scale). Below ``CONFIDENCE_THRESHOLD``
+            (0.5, documented in ``emphasis.py``) the label is reported
+            but NOT followed — neutral fallback. ``None`` means no
+            confidence information: the label is trusted (the caller
+            asserts it).
 
     Returns:
         ``{
@@ -235,6 +354,7 @@ def build_mix(
             "pan_report": {...},       # Paso 03, absent when pan_profiles={}
             "dimension_report": {...}  # Paso 04, absent when dimension disabled
             "compressor_report": {...} # Paso 05, absent when compressors disabled
+            "emphasis_report": {...}   # Paso 06, absent when emphasis disabled
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -253,7 +373,15 @@ def build_mix(
         "applied"|"neutral"}}, "bus": {"gr_db": float, "gr_ok": bool,
         "technique": "jerry_finn_slow_attack_fast_release"}, "status":
         "active"}`` — a missing lambda-key ``compressor_profiles={}``
-        keeps the exact Paso 04 result dict.
+        keeps the exact Paso 04 result dict, and ``emphasis_report`` is
+        ``{"genre": str, "genre_confidence": float|None,
+        "vocal_forward": float, "groove_forward": float, "scaling":
+        {"dimension": {stem: scaled send values}, "bus_gr_target_db":
+        float (present only when the bus compressor is enabled)},
+        "status": "active"|"neutral_fallback"}`` — the genre the
+        emphasis followed, its confidence, the direction weights and the
+        scaled values the stage applied (a ``neutral_fallback`` carries
+        the exact Paso 05 base values).
 
     Raises:
         ValueError: When ``split_audio`` does not produce all 4 stems.
@@ -281,8 +409,12 @@ def build_mix(
     compressor_profiles = (
         STEM_COMPRESSOR_PROFILES if compressor_profiles is None else compressor_profiles
     )
+    emphasis_profiles = (
+        GENRE_EMPHASIS_PROFILES if emphasis_profiles is None else emphasis_profiles
+    )
     dimension_enabled = bool(dimension_profiles)
     compressor_enabled = bool(compressor_profiles)
+    emphasis_enabled = bool(emphasis_profiles)
 
     # Paso 04 + Paso 05: measure the tempo ONCE from the INPUT (same
     # librosa measurement as the analyzer) — the dimension stage and the
@@ -294,6 +426,28 @@ def build_mix(
         bpm_used = _measure_input_bpm(input_path)
         if bpm_used is not None:
             bpm_used = round(bpm_used, 1)
+
+    # Paso 06: the genre the emphasis follows. An explicit ``genre``
+    # parameter overrides the measurement; otherwise the genre is measured
+    # from the INPUT with the analyzer's own detector (the final full-mix
+    # analysis runs on the refined mix — too late for the routing). A
+    # missing/undecodable input degrades to the NEUTRAL fallback, never a
+    # crash (Alex guard, same policy as the BPM); unknown genre or
+    # confidence below CONFIDENCE_THRESHOLD → the label is reported but
+    # NOT followed (same neutral fallback).
+    emphasis_resolved: dict[str, Any] | None = None
+    emphasis_dim_scaling: dict[str, float] = {}
+    scaled_bus_target: float | None = None
+    if emphasis_enabled:
+        detected_genre = genre
+        detected_confidence = genre_confidence
+        if detected_genre is None:
+            detected_genre, detected_confidence = _measure_input_genre(
+                input_path
+            )
+        emphasis_resolved = resolve_emphasis(
+            detected_genre, detected_confidence, emphasis_profiles
+        )
 
     resampled_stems: dict[str, np.ndarray] = {}
     for name, (audio, stem_sr) in zip(STEM_NAMES, reads, strict=True):
@@ -335,6 +489,30 @@ def build_mix(
             }
         dim_profile = dimension_profiles.get(name) if dimension_enabled else None
         if dim_profile is not None:
+            if emphasis_resolved is not None:
+                # Paso 06: scale the dimension sends along the genre
+                # direction (vocal_lead for the vocals role; the bed
+                # mirrors it). Neutral weights → exact base values.
+                dim_profile = scale_dimension_profile(
+                    dim_profile,
+                    {
+                        "vocal_forward": emphasis_resolved["vocal_forward"],
+                        "groove_forward": emphasis_resolved["groove_forward"],
+                    },
+                    vocal_lead=(name == "vocals"),
+                )
+                reverb_cfg = dim_profile.get("reverb") or {}
+                delay_cfg = dim_profile.get("delay") or {}
+                emphasis_dim_scaling[f"{name}_reverb_mix"] = round(
+                    float(reverb_cfg.get("mix", 0.0)), 2
+                )
+                emphasis_dim_scaling[f"{name}_delay_mix"] = round(
+                    float(delay_cfg.get("mix", 0.0)), 2
+                )
+                if name == "vocals":
+                    emphasis_dim_scaling["vocals_reverb_size"] = round(
+                        float(reverb_cfg.get("size", 0.5)), 2
+                    )
             shaped, stem_report = apply_stem_dimension(
                 shaped, target_sr, bpm_used, dim_profile
             )
@@ -360,12 +538,35 @@ def build_mix(
     for audio in bus_audio:
         bus[:, : audio.shape[1]] += audio
 
-    # Paso 05: the mix bus compresses AFTER the stem sum (Jerry Finn
-    # technique: 2–3 dB total, slow attack / fast release, breathing at
-    # tempo — ``dynamics.apply_bus_compression``).
+    # Paso 05 + Paso 06: the mix bus compresses AFTER the stem sum (Jerry
+    # Finn technique: 2–3 dB total, slow attack / fast release, breathing
+    # at tempo — ``dynamics.apply_bus_compression``). Under emphasis, the
+    # GR target moves INSIDE the recipe band (``scale_bus_profile``:
+    # groove → a bit more glue, vocal → let the voice breathe); when the
+    # scaled target equals the base one (neutral weights) the ORIGINAL
+    # Paso 05 path runs, bit-identical.
     bus_stage: dict[str, Any] | None = None
     if compressor_enabled:
-        bus, bus_stage_report = apply_bus_compression(bus, target_sr, bpm_used)
+        bus_profile: dict[str, Any] = BUS_COMPRESSOR_PROFILE
+        if emphasis_resolved is not None:
+            scaled_bus = scale_bus_profile(
+                BUS_COMPRESSOR_PROFILE,
+                {
+                    "vocal_forward": emphasis_resolved["vocal_forward"],
+                    "groove_forward": emphasis_resolved["groove_forward"],
+                },
+            )
+            scaled_bus_target = float(scaled_bus["bus_gr_target_db"])
+            if float(scaled_bus["threshold_offset_db"]) != float(
+                BUS_COMPRESSOR_PROFILE["threshold_offset_db"]
+            ):
+                bus_profile = scaled_bus
+        if bus_profile is BUS_COMPRESSOR_PROFILE:
+            bus, bus_stage_report = apply_bus_compression(bus, target_sr, bpm_used)
+        else:
+            bus, bus_stage_report = _apply_scaled_bus_compression(
+                bus, target_sr, bpm_used, bus_profile
+            )
         bus_stage = {
             "gr_db": bus_stage_report["gr_db"],
             "gr_ok": bus_stage_report["gr_ok"],
@@ -405,5 +606,19 @@ def build_mix(
             "stems": compressor_stems_report,
             "bus": bus_stage,
             "status": "active",
+        }
+    if emphasis_resolved is not None:
+        scaling: dict[str, Any] = {}
+        if dimension_enabled:
+            scaling["dimension"] = emphasis_dim_scaling
+        if compressor_enabled and scaled_bus_target is not None:
+            scaling["bus_gr_target_db"] = scaled_bus_target
+        build_result["emphasis_report"] = {
+            "genre": emphasis_resolved["genre"],
+            "genre_confidence": emphasis_resolved["genre_confidence"],
+            "vocal_forward": emphasis_resolved["vocal_forward"],
+            "groove_forward": emphasis_resolved["groove_forward"],
+            "scaling": scaling,
+            "status": emphasis_resolved["status"],
         }
     return build_result
