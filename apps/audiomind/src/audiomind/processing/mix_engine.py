@@ -16,19 +16,30 @@ other → inside the extremes, gross violations clamped-corrected with a
 −3 dB pan law, mono check on the resulting bus. ``profiles={}`` restores
 the Paso 01 NEUTRAL routing for EQ; ``pan_profiles={}`` keeps the exact
 Paso 02 routing (no pan, no ``pan_report`` key). Paso 04 inserts the
-TEMPO DIMENSION right after the EQ and before the pad/sum
-(``dimension.py``: tempo delay + Schroeder reverb per stem with pre-delay
-and return EQ by layering; ``dimension_profiles={}`` restores the exact
-Paso 03 routing — no dimension, no ``dimension_report`` key; the
-compressor arrives in Paso 05, inserted BEFORE the sends).
+TEMPO DIMENSION right after the EQ (``dimension.py``: tempo delay +
+Schroeder reverb per stem with pre-delay and return EQ by layering;
+``dimension_profiles={}`` restores the exact Paso 03 routing — no
+dimension, no ``dimension_report`` key). PASO 05 (this step) inserts the
+COMPRESSOR between the EQ and the dimension/sends (``dynamics.py`` —
+book recipes per stem, drums by spectral segment through the existing
+``LinkwitzRiley4``, breathing at tempo from the measured BPM) and
+compresses the STEREO BUS after the stem sum (Jerry Finn technique, 2–3
+dB total); ``compressor_profiles={}`` restores the exact Paso 04 routing
+— no compressor, no ``compressor_report`` key. Final per-stem chain:
+pan → EQ → compressor → dimension(sends) → bus; the bus compresses after
+the sum.
 
 Neutrality contract (spec 08): in the backend a neutral parameter equals
 bit-identical audio; the routing equivalent of that contract is 0 dB
 gains with 1:1 summing. The recombined mix is NOT bit-exact to the
 original because Demucs separation is lossy by nature — accepted and
 documented (pitfall 7). The EQ passthrough itself (empty/zero bands) IS
-bit-exact, and the dimension stage is a same-object no-op when its
-profiles/mix are neutral (or no valid tempo exists — Alex guard).
+bit-exact, the dimension stage is a same-object no-op when its
+profiles/mix are neutral (or no valid tempo exists — Alex guard), and
+the compressor stage is a same-object no-op for ``None``/empty/ratio-1:1
+profiles (``apply_stem_compression`` enforces the same-object guarantee
+because ``adaptive_comp`` returns a copy in ratio-1 mode — documented in
+``dynamics.py``).
 """
 
 from __future__ import annotations
@@ -44,6 +55,11 @@ from audiomind.config import settings
 from audiomind.processing.dimension import (
     DIMENSION_PROFILES,
     apply_stem_dimension,
+)
+from audiomind.processing.dynamics import (
+    STEM_COMPRESSOR_PROFILES,
+    apply_bus_compression,
+    apply_stem_compression,
 )
 from audiomind.processing.io_write import write_output
 from audiomind.processing.magic_frequencies import MAGIC_PROFILES, apply_stem_eq
@@ -156,6 +172,7 @@ def build_mix(
     profiles: dict[str, list[dict[str, Any]]] | None = None,
     pan_profiles: dict[str, dict[str, Any]] | None = None,
     dimension_profiles: dict[str, dict[str, Any]] | None = None,
+    compressor_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -186,6 +203,22 @@ def build_mix(
             through untouched and do not appear in the report. Without a
             valid tempo the stage degrades to the neutral ``no_tempo``
             report, never a crash (Alex guard).
+        compressor_profiles: Per-stem compressor recipes (Paso 05:
+            ``dynamics.STEM_COMPRESSOR_PROFILES`` — book recipes per
+            role, drums by spectral segment, breathing at tempo). ``None``
+            ⇒ compressors ENABLED by default (Paso 05 behaviour): the
+            BPM measured once from ``input_path`` (same measurement as
+            the dimension stage) feeds the beat-locked release, each stem
+            is compressed AFTER the EQ and BEFORE the dimension/sends
+            (final chain: pan → EQ → compressor → dimension/sends →
+            bus), and the stereo bus compresses AFTER the stem sum with
+            the Jerry Finn technique (``dynamics.apply_bus_compression``,
+            2–3 dB total, ``gr_ok`` ≤ 3.1 dB). Pass ``{}`` to disable the
+            compressors entirely — routing identical to Paso 04 (no
+            ``compressor_report`` key). A custom dict maps stem names to
+            recipe dicts; unmapped stems pass through untouched and do
+            not appear in the report (panorama convention), while the bus
+            stage stays active whenever the compressors are enabled.
 
     Returns:
         ``{
@@ -201,6 +234,7 @@ def build_mix(
                                     "other": [...], "vocals": [...]},
             "pan_report": {...},       # Paso 03, absent when pan_profiles={}
             "dimension_report": {...}  # Paso 04, absent when dimension disabled
+            "compressor_report": {...} # Paso 05, absent when compressors disabled
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -209,13 +243,17 @@ def build_mix(
         profile was passed for it; ``profiles={}`` ⇒ ``{}``),
         ``pan_report`` is the positional validation of
         ``panorama.validate_positions`` (roles / stems / mono_check /
-        human_decision), and ``dimension_report`` is
+        human_decision), ``dimension_report`` is
         ``{"bpm_used": float|None, "stems": {stem: {"delay":
         {"subdivision", "ms"}, "reverb": {"size", "mix", "pre_delay_ms",
         "return_eq"}, "applied"}}, "layering": {"note":
         "longest reverb brightest, shortest darkest"}, "status":
-        "active"|"no_tempo"}`` — a missing lambda-key
-        ``dimension_profiles={}`` keeps the exact Paso 03 result dict.
+        "active"|"no_tempo"}`` and ``compressor_report`` is
+        ``{"stems": {stem: {"gr_db": float, "ratio": float, "status":
+        "applied"|"neutral"}}, "bus": {"gr_db": float, "gr_ok": bool,
+        "technique": "jerry_finn_slow_attack_fast_release"}, "status":
+        "active"}`` — a missing lambda-key ``compressor_profiles={}``
+        keeps the exact Paso 04 result dict.
 
     Raises:
         ValueError: When ``split_audio`` does not produce all 4 stems.
@@ -240,13 +278,19 @@ def build_mix(
     dimension_profiles = (
         DIMENSION_PROFILES if dimension_profiles is None else dimension_profiles
     )
+    compressor_profiles = (
+        STEM_COMPRESSOR_PROFILES if compressor_profiles is None else compressor_profiles
+    )
     dimension_enabled = bool(dimension_profiles)
+    compressor_enabled = bool(compressor_profiles)
 
-    # Paso 04: measure the tempo ONCE from the INPUT (same librosa
-    # measurement as the analyzer). No valid tempo → neutral "no_tempo"
-    # dimension, never a crash (Alex guard).
+    # Paso 04 + Paso 05: measure the tempo ONCE from the INPUT (same
+    # librosa measurement as the analyzer) — the dimension stage and the
+    # compressor "breathing" (beat-locked release, book pág. 55) share the
+    # same BPM. No valid tempo → neutral "no_tempo" dimension and static
+    # compressor releases, never a crash (Alex guard).
     bpm_used: float | None = None
-    if dimension_enabled:
+    if dimension_enabled or compressor_enabled:
         bpm_used = _measure_input_bpm(input_path)
         if bpm_used is not None:
             bpm_used = round(bpm_used, 1)
@@ -261,13 +305,15 @@ def build_mix(
             resampled_stems, pan_profiles
         )
 
-    # Apply the stem EQ profile AFTER the pan, then the tempo dimension
-    # (Paso 04) RIGHT AFTER the EQ — the DAW chain places the sends after
-    # the compressor (Paso 05 inserts it before the sends). Every
-    # instrument lands on the bus already shaped.
+    # Apply the stem EQ profile AFTER the pan, then the COMPRESSOR (Paso
+    # 05, BETWEEN the EQ and the sends: book recipes per stem, drums by
+    # spectral segment), then the tempo dimension (Paso 04) — the DAW
+    # chain: pan → EQ → compresor → sends. Every instrument lands on the
+    # bus already shaped and controlled.
     bus_audio: list[np.ndarray] = []
     eq_profiles_applied: dict[str, list[dict[str, Any]]] = {}
     dimension_stems_report: dict[str, Any] = {}
+    compressor_stems_report: dict[str, Any] = {}
     for name in STEM_NAMES:
         shaped = resampled_stems[name]
         bands = profiles.get(name, [])
@@ -275,6 +321,18 @@ def build_mix(
             # All-zero gains bypass bit-exactly inside apply_stem_eq.
             shaped = apply_stem_eq(shaped, target_sr, bands)
             eq_profiles_applied[name] = bands
+        comp_profile = (
+            compressor_profiles.get(name) if compressor_enabled else None
+        )
+        if comp_profile is not None:
+            shaped, comp_report = apply_stem_compression(
+                shaped, target_sr, comp_profile, bpm_used
+            )
+            compressor_stems_report[name] = {
+                "gr_db": comp_report["gr_db"],
+                "ratio": comp_report["ratio"],
+                "status": comp_report["status"],
+            }
         dim_profile = dimension_profiles.get(name) if dimension_enabled else None
         if dim_profile is not None:
             shaped, stem_report = apply_stem_dimension(
@@ -301,6 +359,18 @@ def build_mix(
     bus = np.zeros((2, max_len), dtype=np.float32)
     for audio in bus_audio:
         bus[:, : audio.shape[1]] += audio
+
+    # Paso 05: the mix bus compresses AFTER the stem sum (Jerry Finn
+    # technique: 2–3 dB total, slow attack / fast release, breathing at
+    # tempo — ``dynamics.apply_bus_compression``).
+    bus_stage: dict[str, Any] | None = None
+    if compressor_enabled:
+        bus, bus_stage_report = apply_bus_compression(bus, target_sr, bpm_used)
+        bus_stage = {
+            "gr_db": bus_stage_report["gr_db"],
+            "gr_ok": bus_stage_report["gr_ok"],
+            "technique": bus_stage_report["technique"],
+        }
 
     mix_path = (settings.output_dir / f"{session_id}_mix.wav").resolve()
     write_output(bus, mix_path, target_sr, bit_depth=24)
@@ -330,4 +400,10 @@ def build_mix(
         build_result["pan_report"] = pan_report
     if dimension_report is not None:
         build_result["dimension_report"] = dimension_report
+    if compressor_enabled:
+        build_result["compressor_report"] = {
+            "stems": compressor_stems_report,
+            "bus": bus_stage,
+            "status": "active",
+        }
     return build_result
