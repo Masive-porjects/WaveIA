@@ -142,3 +142,139 @@ class TestMixEndpoint:
         session_id = _register_session(tmp_path, with_audio=False)
         resp = client.post(f"/api/session/{session_id}/mix")
         assert resp.status_code == 400
+
+
+#: Version names in render order (payload keys of the versions dict).
+_QC_CHECK_KEYS = {
+    "mono",
+    "phase",
+    "sibilance_5k",
+    "muddy_250",
+    "honky_500",
+    "low_level_listen",
+}
+_VERSION_NAMES = {"principal", "vocal_up", "vocal_down", "instrumental", "tv_mix"}
+
+
+def _bin_energy_db(audio: np.ndarray, sr: int, hz: float) -> float:
+    """Hann-windowed single-bin DFT energy (dB) at ``hz``.
+
+    Leakage-controlled measurement used to isolate one synthetic stem
+    tone inside a summed mix (stems are pure tones at distinct Hz).
+    Relative comparisons only — the window's 0.5 amplitude factor is
+    constant across files of the same length.
+    """
+    x = np.asarray(audio)
+    n = x.shape[-1]
+    window = np.hanning(n)
+    t = np.arange(n, dtype=np.float64)
+    phasor = np.exp(-2j * np.pi * hz * t / sr) * window
+    if x.ndim == 2:
+        mag = float(np.max(np.abs(x @ phasor)))
+    else:
+        mag = abs(float(np.dot(x, phasor)))
+    return 20.0 * np.log10(mag / n + 1e-12)
+
+
+def _read_wav(path: str | Path) -> tuple[np.ndarray, int]:
+    """Decode a mix WAV into (2, N) float + sample rate."""
+    with sf.SoundFile(str(path), "r") as f:
+        sr = int(f.samplerate)
+        frames = f.read(dtype="float32", always_2d=True)
+    return frames.T, sr
+
+
+class TestMixQCAndVersions:
+    """Paso 07: QC report + alternative versions on the /mix endpoint."""
+
+    def test_mix_payload_includes_qc_report(self, tmp_path, monkeypatch):
+        """qc_report is always present with every check + summary."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        resp = client.post(f"/api/session/{session_id}/mix")
+        assert resp.status_code == 200
+        payload = json.loads(resp.headers["x-mix-result"])
+        qc_report = payload["qc_report"]
+        assert _QC_CHECK_KEYS <= set(qc_report)
+        assert "summary" in qc_report
+        assert isinstance(qc_report["summary"]["flagged"], list)
+        # Informational contract: every per-check dict carries ok + details.
+        for name in _QC_CHECK_KEYS:
+            assert "ok" in qc_report[name]
+            assert "details" in qc_report[name]
+
+    def test_mix_renders_all_version_wavs(self, tmp_path, monkeypatch):
+        """-versions dict with 5 entries; alt WAVs exist and decode."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        resp = client.post(f"/api/session/{session_id}/mix")
+        assert resp.status_code == 200
+        payload = json.loads(resp.headers["x-mix-result"])
+        versions = payload["versions"]
+        assert set(versions) == _VERSION_NAMES
+        # principal points at the same file the endpoint serves.
+        assert versions["principal"]["path"] == str(
+            (settings.output_dir / f"{session_id}_mix.wav").resolve()
+        )
+        assert versions["principal"]["trim_db"] == 0.0
+        for name in ("vocal_up", "vocal_down", "instrumental", "tv_mix"):
+            assert Path(versions[name]["path"]).exists()
+            assert Path(versions[name]["path"]).stat().st_size > 1000
+            audio, sr = _read_wav(versions[name]["path"])
+            assert audio.ndim == 2 and audio.shape[0] == 2
+            assert sr == _SR
+            assert len(versions[name]["description"]) > 0
+        assert versions["vocal_up"]["trim_db"] == 0.75
+        assert versions["vocal_down"]["trim_db"] == -0.75
+        assert versions["instrumental"]["trim_db"] is None
+        assert versions["tv_mix"]["trim_db"] is None
+
+    def test_versions_differ_only_in_vocals_band(self, tmp_path, monkeypatch):
+        """Spectral proof: only the 440 Hz vocals band moves across versions.
+
+        vocal_up > principal > vocal_down; instrumental/tv_mix ≈ no vocal;
+        the bass band (90 Hz) stays equal within ±1.5 dB (the bus
+        compressor reacts minimally to the fader move, DAW-real).
+        """
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        resp = client.post(f"/api/session/{session_id}/mix")
+        assert resp.status_code == 200
+        payload = json.loads(resp.headers["x-mix-result"])
+        versions = payload["versions"]
+
+        audios: dict[str, np.ndarray] = {}
+        for name, entry in versions.items():
+            audios[name], sr = _read_wav(entry["path"])
+
+        vocals_band = {name: _bin_energy_db(a, sr, 440.0)
+                       for name, a in audios.items()}
+        assert vocals_band["vocal_up"] >= vocals_band["principal"] + 0.2
+        assert vocals_band["vocal_down"] <= vocals_band["principal"] - 0.2
+        assert vocals_band["instrumental"] <= vocals_band["principal"] - 20.0
+        assert vocals_band["tv_mix"] <= vocals_band["principal"] - 20.0
+
+        bass_band = {name: _bin_energy_db(a, sr, 90.0)
+                     for name, a in audios.items()}
+        for name in ("vocal_up", "vocal_down", "instrumental", "tv_mix"):
+            assert abs(bass_band[name] - bass_band["principal"]) <= 1.5
+
+    def test_principal_byte_identical_with_and_without_versions(
+        self, tmp_path, monkeypatch
+    ):
+        """Paso 06 regression: rendering versions never perturbs principal."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        original_path = sessions[session_id].original_path
+
+        mix_engine.build_mix(session_id, str(original_path), with_versions=True)
+        with_versions_bytes = (
+            settings.output_dir / f"{session_id}_mix.wav"
+        ).read_bytes()
+
+        mix_engine.build_mix(session_id, str(original_path), with_versions=False)
+        without_versions_bytes = (
+            settings.output_dir / f"{session_id}_mix.wav"
+        ).read_bytes()
+
+        assert with_versions_bytes == without_versions_bytes

@@ -53,6 +53,20 @@ at 0.5/0.5 weights the multipliers are exactly 1.0 (scaled profiles
 carry the base values) and the bus falls back to the original
 ``apply_bus_compression`` path whenever the scaled GR target equals the
 base one — identical value, identical behaviour.
+
+PASO 07 adds the QC REPORT and the ALTERNATIVE VERSIONS. After the bus
+compression and BEFORE the write, ``qc_report`` runs on the FINAL bus
+(``quality_checks.run_qc_checks``: mono/fase reusing the panorama
+internals, sibilance 4–7 kHz, muddy 200–300 Hz, honky 450–600 Hz and
+the measurable "low-level listen" proxies — informational flags that
+NEVER block the render; blocking is a human decision per the plan).
+``with_versions=True`` (default) renders the five alternative WAVs
+from the SAME processed stems (``render_versions.render_version_buses``
+— vocals-only trims: principal 0 dB, vocal ±0.75 dB, instrumental /
+tv_mix silence the vocals) with the same mix-bus compressor applied to
+each bus (DAW-real: the 2-bus reacts to the fader move). The principal
+path is byte-identical to Paso 06 — versions are separate files and
+never perturb it.
 """
 
 from __future__ import annotations
@@ -89,6 +103,12 @@ from audiomind.processing.emphasis import (
 from audiomind.processing.io_write import write_output
 from audiomind.processing.magic_frequencies import MAGIC_PROFILES, apply_stem_eq
 from audiomind.processing.panorama import PAN_ROLE_PROFILES, validate_positions
+from audiomind.processing.quality_checks import run_qc_checks
+from audiomind.processing.render_versions import (
+    VERSION_DESCRIPTIONS,
+    VERSION_TRIMS_DB,
+    render_version_buses,
+)
 from audiomind.processing.resample import resample_audio
 from audiomind.processing.splitter import STEM_NAMES, split_audio
 
@@ -198,6 +218,26 @@ def _apply_scaled_bus_compression(
     }
 
 
+def _apply_bus_profile(
+    bus: np.ndarray,
+    sr: int,
+    bpm: float | None,
+    profile: dict[str, Any],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Jerry Finn mix-bus pass honoring the (possibly scaled) profile.
+
+    Single entry point used by BOTH the principal bus and every
+    alternative-version bus so the 2-bus behaves identically everywhere:
+    the base constant runs the ORIGINAL Paso 05 path (``apply_bus_compression``,
+    byte-identical — the emphasis-neutral fallback) and a scaled profile
+    runs the explicit-profile mirror. Principal byte-identity is
+    preserved: the base path is unchanged.
+    """
+    if profile is BUS_COMPRESSOR_PROFILE:
+        return apply_bus_compression(bus, sr, bpm)
+    return _apply_scaled_bus_compression(bus, sr, bpm, profile)
+
+
 #: Per-stem dimension entry for the no-tempo case (all neutral).
 _DIMENSION_NO_TEMPO_ENTRY: dict[str, Any] = {
     "delay": {"subdivision": None, "ms": None},
@@ -268,6 +308,7 @@ def build_mix(
     emphasis_profiles: dict[str, dict[str, Any]] | None = None,
     genre: str | None = None,
     genre_confidence: float | None = None,
+    with_versions: bool = True,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -338,6 +379,11 @@ def build_mix(
             but NOT followed — neutral fallback. ``None`` means no
             confidence information: the label is trusted (the caller
             asserts it).
+        with_versions: Render the five alternative WAVs (Paso 07:
+            principal + vocal ±0.75 dB + instrumental + tv_mix) from the
+            same processed stems. Default ``True`` — the plan's
+            deliverable; the alternative files never perturb the
+            principal render (byte-identical with or without).
 
     Returns:
         ``{
@@ -355,6 +401,8 @@ def build_mix(
             "dimension_report": {...}  # Paso 04, absent when dimension disabled
             "compressor_report": {...} # Paso 05, absent when compressors disabled
             "emphasis_report": {...}   # Paso 06, absent when emphasis disabled
+            "qc_report": {...},        # Paso 07, always present (informational)
+            "versions": {...}          # Paso 07, absent when with_versions=False
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -381,7 +429,17 @@ def build_mix(
         "status": "active"|"neutral_fallback"}`` — the genre the
         emphasis followed, its confidence, the direction weights and the
         scaled values the stage applied (a ``neutral_fallback`` carries
-        the exact Paso 05 base values).
+        the exact Paso 05 base values). ``qc_report`` is
+        ``quality_checks.run_qc_checks`` on the FINAL compressed bus:
+        one checkpoint per check (mono / phase / sibilance_5k /
+        muddy_250 / honky_500 / low_level_listen), each ``{"ok": bool,
+        "details": {...}}`` plus an optional ``pan_stage`` context when
+        the pan stage ran, a ``summary`` (``all_ok`` / ``flagged``) and
+        the informational note — flags never block rendering. And
+        ``versions`` is ``{name: {"path", "trim_db", "description"}}``
+        for the five alternatives; ``principal`` points at the same
+        ``mix_path`` the /mix endpoint serves, the alternative WAVs are
+        ``outputs/{session_id}_mix_{name}.wav``.
 
     Raises:
         ValueError: When ``split_audio`` does not produce all 4 stems.
@@ -465,6 +523,7 @@ def build_mix(
     # chain: pan → EQ → compresor → sends. Every instrument lands on the
     # bus already shaped and controlled.
     bus_audio: list[np.ndarray] = []
+    processed_stems: dict[str, np.ndarray] = {}
     eq_profiles_applied: dict[str, list[dict[str, Any]]] = {}
     dimension_stems_report: dict[str, Any] = {}
     compressor_stems_report: dict[str, Any] = {}
@@ -520,6 +579,7 @@ def build_mix(
                 stem_report, dim_profile
             )
         bus_audio.append(shaped)
+        processed_stems[name] = shaped
 
     dimension_report: dict[str, Any] | None = None
     if dimension_enabled:
@@ -546,8 +606,9 @@ def build_mix(
     # scaled target equals the base one (neutral weights) the ORIGINAL
     # Paso 05 path runs, bit-identical.
     bus_stage: dict[str, Any] | None = None
+    bus_profile: dict[str, Any] | None = None
     if compressor_enabled:
-        bus_profile: dict[str, Any] = BUS_COMPRESSOR_PROFILE
+        bus_profile = BUS_COMPRESSOR_PROFILE
         if emphasis_resolved is not None:
             scaled_bus = scale_bus_profile(
                 BUS_COMPRESSOR_PROFILE,
@@ -561,20 +622,53 @@ def build_mix(
                 BUS_COMPRESSOR_PROFILE["threshold_offset_db"]
             ):
                 bus_profile = scaled_bus
-        if bus_profile is BUS_COMPRESSOR_PROFILE:
-            bus, bus_stage_report = apply_bus_compression(bus, target_sr, bpm_used)
-        else:
-            bus, bus_stage_report = _apply_scaled_bus_compression(
-                bus, target_sr, bpm_used, bus_profile
-            )
+        bus, bus_stage_report = _apply_bus_profile(
+            bus, target_sr, bpm_used, bus_profile
+        )
         bus_stage = {
             "gr_db": bus_stage_report["gr_db"],
             "gr_ok": bus_stage_report["gr_ok"],
             "technique": bus_stage_report["technique"],
         }
 
+    # Paso 07: QC report on the FINAL compressed bus — informational
+    # flags that never block the render (human decision per the plan).
+    qc_report = run_qc_checks(bus, target_sr, pan_info=pan_report)
+
     mix_path = (settings.output_dir / f"{session_id}_mix.wav").resolve()
     write_output(bus, mix_path, target_sr, bit_depth=24)
+
+    # Paso 07: alternative versions from the SAME processed stems (only
+    # the vocals trim differs — ``render_versions``). The principal is
+    # the file already written; the alternatives re-sum the stems and
+    # run the SAME mix-bus compressor (the 2-bus reacts to the fader
+    # move, DAW-real). Separate files — the principal render is
+    # byte-identical with or without versions.
+    version_outputs: dict[str, Any] | None = None
+    if with_versions:
+        version_buses = render_version_buses(processed_stems)
+        version_outputs = {}
+        for version_name, version_bus in version_buses.items():
+            if version_name == "principal":
+                version_outputs[version_name] = {
+                    "path": str(mix_path),
+                    "trim_db": 0.0,
+                    "description": VERSION_DESCRIPTIONS["principal"],
+                }
+                continue
+            if compressor_enabled and bus_profile is not None:
+                version_bus, _ = _apply_bus_profile(
+                    version_bus, target_sr, bpm_used, bus_profile
+                )
+            version_path = (
+                settings.output_dir / f"{session_id}_mix_{version_name}.wav"
+            ).resolve()
+            write_output(version_bus, version_path, target_sr, bit_depth=24)
+            version_outputs[version_name] = {
+                "path": str(version_path),
+                "trim_db": VERSION_TRIMS_DB[version_name],
+                "description": VERSION_DESCRIPTIONS[version_name],
+            }
 
     # Analysis is heavy (librosa) — lazy import, same policy as mastering.
     from audiomind.analysis.analyzer import analyze_audio
@@ -596,7 +690,10 @@ def build_mix(
         "genre": mix_result.detected_genre,
         "genre_confidence": mix_result.genre_confidence,
         "eq_profiles_applied": eq_profiles_applied,
+        "qc_report": qc_report,
     }
+    if version_outputs is not None:
+        build_result["versions"] = version_outputs
     if pan_report is not None:
         build_result["pan_report"] = pan_report
     if dimension_report is not None:
