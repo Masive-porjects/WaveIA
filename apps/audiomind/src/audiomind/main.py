@@ -15,6 +15,7 @@ from audiomind.api.splitter import router as splitter_router
 from audiomind.api.vocal import router as vocal_router
 from audiomind.api.songstarter import router as songstarter_router
 from audiomind.api.batch import router as batch_router
+from audiomind.api.mix import router as mix_router
 
 
 def _ttl_janitor_loop() -> None:
@@ -65,6 +66,7 @@ app.include_router(splitter_router, prefix="/api")
 app.include_router(vocal_router, prefix="/api")
 app.include_router(songstarter_router, prefix="/api")
 app.include_router(batch_router, prefix="/api")
+app.include_router(mix_router, prefix="/api")
 
 
 @app.get("/health")
