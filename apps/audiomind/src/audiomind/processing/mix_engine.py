@@ -7,12 +7,15 @@ result with ``write_output`` and produces per-stem analysis (LUFS /
 dynamic range / spectral centroid) plus full-mix analysis (tempo / genre
 / confidence).
 
-Since Paso 02 each stem is EQ-shaped BEFORE the 1:1 sum with its magic
-frequencies profile (Owsinski pág. 32, ``MAGIC_PROFILES`` in
-``magic_frequencies.py``): cuts first → boosts after, per the book's
-golden rules. ``profiles={}`` (or all-zero gains) restores the Paso 01
-NEUTRAL routing: bit-exact bypass per stem — the routing equivalent of
-the "neutral parameter = identical audio" contract.
+Since Paso 02 each stem follows the DAW chain (fader → pan → EQ →
+compresor → sends, ``VIABILIDAD_MOTOR_DE_MEZCLA.md`` línea 214): Paso 02
+added the EQ (``magic_frequencies.py``, Owsinski pág. 32 — cuts first →
+boosts after), Paso 03 inserts the role PAN *before* the EQ plus the
+positional validation (``panorama.py``): vocals/bass/drums → center,
+other → inside the extremes, gross violations clamped-corrected with a
+−3 dB pan law, mono check on the resulting bus. ``profiles={}`` restores
+the Paso 01 NEUTRAL routing for EQ; ``pan_profiles={}`` keeps the exact
+Paso 02 routing (no pan, no ``pan_report`` key).
 
 Neutrality contract (spec 08): in the backend a neutral parameter equals
 bit-identical audio; the routing equivalent of that contract is 0 dB
@@ -34,6 +37,7 @@ import soundfile as sf
 from audiomind.config import settings
 from audiomind.processing.io_write import write_output
 from audiomind.processing.magic_frequencies import MAGIC_PROFILES, apply_stem_eq
+from audiomind.processing.panorama import PAN_ROLE_PROFILES, validate_positions
 from audiomind.processing.resample import resample_audio
 from audiomind.processing.splitter import STEM_NAMES, split_audio
 
@@ -76,17 +80,25 @@ def build_mix(
     session_id: str,
     input_path: str | Path,
     profiles: dict[str, list[dict[str, Any]]] | None = None,
+    pan_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
     Args:
         session_id: Session UUID — owns the stems dir and the output file.
         input_path: Source audio to separate.
-        profiles: Per-stem EQ band lists applied BEFORE the bus sum
-            (Paso 02: magic frequencies, Owsinski pág. 32). ``None`` ⇒
-            ``MAGIC_PROFILES`` (default); pass ``{}`` or all-zero-gain
-            bands to keep the Paso 01 NEUTRAL routing (bit-exact bypass
-            per stem).
+        profiles: Per-stem EQ band lists applied AFTER the pan, before
+            the bus sum (Paso 02: magic frequencies, Owsinski pág. 32).
+            ``None`` ⇒ ``MAGIC_PROFILES`` (default); pass ``{}`` or
+            all-zero-gain bands to keep the Paso 01 NEUTRAL routing
+            (bit-exact bypass per stem).
+        pan_profiles: Per-stem role profiles for the positional validation
+            (Paso 03: ``panorama.PAN_ROLE_PROFILES``). ``None`` ⇒ role pan
+            ENABLED by default (Paso 03 behaviour). Pass ``{}`` to disable
+            pan entirely — routing identical to Paso 02 (no pan applied,
+            no ``pan_report`` key). A custom dict maps stem names to
+            ``{"role": "center"|"wide", "target_max_abs_balance_db",
+            "max_correction_db"}``.
 
     Returns:
         ``{
@@ -100,12 +112,16 @@ def build_mix(
             "genre_confidence": float,
             "eq_profiles_applied": {"drums": [...], "bass": [...],
                                     "other": [...], "vocals": [...]},
+            "pan_report": {...}   # Paso 03, absent when pan_profiles={}
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
-        and ``eq_profiles_applied`` records the bands requested per stem
+        ``eq_profiles_applied`` records the bands requested per stem
         (a stem with no profile / zero gains still appears only if a
-        profile was passed for it; ``profiles={}`` ⇒ ``{}``).
+        profile was passed for it; ``profiles={}`` ⇒ ``{}``), and
+        ``pan_report`` is the positional validation of
+        ``panorama.validate_positions`` (roles / stems / mono_check /
+        human_decision).
 
     Raises:
         ValueError: When ``split_audio`` does not produce all 4 stems.
@@ -118,22 +134,38 @@ def build_mix(
     if missing:
         raise ValueError(f"split_audio missing stems: {', '.join(missing)}")
 
-    # Read + resample every stem to the common bus rate, then apply the
-    # stem EQ profile BEFORE the pad and the 1:1 sum — every instrument
-    # lands on the bus already shaped (Paso 02: magic frequencies).
+    # Read + resample every stem to the common bus rate. Paso 03 measures
+    # the M/S position on the RESAMPLED stem (before any correction) and
+    # applies the role PAN (vocals/bass/drums → center, other → inside the
+    # extremes) BEFORE the EQ — the DAW chain: fader → pan → EQ → compresor
+    # → sends (VIABILIDAD línea 214).
     reads = [_read_stem_channels(stems[name]) for name in STEM_NAMES]
     target_sr = _common_sr([sr for _, sr in reads])
     profiles = MAGIC_PROFILES if profiles is None else profiles
+    pan_profiles = PAN_ROLE_PROFILES if pan_profiles is None else pan_profiles
+
+    resampled_stems: dict[str, np.ndarray] = {}
+    for name, (audio, stem_sr) in zip(STEM_NAMES, reads, strict=True):
+        resampled_stems[name] = resample_audio(audio, stem_sr, target_sr)
+
+    pan_report: dict[str, Any] | None = None
+    if pan_profiles:
+        resampled_stems, pan_report = validate_positions(
+            resampled_stems, pan_profiles
+        )
+
+    # Apply the stem EQ profile AFTER the pan, before pad + 1:1 sum —
+    # every instrument lands on the bus already shaped (Paso 02).
     bus_audio: list[np.ndarray] = []
     eq_profiles_applied: dict[str, list[dict[str, Any]]] = {}
-    for name, (audio, stem_sr) in zip(STEM_NAMES, reads, strict=True):
-        resampled = resample_audio(audio, stem_sr, target_sr)
+    for name in STEM_NAMES:
+        shaped = resampled_stems[name]
         bands = profiles.get(name, [])
         if bands:
             # All-zero gains bypass bit-exactly inside apply_stem_eq.
-            resampled = apply_stem_eq(resampled, target_sr, bands)
+            shaped = apply_stem_eq(shaped, target_sr, bands)
             eq_profiles_applied[name] = bands
-        bus_audio.append(resampled)
+        bus_audio.append(shaped)
 
     # Pad to the longest stem and sum onto the stereo mono-compatible bus.
     # Neutral 0 dB = 1:1 summing (no normalization); a hot sum just clips
@@ -157,7 +189,7 @@ def build_mix(
         }
 
     mix_result = analyze_audio(mix_path)
-    return {
+    build_result: dict[str, Any] = {
         "mix_path": str(mix_path),
         "sample_rate": target_sr,
         "duration_seconds": round(mix_result.duration_seconds, 2),
@@ -167,3 +199,6 @@ def build_mix(
         "genre_confidence": mix_result.genre_confidence,
         "eq_profiles_applied": eq_profiles_applied,
     }
+    if pan_report is not None:
+        build_result["pan_report"] = pan_report
+    return build_result
