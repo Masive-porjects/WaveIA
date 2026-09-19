@@ -67,6 +67,21 @@ tv_mix silence the vocals) with the same mix-bus compressor applied to
 each bus (DAW-real: the 2-bus reacts to the fader move). The principal
 path is byte-identical to Paso 06 — versions are separate files and
 never perturb it.
+
+PASO 08 adds the CREATIVE MODE (``creative.py`` — "exploración creativa
+acotada"): ``creative_seed`` + ``creativity`` (0..1) + ``creative_variants``
+draw N variants INSIDE the standard envelope (continuous space by user
+requirement — never finite presets), each re-routed from the SAME
+resampled stems (no re-split) with its own pan → EQ → compressor →
+dimension chain, its own bus recipe and its own vocal trim, validated
+against the positional/QC gate (rejection sampling, ``MAX_CREATIVE_ATTEMPTS``
+per variant — the batch never blocks). ``creativity=0`` is the strict
+standard: every variant reproduces the base routing (bit-identical
+principal) and the principal render is byte-identical with or without
+the creative block. Accepted variant files land at
+``outputs/{session_id}_mix_creative_{i}.wav``. ``creative_manual=True``
+marks the output ``non_standard`` instead of rejecting it ("no se
+bloquea").
 """
 
 from __future__ import annotations
@@ -80,6 +95,10 @@ import soundfile as sf
 
 from audiomind.config import settings
 from audiomind.processing.adaptive_comp import AdaptiveCompressor
+from audiomind.processing.creative import (
+    apply_variant_to_profiles,
+    run_creative_mode,
+)
 from audiomind.processing.dimension import (
     DIMENSION_PROFILES,
     apply_stem_dimension,
@@ -298,6 +317,56 @@ def _common_sr(stem_srs: list[int]) -> int:
     return max(counts, key=lambda sr: (counts[sr], sr))
 
 
+def _process_stem(
+    name: str,
+    audio: np.ndarray,
+    target_sr: int,
+    bpm: float | None,
+    bands: list[dict[str, Any]],
+    comp_profile: dict[str, Any] | None,
+    dim_profile: dict[str, Any] | None,
+) -> tuple[
+    np.ndarray,
+    list[dict[str, Any]] | None,
+    dict[str, Any] | None,
+    dict[str, Any] | None,
+]:
+    """One stem through the chain pan → EQ → compressor → dimension/sends.
+
+    Shared by the PRINCIPAL routing and every CREATIVE variant (Paso 08):
+    the same per-stem recipe run on already-panned audio — EQ bands first
+    (bit-exact bypass for empty/zero lists), then the compressor recipe
+    (neutral when ``None``), then the tempo dimension send (neutral when
+    ``None``). Purely deterministic: identical inputs → identical output
+    arrays, which is what the byte-identity contracts (versions, creative
+    ``creativity=0``) rely on. The caller owns the per-stem report
+    attribution (the principal also records which profiles were used).
+
+    Returns:
+        ``(shaped, eq_bands, comp_report, dim_report)`` — ``eq_bands`` is
+        the applied band list (``None`` when no EQ ran), ``comp_report`` /
+        ``dim_report`` the stage reports (``None`` when the stage was
+        skipped for the stem).
+    """
+    shaped = audio
+    eq_bands: list[dict[str, Any]] | None = None
+    if bands:
+        # All-zero gains bypass bit-exactly inside apply_stem_eq.
+        shaped = apply_stem_eq(shaped, target_sr, bands)
+        eq_bands = bands
+    comp_report: dict[str, Any] | None = None
+    if comp_profile is not None:
+        shaped, comp_report = apply_stem_compression(
+            shaped, target_sr, comp_profile, bpm
+        )
+    dim_report: dict[str, Any] | None = None
+    if dim_profile is not None:
+        shaped, dim_report = apply_stem_dimension(
+            shaped, target_sr, bpm, dim_profile
+        )
+    return shaped, eq_bands, comp_report, dim_report
+
+
 def build_mix(
     session_id: str,
     input_path: str | Path,
@@ -309,6 +378,10 @@ def build_mix(
     genre: str | None = None,
     genre_confidence: float | None = None,
     with_versions: bool = True,
+    creative_seed: int | None = None,
+    creativity: float = 0.0,
+    creative_variants: int = 0,
+    creative_manual: bool = False,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -384,6 +457,25 @@ def build_mix(
             same processed stems. Default ``True`` — the plan's
             deliverable; the alternative files never perturb the
             principal render (byte-identical with or without).
+        creative_seed: Base seed of the CREATIVE MODE (Paso 08,
+            ``creative.py`` — "exploración creativa acotada"). With
+            ``creative_variants > 0`` each variant draws from its own
+            seed stream (``seed + index*1000 + attempt``); ``None``
+            (default) together with variants disables the mode. A seed is
+            REQUIRED for creative mode — it is what makes the A/B
+            reproducible ("Semilla por variante", §4.2).
+        creativity: Deviation slider in [0, 1]: 0 = strict standard (every
+            variant reproduces the base routing, bit-identical principal),
+            1 = wide exploration inside the standard envelope. Must be in
+            [0, 1] (``ValueError`` otherwise).
+        creative_variants: Number of N variants to render (default 0 =
+            creative mode disabled — no ``creative_report`` key, exact
+            previous routing). Must be ≥ 0.
+        creative_manual: Producer's deliberate out-of-envelope choice
+            (Paso 08): the variants render even when they violate a
+            positional/QC check and are MARKED ``non_standard`` in the
+            report — never blocked ("salida no-estándar se marca, no se
+            bloquea").
 
     Returns:
         ``{
@@ -439,11 +531,39 @@ def build_mix(
         ``versions`` is ``{name: {"path", "trim_db", "description"}}``
         for the five alternatives; ``principal`` points at the same
         ``mix_path`` the /mix endpoint serves, the alternative WAVs are
-        ``outputs/{session_id}_mix_{name}.wav``.
+        ``outputs/{session_id}_mix_{name}.wav``. The creative report
+        (Paso 08, present only with ``creative_variants > 0`` and a
+        seed) is ``{"seed": int, "creativity": float, "manual": bool,
+        "status": "active", "variants": [{"index", "seed", "status":
+        "ok"|"rejected", "params", "qc_ok", "positional_ok",
+        "non_standard", "path"}], "rejected_count": int, "note": str}``
+        — accepted variant WAVs live at
+        ``outputs/{session_id}_mix_creative_{i}.wav``; rejected entries
+        carry no path and the batch never blocks.
 
     Raises:
-        ValueError: When ``split_audio`` does not produce all 4 stems.
+        ValueError: When ``split_audio`` does not produce all 4 stems,
+            ``creativity`` is outside [0, 1], ``creative_variants`` is
+            negative, or variants are requested without a
+            ``creative_seed``.
     """
+    # Paso 08 contract validation — cheap, before any heavy work. The
+    # slider lives in [0, 1] and creative mode REQUIRES a seed (the
+    # per-variant streams are what make the A/B reproducible).
+    if not (0.0 <= float(creativity) <= 1.0):
+        raise ValueError(
+            f"creativity must be in [0, 1] (slider), got {creativity!r}"
+        )
+    if creative_variants < 0:
+        raise ValueError(
+            f"creative_variants must be >= 0, got {creative_variants!r}"
+        )
+    if creative_variants > 0 and creative_seed is None:
+        raise ValueError(
+            "creative mode requires a seed (creative_seed) so every "
+            "variant draws a reproducible stream"
+        )
+
     stems_dir = settings.output_dir / session_id / "stems"
     split_result = split_audio(input_path, output_dir=stems_dir)
     stems = split_result["stems"]
@@ -511,54 +631,42 @@ def build_mix(
     for name, (audio, stem_sr) in zip(STEM_NAMES, reads, strict=True):
         resampled_stems[name] = resample_audio(audio, stem_sr, target_sr)
 
+    # Paso 08: keep the RAW resampled stems for the creative variants —
+    # every variant re-runs its OWN positional validation from the same
+    # pre-pan material (no re-split): the alias survives because
+    # validate_positions returns a NEW dict.
+    raw_stems_for_creative = resampled_stems
+
     pan_report: dict[str, Any] | None = None
     if pan_profiles:
         resampled_stems, pan_report = validate_positions(
             resampled_stems, pan_profiles
         )
 
-    # Apply the stem EQ profile AFTER the pan, then the COMPRESSOR (Paso
-    # 05, BETWEEN the EQ and the sends: book recipes per stem, drums by
-    # spectral segment), then the tempo dimension (Paso 04) — the DAW
-    # chain: pan → EQ → compresor → sends. Every instrument lands on the
-    # bus already shaped and controlled.
-    bus_audio: list[np.ndarray] = []
-    processed_stems: dict[str, np.ndarray] = {}
-    eq_profiles_applied: dict[str, list[dict[str, Any]]] = {}
-    dimension_stems_report: dict[str, Any] = {}
-    compressor_stems_report: dict[str, Any] = {}
-    for name in STEM_NAMES:
-        shaped = resampled_stems[name]
-        bands = profiles.get(name, [])
-        if bands:
-            # All-zero gains bypass bit-exactly inside apply_stem_eq.
-            shaped = apply_stem_eq(shaped, target_sr, bands)
-            eq_profiles_applied[name] = bands
-        comp_profile = (
-            compressor_profiles.get(name) if compressor_enabled else None
-        )
-        if comp_profile is not None:
-            shaped, comp_report = apply_stem_compression(
-                shaped, target_sr, comp_profile, bpm_used
-            )
-            compressor_stems_report[name] = {
-                "gr_db": comp_report["gr_db"],
-                "ratio": comp_report["ratio"],
-                "status": comp_report["status"],
-            }
-        dim_profile = dimension_profiles.get(name) if dimension_enabled else None
-        if dim_profile is not None:
+    # Paso 06: the genre-scaled dimension profiles are computed ONCE per
+    # stem (they are pure functions of the base profile + the weights)
+    # and feed the PRINCIPAL routing below. Paso 08 creative variants
+    # draw their own sends from the creative space (``creative.py``),
+    # whose standards are the BASE profiles — under neutral emphasis
+    # weights (0.5/0.5) the scaled values equal those base values.
+    emphasis_weights: dict[str, float] | None = None
+    effective_dimension_profiles: dict[str, dict[str, Any]] = {}
+    if dimension_enabled:
+        for name in STEM_NAMES:
+            dim_profile = dimension_profiles.get(name)
+            if dim_profile is None:
+                continue
             if emphasis_resolved is not None:
+                if emphasis_weights is None:
+                    emphasis_weights = {
+                        "vocal_forward": emphasis_resolved["vocal_forward"],
+                        "groove_forward": emphasis_resolved["groove_forward"],
+                    }
                 # Paso 06: scale the dimension sends along the genre
                 # direction (vocal_lead for the vocals role; the bed
                 # mirrors it). Neutral weights → exact base values.
                 dim_profile = scale_dimension_profile(
-                    dim_profile,
-                    {
-                        "vocal_forward": emphasis_resolved["vocal_forward"],
-                        "groove_forward": emphasis_resolved["groove_forward"],
-                    },
-                    vocal_lead=(name == "vocals"),
+                    dim_profile, emphasis_weights, vocal_lead=(name == "vocals")
                 )
                 reverb_cfg = dim_profile.get("reverb") or {}
                 delay_cfg = dim_profile.get("delay") or {}
@@ -572,9 +680,48 @@ def build_mix(
                     emphasis_dim_scaling["vocals_reverb_size"] = round(
                         float(reverb_cfg.get("size", 0.5)), 2
                     )
-            shaped, stem_report = apply_stem_dimension(
-                shaped, target_sr, bpm_used, dim_profile
-            )
+            effective_dimension_profiles[name] = dim_profile
+
+    # Apply the stem EQ profile AFTER the pan, then the COMPRESSOR (Paso
+    # 05, BETWEEN the EQ and the sends: book recipes per stem, drums by
+    # spectral segment), then the tempo dimension (Paso 04) — the DAW
+    # chain: pan → EQ → compresor → sends. Every instrument lands on the
+    # bus already shaped and controlled. The chain itself lives in
+    # ``_process_stem`` so the principal path and the creative variants
+    # (Paso 08) run the exact same recipe.
+    bus_audio: list[np.ndarray] = []
+    processed_stems: dict[str, np.ndarray] = {}
+    eq_profiles_applied: dict[str, list[dict[str, Any]]] = {}
+    dimension_stems_report: dict[str, Any] = {}
+    compressor_stems_report: dict[str, Any] = {}
+    for name in STEM_NAMES:
+        comp_profile = (
+            compressor_profiles.get(name) if compressor_enabled else None
+        )
+        dim_profile = (
+            effective_dimension_profiles.get(name) if dimension_enabled else None
+        )
+        shaped, eq_bands, comp_report, stem_report = _process_stem(
+            name,
+            resampled_stems[name],
+            target_sr,
+            bpm_used,
+            profiles.get(name, []),
+            comp_profile,
+            dim_profile,
+        )
+        if eq_bands is not None:
+            eq_profiles_applied[name] = eq_bands
+        if comp_report is not None:
+            compressor_stems_report[name] = {
+                "gr_db": comp_report["gr_db"],
+                "ratio": comp_report["ratio"],
+                "status": comp_report["status"],
+            }
+        # ``_process_stem`` returns a dimension report exactly when a
+        # profile was passed — the joint guard narrows ``dim_profile``
+        # for mypy (both are None-or-not together).
+        if stem_report is not None and dim_profile is not None:
             dimension_stems_report[name] = _dimension_stem_entry(
                 stem_report, dim_profile
             )
@@ -670,6 +817,120 @@ def build_mix(
                 "description": VERSION_DESCRIPTIONS[version_name],
             }
 
+    # Paso 08: CREATIVE MODE — "exploración creativa acotada"
+    # (``creative.py``). Variants reroute the SAME raw resampled stems (no
+    # re-split, no re-analysis): an RNG walk inside the standard envelope
+    # (``creativity`` 0..1), each variant re-validates ITS OWN positional
+    # gate from its pre-pan material and the Paso 07 QC gate from its own
+    # bus, and the batch NEVER blocks the deliverable — a failing variant
+    # is retried (``MAX_CREATIVE_ATTEMPTS``) and the last draw is reported
+    # as ``status: "rejected"`` (no file) unless ``creative_manual`` marks
+    # it ``non_standard``. Accepted files:
+    # ``outputs/{session_id}_mix_creative_{i}.wav``. The PRINCIPAL path
+    # above ran untouched: creative mode is a separate, later pass on the
+    # raw stems — byte-identity preserved.
+    creative_report: dict[str, Any] | None = None
+    if creative_variants > 0 and creative_seed is not None:
+
+        def _render_creative_variant(
+            attempt_seed: int, variant: dict[str, float],
+        ) -> dict[str, Any]:
+            """Route one variant from the raw stems to a validated bus.
+
+            Mirrors the principal chain (pan → EQ → compresor → sends →
+            sum → 2-bus) with the variant's SIX routing roots; the vocal
+            trim lands at the bus input (a fader AFTER the stem chain,
+            versions-style). Variant roots are deep copies of the shared
+            constants — the principal constants are never touched.
+            """
+            (
+                variant_eq_profiles,
+                variant_pan_profiles,
+                variant_dim_profiles,
+                variant_comp_profiles,
+                variant_bus_profile,
+                variant_trims,
+            ) = apply_variant_to_profiles(variant)
+
+            variant_stems: dict[str, np.ndarray] = dict(raw_stems_for_creative)
+            variant_pan_report: dict[str, Any] | None = None
+            if variant_pan_profiles:
+                variant_stems, variant_pan_report = validate_positions(
+                    variant_stems, variant_pan_profiles
+                )
+
+            variant_bus_audio: list[np.ndarray] = []
+            variant_processed: dict[str, np.ndarray] = {}
+            for name in STEM_NAMES:
+                comp_profile = (
+                    variant_comp_profiles.get(name)
+                    if compressor_enabled
+                    else None
+                )
+                dim_profile = (
+                    variant_dim_profiles.get(name)
+                    if dimension_enabled
+                    else None
+                )
+                shaped, _, _, _ = _process_stem(
+                    name,
+                    variant_stems[name],
+                    target_sr,
+                    bpm_used,
+                    variant_eq_profiles.get(name, []),
+                    comp_profile,
+                    dim_profile,
+                )
+                variant_processed[name] = shaped
+                variant_bus_audio.append(shaped)
+
+            # Creative fader: the vocals trim applied at the bus input,
+            # AFTER the chain (same semantic as render_versions).
+            vocals_db = float(variant_trims.get("vocals_db", 0.0))
+            if vocals_db != 0.0 and "vocals" in variant_processed:
+                gain = 10.0 ** (vocals_db / 20.0)
+                variant_processed["vocals"] = variant_processed["vocals"] * gain
+                variant_bus_audio[STEM_NAMES.index("vocals")] = (
+                    variant_processed["vocals"]
+                )
+
+            max_len = max(audio.shape[1] for audio in variant_bus_audio)
+            variant_bus = np.zeros((2, max_len), dtype=np.float32)
+            for audio in variant_bus_audio:
+                variant_bus[:, : audio.shape[1]] += audio
+
+            if compressor_enabled:
+                variant_bus, _ = _apply_bus_profile(
+                    variant_bus, target_sr, bpm_used, variant_bus_profile
+                )
+
+            variant_qc = run_qc_checks(
+                variant_bus, target_sr, pan_info=variant_pan_report
+            )
+            return {
+                "validation": variant_pan_report or {},
+                "qc": variant_qc,
+                "bus": variant_bus,
+            }
+
+        def _save_creative_variant(
+            index: int, attempt_seed: int, bus: np.ndarray,
+        ) -> str:
+            path = (
+                settings.output_dir / f"{session_id}_mix_creative_{index}.wav"
+            ).resolve()
+            write_output(bus, path, target_sr, bit_depth=24)
+            return str(path)
+
+        creative_report = run_creative_mode(
+            seed=creative_seed,
+            creativity=creativity,
+            variants_count=creative_variants,
+            render=_render_creative_variant,
+            save=_save_creative_variant,
+            manual=creative_manual,
+        )
+
     # Analysis is heavy (librosa) — lazy import, same policy as mastering.
     from audiomind.analysis.analyzer import analyze_audio
 
@@ -718,4 +979,6 @@ def build_mix(
             "scaling": scaling,
             "status": emphasis_resolved["status"],
         }
+    if creative_report is not None:
+        build_result["creative_report"] = creative_report
     return build_result
