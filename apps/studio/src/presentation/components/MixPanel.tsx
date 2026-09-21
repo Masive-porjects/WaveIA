@@ -251,6 +251,11 @@ export default function MixPanel({
   // Idioma de los chips flotantes (solo chips — mixI18n.ts); persiste en
   // localStorage con guard try/catch (bloqueos de privacidad).
   const [lang, setLang] = useState<MixLang>(readMixLang);
+  // v6 — dimensión espacial (Delay + Reverb): elección POR MEZCLA, no
+  // persistida. ON por defecto (comportamiento actual); OFF = routing
+  // Paso 03 (el backend omite dimension_report y el chip "dimension" no
+  // aparece). Se deshabilita mientras corre el POST /mix.
+  const [dimensionEnabled, setDimensionEnabled] = useState(true);
 
   const objectUrlRef = useRef<string | null>(null);
   const stageRef = useRef(0);
@@ -340,7 +345,10 @@ export default function MixPanel({
     }, stageMs);
 
     try {
-      const { audioUrl, result } = await mixTracks(sessionId, controller.signal);
+      const { audioUrl, result } = await mixTracks(sessionId, {
+        signal: controller.signal,
+        dimensionEnabled,
+      });
       clearProgressTimer();
       objectUrlRef.current = audioUrl;
       setProgressPct(100);
@@ -361,7 +369,7 @@ export default function MixPanel({
       if (abortRef.current === controller) abortRef.current = null;
       setMixing(false);
     }
-  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer]);
+  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -382,10 +390,15 @@ export default function MixPanel({
   // Primer mix de una sesión sin datos → solo etapas DSP; al llegar la
   // respuesta (``mixResult``) o en sesión recargada (``sessionMixAnalysis``)
   // los stems presentes aparecen. Etiquetas ya traducidas (lang).
+  // v6 — honestidad: con ``dimensionEnabled === false`` la etapa
+  // "dimension" (Reverb + Delay) NO se aplica → su chip no aparece; el
+  // resto de la cadena DSP sigue igual.
   const chips: MixChip[] = useMemo(() => {
     const present = analysis?.stem_presence;
     return [
-      ...MIX_CHAIN_STAGES.map((stage) => ({
+      ...MIX_CHAIN_STAGES.filter(
+        (stage) => dimensionEnabled || stage.id !== "dimension",
+      ).map((stage) => ({
         id: stage.id,
         label: stage.label[lang],
         tone: "stage" as const,
@@ -398,7 +411,7 @@ export default function MixPanel({
         }),
       ),
     ];
-  }, [analysis, lang]);
+  }, [analysis, lang, dimensionEnabled]);
   chipsRef.current = chips;
 
   // Género real del análisis (chip + panel IA). "other" se normaliza a "Otro".
@@ -575,6 +588,50 @@ export default function MixPanel({
               )}
             </button>
           )}
+        </div>
+      </div>
+
+      {/* ── Opciones de la mezcla: dimensión espacial (Delay + Reverb).
+          v6 — elección por mezcla (no persistida), default ON; se
+          deshabilita mientras corre el POST /mix. OFF = routing Paso 03
+          (backend omite dimension_report). */}
+      <div className="flex flex-wrap items-center gap-2.5 px-4 pt-3">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={dimensionEnabled}
+          aria-label="Dimensión espacial (Delay + Reverb)"
+          onClick={() => setDimensionEnabled((v) => !v)}
+          disabled={mixing}
+          className="relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+          style={{
+            background: dimensionEnabled
+              ? "var(--accent-primary)"
+              : "var(--surface-active)",
+            border: "1px solid var(--border-subtle)",
+          }}
+        >
+          <span
+            className="absolute left-0.5 top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+            style={{
+              transform: dimensionEnabled ? "translateX(1rem)" : "translateX(0)",
+            }}
+          />
+        </button>
+        <div className="min-w-0">
+          <p
+            className="text-xs font-medium"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Dimensión espacial (Delay + Reverb)
+          </p>
+          <p
+            className="text-[10px] leading-relaxed"
+            style={{ color: "var(--text-muted)" }}
+            title="Agrega delay tempo y reverb por stem. Apagada: mezcla seca, routing idéntico al paso de paneo."
+          >
+            Apagada: mezcla seca, sin delay ni reverb
+          </p>
         </div>
       </div>
 

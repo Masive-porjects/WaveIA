@@ -100,7 +100,11 @@ describe('mixTracks', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       `${API}/session/${SID}/mix`,
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ dimension_enabled: true }),
+      }),
     );
     expect(audioUrl).toBe('blob:mock-mix');
     expect(result?.tempo_bpm).toBe(128);
@@ -148,7 +152,7 @@ describe('mixTracks', () => {
     vi.stubGlobal('fetch', fetchMock);
     stubObjectUrl();
 
-    const { audioUrl } = await mixTracks(SID, controller.signal);
+    const { audioUrl } = await mixTracks(SID, { signal: controller.signal });
 
     expect(audioUrl).toBe('blob:mock-mix');
     expect(fetchMock).toHaveBeenCalledWith(
@@ -156,6 +160,25 @@ describe('mixTracks', () => {
       expect.objectContaining({
         method: 'POST',
         signal: controller.signal,
+      }),
+    );
+  });
+
+  it('envía dimension_enabled: false cuando dimensionEnabled es false', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    await mixTracks(SID, { dimensionEnabled: false });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        body: JSON.stringify({ dimension_enabled: false }),
       }),
     );
   });
