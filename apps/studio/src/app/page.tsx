@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -94,67 +94,7 @@ const TABS: { key: MasteringTab; label: string }[] = [
    preset's master is completed. Guarding with the previous preset's
    `mastered_path` caused 404 races when switching presets during a slow
    render: the fetch asked for `activePresetId` audio that was not ready. */
-function isPresetCompleted(
-  session: SessionData,
-  presetId: string | null | undefined,
-): boolean {
-  if (!presetId) {
-    return Boolean(session.mastered_path);
-  }
-  return session.preset_masters?.[presetId]?.status === "completed";
-}
-
-/* ── Genre-to-params mapping ────────────────────────── */
-
-function genreToParams(genre: string | null): MasteringParameters {
-  const p: MasteringParameters = { ...DEFAULT_PARAMS };
-  if (!genre) return p;
-
-  switch (genre.toLowerCase()) {
-    case "urban":
-    case "hip-hop":
-    case "reggaeton":
-      p.compression_ratio = 4.0;
-      p.limiter_ceiling_db = -1.0;
-      p.transient_boost_db = 2.0;
-      p.haas_delay_ms = 5;
-      p.stereo_width = 1.2;
-      p.target_lufs_db = -12;
-      break;
-    case "rock":
-    case "indie":
-      p.compression_ratio = 2.5;
-      p.transient_boost_db = 1.0;
-      p.saturation_drive_db = 3.0;
-      p.saturation_warmth_db = 2.0;
-      p.stereo_width = 1.2;
-      break;
-    case "pop":
-    case "electronic":
-    case "electrónica":
-      p.clarity_brightness_db = 2.0;
-      p.compression_ratio = 3.0;
-      p.stereo_width = 1.4;
-      p.haas_delay_ms = 8;
-      break;
-    case "jazz":
-    case "classical":
-    case "clásica":
-      p.compression_ratio = 1.5;
-      p.limiter_ceiling_db = -2.0;
-      p.clarity_wet = 0.25;
-      break;
-    case "latin":
-    case "latino":
-    case "fusion":
-      p.compression_ratio = 3.0;
-      p.transient_boost_db = 1.5;
-      p.saturation_drive_db = 2.0;
-      p.stereo_width = 1.1;
-      break;
-  }
-  return p;
-}
+import { isPresetCompleted, genreToParams, useIsClient, progressPct } from "@/lib/audioUtils"
 
 /* ── Analysis wait + process watchdog ─────────────────── */
 
@@ -243,7 +183,7 @@ function useProcessingProgress(
       pollingRef.current = true;
       try {
         const p = await getProcessingProgress(sessionId);
-        const pct = Math.round(Math.max(0, Math.min(100, p.progress * 100)));
+        const pct = progressPct(p.progress * 100);
         progressRef.current = pct;
         setProgress(pct);
 
@@ -300,16 +240,6 @@ function useProcessingProgress(
 
 /* ── Note burst colors (reused for the upload animation) ── */
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
-
-/* ── Hydration-safe client detector ──────────────────── */
-
-function useIsClient(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
 
 /* ── Waveform decoration (GSAP live motion) ─────────── */
 
