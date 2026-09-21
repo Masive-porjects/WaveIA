@@ -22,6 +22,8 @@ interface MixPanelProps {
   sessionMixPath?: string | null;
   /** ``session.mix_analysis`` persistido (espejo del header X-Mix-Result). */
   sessionMixAnalysis?: MixResult | null;
+  /** Duración del audio original en segundos (``session.analysis``). */
+  audioDurationSeconds?: number | null;
   disabled?: boolean;
 }
 
@@ -35,9 +37,22 @@ const MIX_STAGES = [
   "Mezclando el bus...",
 ] as const;
 
-// El backend no expone progreso real: cada etapa dura ~9 s mientras el fetch
-// está en vuelo. El porcentaje NUNCA llega a 100 hasta que la promesa resuelve.
-const STAGE_MS = 9_000;
+/**
+ * Tiempo por etapa según la duración del audio. El backend es una sola
+ * request blocking (sin progreso real), así que la UI camina por etapas
+ * mientras el fetch está en vuelo:
+ *   - ~1 min de audio  → ~7 s por etapa (≈42 s de recorrido) — pruebas
+ *     locales rápidas.
+ *   - ~3 min de audio  → ~15 s por etapa (≈90 s de recorrido) — cuando la
+ *     infraestructura lo admita.
+ * Interpola linealmente entre 60 s y 180 s y clampa fuera de ese rango.
+ * El porcentaje NUNCA llega a 100 hasta que la promesa resuelve.
+ */
+function stageMsForDuration(audioDurationSeconds?: number | null): number {
+  const clamped = Math.min(Math.max(audioDurationSeconds ?? 60, 60), 180);
+  const t = (clamped - 60) / 120; // 0 (1 min) → 1 (3 min)
+  return Math.round(7000 + t * 8000); // 7 s → 15 s
+}
 
 /** Formatea segundos como mm:ss (o segundos con decimal si es corto). */
 function formatDuration(seconds: number): string {
@@ -115,6 +130,7 @@ export default function MixPanel({
   sessionId,
   sessionMixPath,
   sessionMixAnalysis,
+  audioDurationSeconds,
   disabled,
 }: MixPanelProps) {
   const [mixing, setMixing] = useState(false);
@@ -170,15 +186,17 @@ export default function MixPanel({
 
     // Progreso por etapas simuladas: el POST /mix del backend es una sola
     // request blocking que devuelve el WAV completo; la UI avanza por etapas
-    // mientras el fetch está en vuelo. El 100% solo llega con la respuesta
-    // real — nunca se marca done antes.
+    // mientras el fetch está en vuelo (timing según la duración del audio:
+    // ~1 min → etapas de 7 s; ~3 min → etapas de 15 s). El 100% solo llega
+    // con la respuesta real — nunca se marca done antes.
+    const stageMs = stageMsForDuration(audioDurationSeconds);
     progressIntervalRef.current = setInterval(() => {
       stageRef.current = Math.min(stageRef.current + 1, MIX_STAGES.length - 1);
       setProgressStage(stageRef.current);
       setProgressPct(
         Math.min(95, Math.round((stageRef.current / MIX_STAGES.length) * 100)),
       );
-    }, STAGE_MS);
+    }, stageMs);
 
     try {
       const { audioUrl, result } = await mixTracks(sessionId);
@@ -194,7 +212,7 @@ export default function MixPanel({
     } finally {
       setMixing(false);
     }
-  }, [sessionId, mixing, clearProgressTimer]);
+  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer]);
 
   if (!sessionId) {
     return (
