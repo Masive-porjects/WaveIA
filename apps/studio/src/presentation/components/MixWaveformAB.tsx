@@ -21,10 +21,43 @@ interface MixWaveformABProps {
   mixedDuration?: number | null;
 }
 
-/* ── Paleta light del módulo (autocontenida) ───────────── */
+/* ── Tokens de onda (v5 — dark mode) ────────────────────
+   WaveSurfer pinta sobre canvas (``fillStyle``), y canvas NO resuelve
+   ``var(--x)`` de CSS: los tokens se leen vía getComputedStyle en runtime
+   (cliente) en cada montaje de onda, cayendo al valor legacy si el token
+   faltara. Único punto de contacto entre globals.css y el canvas.
+   ``--waveform-original`` / ``--waveform-mastered`` son invariantes de
+   tema; ``--text-secondary`` (progreso del lado original) sí cambia con
+   el tema y se re-lee en cada remount. */
 
-const ORIG_COLORS = { wave: "#484855", progress: "#9aa0b5" };
-const MIXED_COLORS = { wave: "#00d4aa", progress: "#30d158" };
+function tokenHex(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return v || fallback;
+}
+
+/** Mezcla un hex con blanco (t) — "derivado" del token de onda para el
+ *  progreso del lado mezclado (mint claro, misma familia de marca). */
+function mixWithWhite(hex: string, t: number): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * t);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
+const ORIG_COLORS = {
+  wave: () => tokenHex("--waveform-original", "#484855"),
+  progress: () => tokenHex("--text-secondary", "#9aa0b5"),
+};
+const MIXED_COLORS = {
+  wave: () => tokenHex("--waveform-mastered", "#00d4aa"),
+  progress: () => mixWithWhite(tokenHex("--waveform-mastered", "#00d4aa"), 0.55),
+};
 
 /* ── Texturas de render ─────────────────────────────────
    AMBOS lados decodifican el WAV real (WaveSurfer `load(url)`);
@@ -168,8 +201,8 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
     const ws = createWS(
       containerRef.current,
       url,
-      colors.wave,
-      colors.progress,
+      colors.wave(),
+      colors.progress(),
       texture,
     );
     wsRef.current = ws;
@@ -220,13 +253,13 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
   return (
     <div
       className="flex min-w-0 flex-col rounded-xl border"
-      style={{ background: "#fafafa", borderColor: "#e5e7eb" }}
+      style={{ background: "var(--surface-hover)", borderColor: "var(--border-subtle)" }}
     >
       {/* Etiqueta + insignia */}
       <div className="flex items-center justify-between gap-2 px-3 pt-3">
         <p
           className="text-[10px] font-bold uppercase tracking-[0.14em]"
-          style={{ color: isMixed ? "#10b981" : "#6b7280" }}
+          style={{ color: isMixed ? "#10b981" : "var(--text-secondary)" }}
         >
           {isMixed ? "Audio mezclado (Final)" : "Original (Raw)"}
         </p>
@@ -250,7 +283,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
         className="relative mx-3 mt-2 w-full min-w-0 overflow-hidden rounded-lg"
         style={{
           height: 72,
-          background: "rgba(15, 23, 42, 0.04)",
+          background: "var(--surface-hover)",
           cursor: "pointer",
         }}
       >
@@ -272,7 +305,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
             style={{
               left: `${playheadPct}%`,
               transform: "translateX(-50%)",
-              background: isMixed ? "#10b981" : "#64748b",
+              background: isMixed ? "#10b981" : "var(--text-secondary)",
               boxShadow: isMixed
                 ? "0 0 8px rgba(16, 185, 129, 0.6)"
                 : "none",
@@ -289,8 +322,8 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
           disabled={!ready}
           title="Volver al inicio"
           aria-label="Volver al inicio"
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-[#eceef1] disabled:cursor-not-allowed disabled:opacity-30"
-          style={{ color: isMixed ? "#10b981" : "#64748b" }}
+          className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-30"
+          style={{ color: isMixed ? "#10b981" : "var(--text-secondary)" }}
         >
           <SkipBack size={15} fill="currentColor" />
         </button>
@@ -300,7 +333,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
           aria-label={playing ? "Pausar" : "Reproducir"}
           title={playing ? "Pausar" : "Reproducir"}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
-          style={{ background: isMixed ? "#10b981" : "#64748b" }}
+          style={{ background: isMixed ? "#10b981" : "var(--text-secondary)" }}
         >
           {playing ? (
             <Pause size={14} fill="currentColor" />
@@ -308,7 +341,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
             <Play size={14} fill="currentColor" />
           )}
         </button>
-        <span className="w-10 font-mono text-xs" style={{ color: "#6b7280" }}>
+        <span className="w-10 font-mono text-xs" style={{ color: "var(--text-secondary)" }}>
           {formatTime(currentTime)}
         </span>
         {isMixed && (
@@ -316,7 +349,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
             <div className="flex-1" />
             {typeof mixedDuration === "number" && (
               <span
-                className="flex items-center gap-1 font-mono text-xs text-[#9ca3af]"
+                className="flex items-center gap-1 font-mono text-xs text-[var(--text-muted)]"
                 data-testid="mix-total-duration"
               >
                 {formatTime(mixedDuration)}

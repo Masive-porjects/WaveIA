@@ -1040,6 +1040,7 @@ export default function Home() {
               genreHint={session.analysis?.detected_genre ?? null}
               disabled={processing}
               mode={masteringMode}
+              onMasterize={() => handleModuleClick("modules")}
             />
           </div>
         );

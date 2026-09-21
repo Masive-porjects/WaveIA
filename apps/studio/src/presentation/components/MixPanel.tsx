@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -10,6 +10,7 @@ import {
   Music2,
   Music4,
   ShieldCheck,
+  Sparkles,
   X,
 } from "lucide-react";
 import {
@@ -19,12 +20,27 @@ import {
   type MixResult,
 } from "@/lib/api";
 import MixWaveformAB from "@/presentation/components/MixWaveformAB";
+import MixFloatingChips from "@/presentation/components/MixFloatingChips";
+import {
+  MIX_CHAIN_STAGES,
+  MIX_LANG_STORAGE_KEY,
+  STEM_CHIP_LABELS,
+  STEM_ROLE_IDS,
+  readMixLang,
+  type MixChip,
+  type MixLang,
+} from "@/presentation/components/mixI18n";
 
-/* ── Paleta light autocontenida del módulo ─────────────── */
+/* ── Módulo: tokens semánticos de globals.css (dark por defecto,
+   light con html[data-theme="light"]). Los acentos de marca (verde
+   #00d4aa/#10b981, rojo de error, gradiente del ring) quedan fijos:
+   funcionan en ambos temas. ──────────────────────────────── */
 
 const CARD_STYLE: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
+  // position: relative ancla el overlay de chips flotantes (v5).
+  position: "relative",
+  background: "var(--bg-elevated)",
+  border: "1px solid var(--border)",
   borderRadius: "1rem",
   boxShadow: "0 4px 24px rgba(15, 23, 42, 0.06)",
 };
@@ -43,17 +59,58 @@ interface MixPanelProps {
   /** Modo global Manual/Asistente IA (switch del navbar). Gobierna el
    *  mini-panel de recomendaciones IA del módulo. */
   mode: "manual" | "ai";
+  /** Acción "Masterizar": carga la vista de mastering (tab "modules")
+   *  para continuar el proceso. Habilitado solo con mix terminado. */
+  onMasterize?: () => void;
 }
 
-/** Etapas simuladas de progreso mientras corre el POST /mix (blocking). */
-const MIX_STAGES = [
-  "Separando stems...",
-  "Mezclando kick...",
-  "Mezclando bajo...",
-  "Mezclando guitarra...",
-  "Mezclando voces...",
-  "Mezclando el bus...",
-] as const;
+/**
+ * Etapas/chips del progreso mientras corre el POST /mix (blocking).
+ * v5 — honestidad: la cadena DSP (``MIX_CHAIN_STAGES``) es SIEMPRE cierta
+ * (existe en ``mix_engine.build_mix``); los stems solo aparecen cuando el
+ * backend los reporta como presentes (``stem_presence``, RMS ≥ −50 dBFS).
+ * El timing de cuándo se muestra cada chip es simulado por el ticker de
+ * `stageMsForDuration` (igual que la barra: cap 95 %, 100 % solo con la
+ * respuesta real). NUNCA se muestra "Guitarra": demucs no la detecta
+ * (vive en "other").
+ */
+
+/** Pill ES/EN de los chips flotantes (diccionario local, mixI18n.ts).
+ *  El resto del microcopy del módulo sigue en español neutro latino. */
+function LangToggle({
+  lang,
+  onLang,
+}: {
+  lang: MixLang;
+  onLang: (next: MixLang) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Idioma de los chips"
+      className="flex items-center rounded-full border px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+      style={{ borderColor: "var(--border-subtle)" }}
+    >
+      {(["es", "en"] as const).map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onLang(opt)}
+          aria-pressed={lang === opt}
+          className="rounded-full px-2 py-0.5 transition-all duration-200"
+          style={{
+            color:
+              lang === opt ? "var(--text-primary)" : "var(--text-muted)",
+            background:
+              lang === opt ? "var(--surface-active)" : "transparent",
+          }}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Tiempo por etapa según la duración del audio. El backend es una sola
@@ -82,7 +139,7 @@ function formatDuration(seconds: number): string {
   return `${seconds.toFixed(1)} s`;
 }
 
-/* ── Grilla de análisis (estilo light) ───────────────────
+/* ── Grilla de análisis (tokens semánticos) ──────────────
    Renderiza SOLO los campos presentes en el payload — nunca
    inventa datos que el backend no midió. */
 function MixAnalysisGrid({ result }: { result: MixResult }) {
@@ -115,10 +172,10 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
   if (cells.length === 0 && !qc) return null;
 
   return (
-    <div className="mt-4 border-t pt-4" style={{ borderColor: "#f1f5f9" }}>
+    <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--border-subtle)" }}>
       <p
         className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.16em]"
-        style={{ color: "#6b7280" }}
+        style={{ color: "var(--text-secondary)" }}
       >
         Análisis de la mezcla
       </p>
@@ -128,19 +185,19 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
             key={cell.label}
             className="min-w-0 rounded-xl px-3 py-2.5 text-center"
             style={{
-              background: "#f9fafb",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-hover)",
+              border: "1px solid var(--border-subtle)",
             }}
           >
             <p
               className="truncate font-mono text-sm font-semibold"
-              style={{ color: "#0f172a" }}
+              style={{ color: "var(--text-primary)" }}
             >
               {cell.value}
             </p>
             <p
               className="mt-0.5 text-[9px] uppercase tracking-wider"
-              style={{ color: "#9ca3af" }}
+              style={{ color: "var(--text-muted)" }}
             >
               {cell.label}
             </p>
@@ -150,8 +207,8 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
           <div
             className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold"
             style={{
-              background: "#f9fafb",
-              border: "1px solid #e5e7eb",
+              background: "var(--surface-hover)",
+              border: "1px solid var(--border-subtle)",
               color: qc.summary?.all_ok === false ? "#b45309" : "#10b981",
             }}
             title={
@@ -179,6 +236,7 @@ export default function MixPanel({
   disabled,
   genreHint,
   mode,
+  onMasterize,
 }: MixPanelProps) {
   const [mixing, setMixing] = useState(false);
   const [mixUrl, setMixUrl] = useState<string | null>(null);
@@ -190,11 +248,28 @@ export default function MixPanel({
   // Sesión restaurada con mix ya hecho → el resultado se muestra al abrir;
   // la pill permite ocultarlo/mostrarlo.
   const [showResult, setShowResult] = useState(() => Boolean(sessionMixPath));
+  // Idioma de los chips flotantes (solo chips — mixI18n.ts); persiste en
+  // localStorage con guard try/catch (bloqueos de privacidad).
+  const [lang, setLang] = useState<MixLang>(readMixLang);
 
   const objectUrlRef = useRef<string | null>(null);
   const stageRef = useRef(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Lista dinámica de chips (etapas DSP + stems presentes) vista por el
+  // ticker; se asigna en cada render para que el intervalo siempre use la
+  // longitud actual sin re-crear el timer.
+  const chipsRef = useRef<MixChip[]>([]);
+
+  const changeLang = useCallback((next: MixLang) => {
+    setLang(next);
+    try {
+      window.localStorage.setItem(MIX_LANG_STORAGE_KEY, next);
+    } catch {
+      // Almacenamiento bloqueado (modo privado estricto): el idioma
+      // sigue vivo para esta sesión de página sin persistir.
+    }
+  }, []);
 
   // Revoca el objectURL local al desmontar (el player lo usa hasta ese
   // momento, por eso NO se revoca en el finally de handleMix), limpia el
@@ -248,10 +323,19 @@ export default function MixPanel({
     // con la respuesta real — nunca se marca done antes.
     const stageMs = stageMsForDuration(audioDurationSeconds);
     progressIntervalRef.current = setInterval(() => {
-      stageRef.current = Math.min(stageRef.current + 1, MIX_STAGES.length - 1);
+      // Rota el ticker con la lista dinámica actual (etapas DSP siempre
+      // presentes + stems reales cuando ya hay respuesta/persistido).
+      const total = chipsRef.current.length || 1;
+      stageRef.current = (stageRef.current + 1) % total;
       setProgressStage(stageRef.current);
-      setProgressPct(
-        Math.min(95, Math.round((stageRef.current / MIX_STAGES.length) * 100)),
+      // El % es MONÓTONO creciente: el ticker rota en círculo para los
+      // chips, pero el progreso jamás retrocede y nunca llega a 95/100
+      // sin la respuesta real del backend.
+      setProgressPct((prev) =>
+        Math.min(
+          95,
+          Math.max(prev, Math.round((stageRef.current / total) * 100)),
+        ),
       );
     }, stageMs);
 
@@ -293,6 +377,30 @@ export default function MixPanel({
     : null;
   const analysis = mixResult ?? sessionMixAnalysis ?? null;
 
+  // Chips del progreso (v5 — instrumentos REALES): la cadena DSP siempre;
+  // los stems SOLO si el backend los marcó presentes en ``stem_presence``.
+  // Primer mix de una sesión sin datos → solo etapas DSP; al llegar la
+  // respuesta (``mixResult``) o en sesión recargada (``sessionMixAnalysis``)
+  // los stems presentes aparecen. Etiquetas ya traducidas (lang).
+  const chips: MixChip[] = useMemo(() => {
+    const present = analysis?.stem_presence;
+    return [
+      ...MIX_CHAIN_STAGES.map((stage) => ({
+        id: stage.id,
+        label: stage.label[lang],
+        tone: "stage" as const,
+      })),
+      ...STEM_ROLE_IDS.filter((role) => present?.[role] === true).map(
+        (role) => ({
+          id: role,
+          label: STEM_CHIP_LABELS[role][lang],
+          tone: "stem" as const,
+        }),
+      ),
+    ];
+  }, [analysis, lang]);
+  chipsRef.current = chips;
+
   // Género real del análisis (chip + panel IA). "other" se normaliza a "Otro".
   const rawGenre =
     genreHint && genreHint !== "other"
@@ -328,6 +436,11 @@ export default function MixPanel({
 
   return (
     <div style={CARD_STYLE}>
+      {/* ── Chips flotantes "pedazos de audio" — SOLO mientras mezcla.
+          Decorativos: etapas DSP reales de la cadena + stems presentes;
+          el timing es el ticker simulado (cap 95 %). aria-hidden. */}
+      {mixing && <MixFloatingChips chips={chips} stageIndex={progressStage} />}
+
       {/* ── Mini-panel del Asistente IA (datos reales del análisis) ── */}
       {mode === "ai" && (
         <motion.div
@@ -335,12 +448,12 @@ export default function MixPanel({
           animate={{ opacity: 1, height: "auto" }}
           transition={{ duration: 0.25 }}
           className="overflow-hidden border-b"
-          style={{ borderColor: "#f1f5f9", background: "#fafafa" }}
+          style={{ borderColor: "var(--border-subtle)", background: "var(--surface-hover)" }}
         >
           <div className="px-4 py-3">
             <p
               className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em]"
-              style={{ color: "#6b7280" }}
+              style={{ color: "var(--text-secondary)" }}
             >
               Recomendaciones del análisis
             </p>
@@ -351,15 +464,15 @@ export default function MixPanel({
                     key={cell.label}
                     className="rounded-full px-3 py-1 text-xs font-semibold"
                     style={{
-                      background: "#ffffff",
-                      border: "1px solid #e5e7eb",
-                      color: "#0f172a",
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--text-primary)",
                     }}
                   >
                     {cell.value}{" "}
                     <span
                       className="text-[10px] font-medium normal-case"
-                      style={{ color: "#9ca3af" }}
+                      style={{ color: "var(--text-muted)" }}
                     >
                       {cell.label}
                     </span>
@@ -367,7 +480,7 @@ export default function MixPanel({
                 ))}
               </div>
             ) : (
-              <p className="text-xs" style={{ color: "#9ca3af" }}>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Los datos del análisis aparecerán cuando generes la mezcla.
               </p>
             )}
@@ -380,16 +493,18 @@ export default function MixPanel({
         <div>
           <h2
             className="text-lg font-bold"
-            style={{ color: "#0f172a", letterSpacing: "-0.02em" }}
+            style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}
           >
             Mezcla de Audio
           </h2>
-          <p className="mt-0.5 text-xs" style={{ color: "#6b7280" }}>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
             Separa, ecualiza y mezcla tus stems en un bus unificado
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Toggle ES/EN de los chips flotantes (diccionario local). */}
+          <LangToggle lang={lang} onLang={changeLang} />
           {hasMixed ? (
             <>
               {/* Pill de estado: muestra/oculta el panel de resultado.
@@ -508,7 +623,7 @@ export default function MixPanel({
                   cy={64}
                   r={58}
                   fill="none"
-                  stroke="#e5e7eb"
+                  stroke="var(--border)"
                   strokeWidth={6}
                 />
                 {/* Arco de progreso (dashoffset según `progressPct` real) */}
@@ -553,25 +668,25 @@ export default function MixPanel({
             {/* % real: nunca 100 hasta la respuesta del backend */}
             <span
               className="absolute font-mono text-lg font-bold"
-              style={{ color: "#0f172a" }}
+              style={{ color: "var(--text-primary)" }}
               aria-live="polite"
             >
               {progressPct}%
             </span>
           </div>
 
-          {/* Etapa actual rotando */}
+          {/* Etapa actual rotando (chips dinámicos: DSP + stems reales) */}
           <AnimatePresence mode="wait">
             <motion.p
-              key={MIX_STAGES[progressStage]}
+              key={chips[progressStage % chips.length]?.id ?? "mix"}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
               className="text-xs font-medium"
-              style={{ color: "#374151" }}
+              style={{ color: "var(--text-secondary)" }}
             >
-              {MIX_STAGES[progressStage]}
+              {chips[progressStage % chips.length]?.label}
             </motion.p>
           </AnimatePresence>
         </motion.div>
@@ -615,7 +730,7 @@ export default function MixPanel({
             }}
           >
             <Info size={14} />
-            Mezcla cancelada. Podés volver a intentarlo cuando quieras.
+            Mezcla cancelada. Puedes volver a intentarlo cuando quieras.
           </div>
         </motion.div>
       )}
@@ -645,30 +760,48 @@ export default function MixPanel({
       {sessionId && !hasMixed && !mixing && !error && !cancelled && (
         <p
           className="px-4 pt-3 text-center text-xs"
-          style={{ color: "#9ca3af" }}
+          style={{ color: "var(--text-muted)" }}
         >
           La mezcla separa el audio en stems por rol, aplica ecualización
           por banda de frecuencia y los junta en un bus estéreo unificado.
         </p>
       )}
       {!hasMixed && !mixing && !sessionId && (
-        <p className="px-4 pt-3 text-sm" style={{ color: "#6b7280" }}>
+        <p className="px-4 pt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
           Carga un audio para usar la Mezcla de Audio.
         </p>
       )}
 
       {/* ── Fila de acciones (permanente bajo el módulo) ──
-          Cancelar mezcla: SIEMPRE presente en la fila; habilitado solo
-          mientras corre el POST /mix (aborta el fetch vía AbortController).
-          Descargar WAV: solo cuando hay un resultado real. */}
+          Masterizar: primaria verde, habilitada solo con mix terminado
+          (onMasterize → vista de mastering). Cancelar mezcla: SIEMPRE
+          presente; habilitado solo mientras corre el POST /mix (aborta
+          el fetch vía AbortController). Descargar WAV: solo con resultado. */}
       <div
         className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3"
-        style={{ borderColor: "#f1f5f9" }}
+        style={{ borderColor: "var(--border-subtle)" }}
       >
-        <span className="text-xs" style={{ color: "#6b7280" }}>
+        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
           Mezcla generada: escucha el resultado o descarga el WAV
         </span>
         <div className="flex items-center gap-2">
+          <button
+            onClick={onMasterize}
+            disabled={!hasMixed || mixing}
+            title={
+              hasMixed
+                ? "Continuar con el masterizado del audio"
+                : "Genera la mezcla primero"
+            }
+            className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-white transition-all duration-200 hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: "linear-gradient(135deg, #10b981, #00d4aa)",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+            }}
+          >
+            <Sparkles size={13} />
+            Masterizar
+          </button>
           <button
             onClick={handleCancel}
             disabled={!mixing}
@@ -692,9 +825,9 @@ export default function MixPanel({
               download={`${sessionId}_mix.wav`}
               className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
               style={{
-                background: "#ffffff",
-                borderColor: "#e5e7eb",
-                color: "#0f172a",
+                background: "var(--surface-hover)",
+                borderColor: "var(--border-subtle)",
+                color: "var(--text-primary)",
                 boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
               }}
             >
