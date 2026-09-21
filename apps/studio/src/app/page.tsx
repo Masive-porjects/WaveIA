@@ -76,8 +76,8 @@ import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
 
 const TABS: { key: MasteringTab; label: string }[] = [
-  { key: "modules", label: "Módulos" },
   { key: "mezcla", label: "Mezcla de Audio" },
+  { key: "modules", label: "Masterizar Audio" },
   { key: "splitter", label: "Splitter" },
   { key: "vocal", label: "Vocal" },
   { key: "songstarter", label: "Beats" },

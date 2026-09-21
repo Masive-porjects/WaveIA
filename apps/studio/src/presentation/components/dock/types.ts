@@ -39,8 +39,8 @@ export interface DockModuleDef {
  * separated by the telemetry tiles in the dock center.
  */
 export const DOCK_MODULES: readonly DockModuleDef[] = [
-  { key: "modules", label: "Macro-Carácter", icon: LayoutGrid },
   { key: "mezcla", label: "Mezcla de Audio", icon: Music2 },
+  { key: "modules", label: "Masterizar Audio", icon: LayoutGrid },
   { key: "splitter", label: "Splitter", icon: Scissors },
   { key: "vocal", label: "Vocal", icon: Mic2 },
   { key: "songstarter", label: "Beats", icon: Drum },
