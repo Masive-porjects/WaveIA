@@ -19,6 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from audiomind.api.license import require_license
 from audiomind.api.upload import sessions
@@ -30,18 +31,34 @@ from audiomind.session_store import save_sessions
 router = APIRouter()
 
 
+class MixRequest(BaseModel):
+    """Optional body of ``POST /session/{id}/mix`` (v6).
+
+    The spatial dimension stage (Paso 04: tempo delay + Schroeder reverb
+    per stem) stays ENABLED by default — no body keeps the current
+    behaviour. ``dimension_enabled=False`` routes the stems exactly like
+    Paso 03 (no ``dimension_report`` in the payload).
+    """
+
+    dimension_enabled: bool = True
+
+
 @router.post("/session/{session_id}/mix")
 async def mix_session(
     session_id: str,
+    request: MixRequest | None = None,
     _: None = Depends(require_license),
 ) -> FileResponse:
-    """Split a session's audio into stems and serve the neutral mix.
+    """Split a session's audio into stems and serve the mix.
 
     The heavy pipeline (``build_mix``) runs inside the gated DSP pool, so
     concurrent heavy jobs on a 1 GB demo box stay serialized. The result
     WAV is served with the JSON analysis in the ``X-Mix-Result`` header:
     ``{"analysis": {stem: {...}}, "tempo_bpm": ..., "genre": ...,
     "genre_confidence": ..., "sample_rate": ..., "duration_seconds": ...}``.
+    An optional JSON body (``MixRequest``) toggles the spatial dimension
+    stage: ``{"dimension_enabled": false}`` disables delay+reverb (Paso 03
+    routing); no body or ``true`` keeps the default (dimension ON).
     """
     session = sessions.get(session_id)
     if not session:
@@ -66,7 +83,19 @@ async def mix_session(
 
     def _run_mix() -> dict[str, Any]:
         with demo_guard.gate():
-            return build_mix(session_id, str(session.original_path))
+            # v6 — spatial dimension optional: None = enabled (default,
+            # DIMENSION_PROFILES), {} = disabled (routing identical to
+            # Paso 03, no dimension_report).
+            dimension_profiles = (
+                None
+                if (request is None or request.dimension_enabled)
+                else {}
+            )
+            return build_mix(
+                session_id,
+                str(session.original_path),
+                dimension_profiles=dimension_profiles,
+            )
 
     try:
         result = await asyncio.get_running_loop().run_in_executor(

@@ -347,3 +347,96 @@ class TestStemPresence:
         residue = (amp * np.sin(2.0 * np.pi * 300.0 * t)).astype(np.float32)
         rms_db = mix_engine._stem_rms_db(residue)
         assert rms_db < mix_engine.STEM_PRESENCE_RMS_DBFS_THRESHOLD
+
+
+class TestDimensionOptional:
+    """CAMBIO v6 — la dimensión espacial (Paso 04: delay tempo + reverb
+    por stem) es OPCIONAL:
+
+    * ``dimension_profiles=None`` (default) → dimensión ENABLED
+      (``DIMENSION_PROFILES``, comportamiento actual),
+    * ``dimension_profiles={}`` (o ``dimension_enabled=false`` en el
+      body del POST) → dimensión DISABLED: routing idéntico a Paso 03,
+      payload SIN clave ``dimension_report``.
+
+    Backward-compatible: el POST sin body conserva la dimensión ON.
+    """
+
+    def test_build_mix_disabled_dimension_omits_report_and_keeps_paso03(
+        self, tmp_path, monkeypatch
+    ):
+        """Engine-level: ``dimension_profiles={}`` → sin ``dimension_report``;
+        los stems siguen con análisis y ``stem_presence`` y el routing
+        Paso 03 (pan) intacto."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        original_path = sessions[session_id].original_path
+
+        result = mix_engine.build_mix(
+            session_id, str(original_path), dimension_profiles={}
+        )
+
+        assert "dimension_report" not in result
+        # Routing Paso 03 intacto: el pan corre y se reporta.
+        assert "pan_report" in result
+        assert "stem_presence" in result
+        assert list(result["stem_presence"]) == list(mix_engine.STEM_NAMES)
+        assert all(
+            isinstance(v, bool) for v in result["stem_presence"].values()
+        )
+        assert set(result["analysis"]) == {"drums", "bass", "other", "vocals"}
+        for stem in result["analysis"].values():
+            assert "integrated_lufs" in stem
+
+        # Contract simétrico: con dimensión ON (default) el report existe.
+        enabled = mix_engine.build_mix(session_id, str(original_path))
+        assert "dimension_report" in enabled
+
+    def test_mix_endpoint_without_body_keeps_dimension_enabled(
+        self, tmp_path, monkeypatch
+    ):
+        """POST sin body (comportamiento actual) → 200 + dimension_report."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(f"/api/session/{session_id}/mix")
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "dimension_report" in payload
+
+    def test_mix_endpoint_dimension_disabled_omits_dimension_report(
+        self, tmp_path, monkeypatch
+    ):
+        """POST con ``{"dimension_enabled": false}`` → 200, header SIN
+        ``dimension_report``; analysis/stem_presence/pan intactos."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"dimension_enabled": False},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "dimension_report" not in payload
+        assert "pan_report" in payload
+        assert "stem_presence" in payload
+        assert set(payload["analysis"]) == {"drums", "bass", "other", "vocals"}
+
+    def test_mix_endpoint_dimension_enabled_explicit_keeps_report(
+        self, tmp_path, monkeypatch
+    ):
+        """POST con ``{"dimension_enabled": true}`` → 200 + dimension_report."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"dimension_enabled": True},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "dimension_report" in payload
