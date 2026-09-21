@@ -89,3 +89,25 @@ async def mix_session(
         filename=f"{session_id}_mix.wav",
         headers={"X-Mix-Result": json.dumps(payload, ensure_ascii=True)},
     )
+
+
+@router.get("/session/{session_id}/audio/mix")
+async def get_mix_audio(
+    session_id: str,
+    _: None = Depends(require_license),
+) -> FileResponse:
+    """Serve the persisted mix WAV (stable URL for player + download).
+
+    The mix survives backend restarts like any persisted session: this
+    GET reads ``session.mix_path`` directly instead of re-running
+    ``build_mix``, so the frontend player/download can use a stable URL
+    even after a page reload.
+    """
+    session = sessions.get(session_id)
+    if not session or not session.mix_path or not Path(session.mix_path).exists():
+        raise HTTPException(status_code=404, detail="Mix not found for this session")
+    return FileResponse(
+        session.mix_path,
+        media_type="audio/wav",
+        filename=f"{session_id}_mix.wav",
+    )

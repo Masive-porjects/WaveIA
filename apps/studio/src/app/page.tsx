@@ -24,6 +24,7 @@ import StemSplitter, {
   createDefaultStemState,
   type StemSplitterState,
 } from "@/components/StemSplitter";
+import MixPanel from "@/presentation/components/MixPanel";
 import AlbumMastering from "@/presentation/components/AlbumMastering";
 import VocalChain from "@/components/VocalChain";
 import SongStarter from "@/components/SongStarter";
@@ -76,6 +77,7 @@ import type { MasteringTab } from "@/components/dock/types";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "modules", label: "Módulos" },
+  { key: "mezcla", label: "Mezcla de Audio" },
   { key: "splitter", label: "Splitter" },
   { key: "vocal", label: "Vocal" },
   { key: "songstarter", label: "Beats" },
@@ -1022,6 +1024,24 @@ export default function Home() {
         );
       }
 
+      case "mezcla": {
+        if (!session) {
+          return (
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar la Mezcla de Audio.</p>
+          );
+        }
+        return (
+          <div className="w-full">
+            <MixPanel
+              sessionId={session.session_id}
+              sessionMixPath={session.mix_path ?? null}
+              sessionMixAnalysis={session.mix_analysis ?? null}
+              disabled={processing}
+            />
+          </div>
+        );
+      }
+
       case "vocal": {
         if (!session) {
           return (
@@ -1880,7 +1900,9 @@ export default function Home() {
                   ? "Generador de ideas"
                   : sheetTab === "genres"
                     ? "Guía de géneros"
-                    : undefined
+                    : sheetTab === "mezcla"
+                      ? "Mezclar stems en un bus"
+                      : undefined
           }
         >
           {renderTabContent(sheetTab)}

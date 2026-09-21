@@ -67,6 +67,10 @@ export interface SessionData {
   master_result?: MasterResultMetrics | null;
   validation?: ValidationReport | null;
   mastering_report?: MasteringReport | null;
+  /* ── Mix Engine ── the mix is NOT the master: it lives on its own
+     pointer/analysis pair so the mastering pipeline is never affected. */
+  mix_path?: string | null;
+  mix_analysis?: MixResult | null;
   preset_masters?: Record<
     string,
     {
@@ -427,6 +431,71 @@ export async function processVocalChain(
     throw new Error(err.detail || "Vocal processing failed");
   }
   return res.json();
+}
+
+/* ── Mix Engine ─────────────────────────────────────── */
+
+/**
+ * JSON payload served in the ``X-Mix-Result`` header by
+ * POST /session/{id}/mix (and mirrored on the session as
+ * ``mix_analysis``). Every field is optional on purpose: the backend
+ * includes or omits each report depending on which DSP steps ran, so
+ * parsing never breaks when a key is missing.
+ */
+export interface MixResult {
+  analysis?: Record<string, unknown>;
+  tempo_bpm?: number | null;
+  genre?: string | null;
+  genre_confidence?: number | null;
+  sample_rate?: number | null;
+  duration_seconds?: number | null;
+  pan_report?: unknown;
+  dimension_report?: unknown;
+  compressor_report?: unknown;
+  emphasis_report?: unknown;
+  qc_report?: unknown;
+  versions?: Record<string, unknown> | null;
+}
+
+/**
+ * Run the Mix Engine (8-step DSP build) for a session and return the
+ * mixed WAV as a blob objectURL plus the analysis JSON parsed from the
+ * ``X-Mix-Result`` response header. No Content-Type is sent (empty POST,
+ * same pattern as ``splitStems``).
+ */
+export async function mixTracks(
+  sessionId: string,
+): Promise<{ audioUrl: string; audioBlob: Blob; result: MixResult | null }> {
+  const res = await fetch(`${API_BASE}/session/${sessionId}/mix`, {
+    method: "POST",
+    headers: { ...licenseHeaders() },
+  });
+  if (!res.ok) {
+    const err = await res
+      .json()
+      .catch(() => ({ detail: "Mix failed" }));
+    throw new Error(
+      (err as { detail?: string }).detail || "Mix failed",
+    );
+  }
+  const audioBlob = await res.blob();
+  let result: MixResult | null = null;
+  // HTTP headers are case-insensitive; read both spellings defensively.
+  const raw =
+    res.headers.get("X-Mix-Result") ?? res.headers.get("x-mix-result");
+  if (raw) {
+    try {
+      result = JSON.parse(raw) as MixResult;
+    } catch {
+      result = null; // header malformed → analysis unavailable, audio still works
+    }
+  }
+  return { audioUrl: URL.createObjectURL(audioBlob), audioBlob, result };
+}
+
+/** Stable URL of the persisted mix WAV (survives session reload). */
+export function getMixAudioUrl(sessionId: string): string {
+  return `${API_BASE}/session/${sessionId}/audio/mix`;
 }
 
 /* ── SongStarter ──────────────────────────────────── */

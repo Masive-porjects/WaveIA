@@ -143,6 +143,30 @@ class TestMixEndpoint:
         resp = client.post(f"/api/session/{session_id}/mix")
         assert resp.status_code == 400
 
+    def test_get_mix_audio_serves_persisted_wav(self, tmp_path, monkeypatch):
+        """GET /audio/mix serves the persisted WAV (stable URL, no re-mix).
+
+        Regression guard for the literal-vs-parameter route order: the
+        literal ``/audio/mix`` must beat mastering's ``/audio/{audio_type}``.
+        """
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        mix_resp = client.post(f"/api/session/{session_id}/mix")
+        assert mix_resp.status_code == 200
+
+        resp = client.get(f"/api/session/{session_id}/audio/mix")
+        assert resp.status_code == 200, resp.text
+        assert resp.headers["content-type"] == "audio/wav"
+        assert resp.content == mix_resp.content, "GET body differs from POST body"
+        assert "attachment" in resp.headers.get("content-disposition", "")
+
+    def test_get_mix_audio_without_mix_returns_404(self):
+        """GET /audio/mix for an unknown session → 404."""
+        resp = client.get("/api/session/nope-not-a-session/audio/mix")
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Mix not found for this session"
+
 
 #: Version names in render order (payload keys of the versions dict).
 _QC_CHECK_KEYS = {
