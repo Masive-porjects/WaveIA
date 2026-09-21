@@ -74,7 +74,6 @@ app.include_router(splitter_router, prefix="/api")
 app.include_router(vocal_router, prefix="/api")
 app.include_router(songstarter_router, prefix="/api")
 app.include_router(batch_router, prefix="/api")
-app.include_router(mix_router, prefix="/api")
 
 
 @app.get("/health")
