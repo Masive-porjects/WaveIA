@@ -1039,6 +1039,7 @@ export default function Home() {
               audioDurationSeconds={session.analysis?.duration_seconds ?? null}
               genreHint={session.analysis?.detected_genre ?? null}
               disabled={processing}
+              mode={masteringMode}
             />
           </div>
         );
@@ -1092,6 +1093,14 @@ export default function Home() {
     }
   };
 
+  // La pestaña Mezcla vive en el workspace de mastering ("manual") pero
+  // responde al switch global Manual/Asistente IA vía la prop `mode` de
+  // MixPanel. Cuando está activa, ese workspace debe seguir visible aunque
+  // el modo sea "ai" (MixPanel muestra su propio mini-panel de
+  // recomendaciones); el placeholder de IA solo aplica a las vistas de
+  // mastering, nunca a la mezcla.
+  const isMezclaTab = currentTab === "mezcla" || sheetTab === "mezcla";
+
   return (
     <AuthGuard>
     <WelcomeGate>
@@ -1140,7 +1149,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <div className="rounded-full px-4 py-2 glass">
             <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-              Brik<span className="text-[var(--accent-primary)]">master</span>
+              Wave<span className="text-[var(--accent-primary)]">IA</span>
             </span>
           </div>
 
@@ -1419,8 +1428,8 @@ export default function Home() {
               {/* Both workspaces stay mounted so switching modes preserves
                   the agent conversation and every manual module state. */}
               <div
-                className={`${masteringMode === "ai" ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
-                aria-hidden={masteringMode !== "ai"}
+                className={`${masteringMode === "ai" && !isMezclaTab ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
+                aria-hidden={masteringMode !== "ai" || isMezclaTab}
               >
                 <ComingSoonNotice
                   title="Asistente IA"
@@ -1429,8 +1438,8 @@ export default function Home() {
               </div>
 
               <div
-                className={`${masteringMode === "manual" ? "flex" : "hidden"} flex-1 min-h-0 flex-col`}
-                aria-hidden={masteringMode !== "manual"}
+                className={`${masteringMode === "manual" || isMezclaTab ? "flex" : "hidden"} flex-1 min-h-0 flex-col`}
+                aria-hidden={masteringMode !== "manual" && !isMezclaTab}
               >
               {isMobile ? (
             /* ── MOBILE MASTERING VIEW ──────────────── */

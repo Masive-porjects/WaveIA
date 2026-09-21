@@ -3,20 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Bell,
-  BrainCircuit,
   CheckCircle2,
-  ChevronDown,
   Download,
-  Ghost,
-  Home as HomeIcon,
   Info,
   Loader2,
   Music2,
   Music4,
-  RefreshCw,
   ShieldCheck,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 import {
@@ -45,8 +38,11 @@ interface MixPanelProps {
   /** Duración del audio original en segundos (``session.analysis``). */
   audioDurationSeconds?: number | null;
   disabled?: boolean;
-  /** ``session.analysis.detected_genre`` — alimenta el chip del header. */
+  /** ``session.analysis.detected_genre`` — alimenta el mini-panel IA. */
   genreHint?: string | null;
+  /** Modo global Manual/Asistente IA (switch del navbar). Gobierna el
+   *  mini-panel de recomendaciones IA del módulo. */
+  mode: "manual" | "ai";
 }
 
 /** Etapas simuladas de progreso mientras corre el POST /mix (blocking). */
@@ -182,6 +178,7 @@ export default function MixPanel({
   audioDurationSeconds,
   disabled,
   genreHint,
+  mode,
 }: MixPanelProps) {
   const [mixing, setMixing] = useState(false);
   const [mixUrl, setMixUrl] = useState<string | null>(null);
@@ -193,12 +190,6 @@ export default function MixPanel({
   // Sesión restaurada con mix ya hecho → el resultado se muestra al abrir;
   // la pill permite ocultarlo/mostrarlo.
   const [showResult, setShowResult] = useState(() => Boolean(sessionMixPath));
-  // Modo del header del módulo (UI local, sin API).
-  const [mode, setMode] = useState<"manual" | "ai">("manual");
-  // Dropdown decorativo "Plan Premium".
-  const [premiumOpen, setPremiumOpen] = useState(false);
-  // Spinner decorativo del chip de género (sin API inventada).
-  const [refreshingGenre, setRefreshingGenre] = useState(false);
 
   const objectUrlRef = useRef<string | null>(null);
   const stageRef = useRef(0);
@@ -294,12 +285,6 @@ export default function MixPanel({
     // y baja `mixing`.
   }, []);
 
-  // Spinner decorativo del chip de género (~700 ms, sin API).
-  const handleRefreshGenre = useCallback(() => {
-    setRefreshingGenre(true);
-    window.setTimeout(() => setRefreshingGenre(false), 700);
-  }, []);
-
   // Sesión recargada con mix ya hecho: el player usa la URL estable del
   // backend (nunca se re-mezcla automáticamente).
   const hasMixed = Boolean(mixUrl || sessionMixPath);
@@ -341,210 +326,8 @@ export default function MixPanel({
     });
   }
 
-  const modeOptions = [
-    {
-      id: "manual",
-      label: "Manual",
-      sub: "CONTROL TOTAL",
-      icon: SlidersHorizontal,
-    },
-    {
-      id: "ai",
-      label: "Asistente IA",
-      sub: "RECOMENDACIONES",
-      icon: BrainCircuit,
-    },
-  ] as const;
-
   return (
     <div style={CARD_STYLE}>
-      {/* ── Header del módulo: branding + género + modo + utilidades ── */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3"
-        style={{ borderColor: "#f1f5f9" }}
-      >
-        {/* Logo WAVEIA */}
-        <div className="flex items-center gap-1.5">
-          <span
-            className="text-[15px] font-black tracking-tight"
-            style={{ color: "#0f172a", letterSpacing: "-0.04em" }}
-          >
-            WAVE
-            <span
-              style={{
-                background: "linear-gradient(90deg, #5e5ce6, #00d4aa)",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-              }}
-            >
-              IA
-            </span>
-          </span>
-          <span
-            className="size-1.5 rounded-full"
-            style={{ background: "#10b981" }}
-            aria-hidden="true"
-          />
-        </div>
-
-        {/* Chip de género (dato real del análisis) + refresh decorativo */}
-        <div
-          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-          style={{
-            background: "#f3f4f6",
-            border: "1px solid #e5e7eb",
-            color: "#374151",
-          }}
-        >
-          <span className="text-[11px]" aria-hidden="true">
-            🎵
-          </span>
-          {genreLabel}
-          <button
-            onClick={handleRefreshGenre}
-            disabled={refreshingGenre}
-            className="ml-0.5 flex items-center rounded-full p-0.5 transition-all hover:bg-[#e5e7eb] disabled:cursor-not-allowed"
-            aria-label="Actualizar sugerencia de género"
-            title="Actualizar sugerencia de género"
-          >
-            <RefreshCw
-              size={12}
-              className={refreshingGenre ? "animate-spin" : ""}
-              style={{ color: "#9ca3af" }}
-            />
-          </button>
-        </div>
-
-        {/* Selector de modo Manual / Asistente IA */}
-        <div
-          className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: "#f3f4f6" }}
-          role="group"
-          aria-label="Modo de mezcla"
-        >
-          {modeOptions.map(({ id, label, sub, icon: Icon }) => {
-            const active = mode === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setMode(id)}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-all duration-200"
-                style={{
-                  background: active ? "#ffffff" : "transparent",
-                  border: `1px solid ${active ? "#e5e7eb" : "transparent"}`,
-                  boxShadow: active ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
-                }}
-              >
-                <span
-                  className="flex size-6 items-center justify-center rounded-md transition-colors"
-                  style={{
-                    background: active
-                      ? "linear-gradient(135deg, #00d4aa, #10b981)"
-                      : "#e5e7eb",
-                    color: active ? "#ffffff" : "#6b7280",
-                  }}
-                >
-                  <Icon size={13} />
-                </span>
-                <span className="text-left">
-                  <span
-                    className="block text-xs font-semibold leading-tight"
-                    style={{ color: active ? "#0f172a" : "#6b7280" }}
-                  >
-                    {label}
-                  </span>
-                  <span
-                    className="hidden text-[8px] font-semibold uppercase tracking-[0.12em] md:block"
-                    style={{ color: "#9ca3af" }}
-                  >
-                    {sub}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Iconos decorativos + Plan Premium */}
-        <div className="flex items-center gap-1">
-          {[
-            { icon: Ghost, title: "Tu espacio" },
-            { icon: Bell, title: "Notificaciones" },
-            { icon: HomeIcon, title: "Inicio" },
-          ].map(({ icon: Icon, title }) => (
-            <button
-              key={title}
-              type="button"
-              title={title}
-              aria-label={title}
-              className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-[#f3f4f6]"
-              style={{ color: "#6b7280" }}
-            >
-              <Icon size={16} />
-            </button>
-          ))}
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setPremiumOpen((v) => !v)}
-              aria-expanded={premiumOpen}
-              aria-haspopup="true"
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(94,92,230,0.12), rgba(0,212,170,0.12))",
-                border: "1px solid rgba(94,92,230,0.18)",
-                color: "#5e5ce6",
-              }}
-            >
-              Plan Premium
-              <ChevronDown
-                size={13}
-                className="transition-transform duration-200"
-                style={{ transform: premiumOpen ? "rotate(180deg)" : "none" }}
-              />
-            </button>
-            {premiumOpen && (
-              <>
-                {/* Backdrop transparente para cerrar al hacer click afuera */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setPremiumOpen(false)}
-                  aria-hidden="true"
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border"
-                  style={{
-                    background: "#ffffff",
-                    borderColor: "#e5e7eb",
-                    boxShadow: "0 12px 32px rgba(15, 23, 42, 0.12)",
-                  }}
-                >
-                  <div className="px-3 py-2.5">
-                    <p
-                      className="text-xs font-semibold"
-                      style={{ color: "#0f172a" }}
-                    >
-                      Plan Premium
-                    </p>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "#9ca3af" }}>
-                      Próximamente
-                    </p>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* ── Mini-panel del Asistente IA (datos reales del análisis) ── */}
       {mode === "ai" && (
         <motion.div
@@ -837,9 +620,10 @@ export default function MixPanel({
         </motion.div>
       )}
 
-      {/* ── Vista A/B dual + acciones + análisis ──
+      {/* ── Vista A/B dual + análisis ──
           Solo con mix real (nunca mientras procesa) y cuando la pill
-          "Audio mezclado" lo tiene visible. */}
+          "Audio mezclado" lo tiene visible. La fila de acciones vive
+          aparte, permanente bajo el módulo. */}
       {hasMixed && sessionId && audioSrc && !mixing && showResult && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -853,56 +637,7 @@ export default function MixPanel({
             mixedDuration={analysis?.duration_seconds ?? null}
           />
 
-          {/* Barra de acciones (bajo las ondas) */}
-          <div
-            className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3"
-            style={{ borderColor: "#f1f5f9" }}
-          >
-            <span className="text-xs" style={{ color: "#6b7280" }}>
-              Mezcla generada: escucha el resultado o descarga el WAV
-            </span>
-            <a
-              href={audioSrc}
-              download={`${sessionId}_mix.wav`}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
-              style={{
-                background: "#ffffff",
-                borderColor: "#e5e7eb",
-                color: "#0f172a",
-                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
-              }}
-            >
-              <Download size={13} />
-              Descargar WAV
-            </a>
-          </div>
-
           {analysis && <MixAnalysisGrid result={analysis} />}
-        </motion.div>
-      )}
-
-      {/* ── Cancelación de emergencia mientras procesa ── */}
-      {mixing && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4"
-        >
-          <span className="text-xs" style={{ color: "#9ca3af" }}>
-            Procesando la mezcla… Si tardó demasiado, podés cancelarla.
-          </span>
-          <button
-            onClick={handleCancel}
-            className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-white transition-all duration-200 hover:brightness-110 active:scale-95"
-            style={{
-              background: "#ef4444",
-              boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
-            }}
-          >
-            <X size={13} strokeWidth={2.5} />
-            Cancelar mezcla
-          </button>
         </motion.div>
       )}
 
@@ -921,6 +656,54 @@ export default function MixPanel({
           Carga un audio para usar la Mezcla de Audio.
         </p>
       )}
+
+      {/* ── Fila de acciones (permanente bajo el módulo) ──
+          Cancelar mezcla: SIEMPRE presente en la fila; habilitado solo
+          mientras corre el POST /mix (aborta el fetch vía AbortController).
+          Descargar WAV: solo cuando hay un resultado real. */}
+      <div
+        className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-3"
+        style={{ borderColor: "#f1f5f9" }}
+      >
+        <span className="text-xs" style={{ color: "#6b7280" }}>
+          Mezcla generada: escucha el resultado o descarga el WAV
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCancel}
+            disabled={!mixing}
+            title={
+              mixing
+                ? "Cancelar la mezcla en curso"
+                : "No hay una mezcla en curso"
+            }
+            className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-white transition-all duration-200 hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: "#ef4444",
+              boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            <X size={13} strokeWidth={2.5} />
+            Cancelar mezcla
+          </button>
+          {hasMixed && audioSrc && sessionId && (
+            <a
+              href={audioSrc}
+              download={`${sessionId}_mix.wav`}
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
+              style={{
+                background: "#ffffff",
+                borderColor: "#e5e7eb",
+                color: "#0f172a",
+                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+              }}
+            >
+              <Download size={13} />
+              Descargar WAV
+            </a>
+          )}
+        </div>
+      </div>
 
       {/* Air inferior de la tarjeta */}
       <div className="h-4" />

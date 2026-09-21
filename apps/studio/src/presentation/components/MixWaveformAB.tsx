@@ -39,6 +39,9 @@ interface WsTexture {
   barGap: number;
   barRadius: number;
   height: number;
+  /** zoom por segundo reservado — en createWS se fuerza a 0 para que la
+   *  onda ajuste al ancho completo del contenedor (0:00 → duración total,
+   *  sin scroll ni paneo). */
   minPxPerSec: number;
 }
 
@@ -85,7 +88,15 @@ function createWS(
     barGap: texture.barGap,
     barRadius: texture.barRadius,
     height: texture.height,
-    minPxPerSec: texture.minPxPerSec,
+    // La onda debe ocupar SIEMPRE el ancho completo del contenedor y
+    // extenderse de 0:00 a la duración total, sin scroll horizontal ni
+    // desplazamiento lateral al reproducir. Con `minPxPerSec > 0`
+    // WaveSurfer crea un corredor de `ceil(duración × px/seg)` píxeles:
+    // más ancho que el contenedor → scroll-x interno y paneo automático
+    // durante la reproducción. 0 = fit exacto del contenedor (onda
+    // completa siempre visible). Las texturas estéticas (envelope
+    // continuo / bars densos) viven en barWidth/barGap y no cambian.
+    minPxPerSec: 0,
     normalize: true,
   });
 
@@ -208,7 +219,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
 
   return (
     <div
-      className="flex flex-col rounded-xl border"
+      className="flex min-w-0 flex-col rounded-xl border"
       style={{ background: "#fafafa", borderColor: "#e5e7eb" }}
     >
       {/* Etiqueta + insignia */}
@@ -236,7 +247,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
 
       {/* Onda + playhead */}
       <div
-        className="relative mx-3 mt-2 overflow-hidden rounded-lg"
+        className="relative mx-3 mt-2 w-full min-w-0 overflow-hidden rounded-lg"
         style={{
           height: 72,
           background: "rgba(15, 23, 42, 0.04)",
@@ -254,7 +265,7 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
             }}
           />
         )}
-        <div ref={containerRef} className="h-full w-full" />
+        <div ref={containerRef} className="h-full w-full min-w-0" />
         {ready && duration > 0 && (
           <div
             className="pointer-events-none absolute bottom-0 top-0 w-[2px]"
@@ -327,7 +338,7 @@ export default function MixWaveformAB({
   mixedDuration,
 }: MixWaveformABProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+    <div className="w-full min-w-0 grid grid-cols-1 gap-3 md:grid-cols-2">
       <WaveSide url={originalUrl} kind="original" />
       <WaveSide url={mixedUrl} kind="mixed" mixedDuration={mixedDuration} />
     </div>
