@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
   BrainCircuit,
@@ -13,6 +13,7 @@ import {
   Info,
   Loader2,
   Music2,
+  Music4,
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
@@ -157,6 +158,13 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
               border: "1px solid #e5e7eb",
               color: qc.summary?.all_ok === false ? "#b45309" : "#10b981",
             }}
+            title={
+              qc.summary?.all_ok === false &&
+              Array.isArray(qc.summary.flagged) &&
+              qc.summary.flagged.length > 0
+                ? `Checks marcados: ${qc.summary.flagged.join(", ")}`
+                : undefined
+            }
           >
             <ShieldCheck size={13} />
             QC: {qc.summary?.all_ok === false ? "revisar" : "ok"}
@@ -672,35 +680,117 @@ export default function MixPanel({
         </div>
       </div>
 
-      {/* ── Barra de progreso por etapas — solo mientras corre el /mix ── */}
+      {/* ── Círculo de carga por etapas — solo mientras corre el /mix ──
+          El anillo avanza con `progressPct` (interpolado por etapas; nunca
+          llega a 100 hasta la respuesta real del backend). Las notas
+          musicales orbitan sobre el anillo y la etapa rota debajo. */}
       {mixing && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="px-4 pt-4"
+          className="flex flex-col items-center gap-3 px-4 pt-6"
         >
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-medium" style={{ color: "#374151" }}>
-              {MIX_STAGES[progressStage]}
-            </span>
-            <span className="font-mono text-xs" style={{ color: "#9ca3af" }}>
+          <div className="relative flex items-center justify-center">
+            {/* Halo suave detrás del anillo */}
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: 168,
+                height: 168,
+                background:
+                  "radial-gradient(circle, rgba(0, 212, 170, 0.08) 0%, transparent 70%)",
+              }}
+              aria-hidden="true"
+            />
+
+            {/* Anillo de progreso + notas flotando */}
+            <div className="relative">
+              <svg width={128} height={128} className="-rotate-90">
+                <defs>
+                  <linearGradient
+                    id="mix-ring-gradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stopColor="#00d4aa" />
+                    <stop offset="100%" stopColor="#5e5ce6" />
+                  </linearGradient>
+                </defs>
+                {/* Track de fondo */}
+                <circle
+                  cx={64}
+                  cy={64}
+                  r={58}
+                  fill="none"
+                  stroke="#e5e7eb"
+                  strokeWidth={6}
+                />
+                {/* Arco de progreso (dashoffset según `progressPct` real) */}
+                <motion.circle
+                  cx={64}
+                  cy={64}
+                  r={58}
+                  fill="none"
+                  stroke="url(#mix-ring-gradient)"
+                  strokeWidth={6}
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 58}
+                  initial={false}
+                  animate={{
+                    strokeDashoffset: 2 * Math.PI * 58 * (1 - progressPct / 100),
+                  }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                />
+              </svg>
+
+              {/* Notas musicales flotando sobre el anillo */}
+              <motion.span
+                aria-hidden="true"
+                className="absolute -right-2 -top-3"
+                style={{ color: "#00d4aa" }}
+                animate={{ y: [-2, -10, -2], opacity: [0.5, 1, 0.5], rotate: [0, 14, 0] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Music2 size={16} />
+              </motion.span>
+              <motion.span
+                aria-hidden="true"
+                className="absolute -bottom-3 -left-4"
+                style={{ color: "#5e5ce6" }}
+                animate={{ y: [2, 10, 2], opacity: [0.4, 1, 0.4], rotate: [0, -12, 0] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+              >
+                <Music4 size={14} />
+              </motion.span>
+            </div>
+
+            {/* % real: nunca 100 hasta la respuesta del backend */}
+            <span
+              className="absolute font-mono text-lg font-bold"
+              style={{ color: "#0f172a" }}
+              aria-live="polite"
+            >
               {progressPct}%
             </span>
           </div>
-          <div
-            className="h-1.5 w-full overflow-hidden rounded-full"
-            style={{ background: "#f3f4f6" }}
-          >
-            <motion.div
-              className="h-full rounded-full"
-              style={{
-                background: "linear-gradient(90deg, #00d4aa, #10b981)",
-              }}
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
-          </div>
+
+          {/* Etapa actual rotando */}
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={MIX_STAGES[progressStage]}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="text-xs font-medium"
+              style={{ color: "#374151" }}
+            >
+              {MIX_STAGES[progressStage]}
+            </motion.p>
+          </AnimatePresence>
         </motion.div>
       )}
 

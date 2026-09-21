@@ -26,6 +26,38 @@ interface MixWaveformABProps {
 const ORIG_COLORS = { wave: "#484855", progress: "#9aa0b5" };
 const MIXED_COLORS = { wave: "#00d4aa", progress: "#30d158" };
 
+/* ── Texturas de render ─────────────────────────────────
+   AMBOS lados decodifican el WAV real (WaveSurfer `load(url)`);
+   la diferencia es SOLO estética de picos, nunca datos inventados:
+   - Mezclado (Final): `barWidth 0` activa el modo de picos CONTINUOS
+     de WaveSurfer (shouldRenderBars=false → drawWaveform): envelope
+     suave y pulido tipo "masterizado".
+   - Original (RAW): bars gruesos y espaciados → textura densa y oscura. */
+
+interface WsTexture {
+  barWidth: number;
+  barGap: number;
+  barRadius: number;
+  height: number;
+  minPxPerSec: number;
+}
+
+const ORIG_TEXTURE: WsTexture = {
+  barWidth: 3,
+  barGap: 2,
+  barRadius: 2,
+  height: 64,
+  minPxPerSec: 40,
+};
+
+const MIXED_TEXTURE: WsTexture = {
+  barWidth: 0, // picos continuos (envelope)
+  barGap: 0,
+  barRadius: 0,
+  height: 72,
+  minPxPerSec: 60,
+};
+
 /* ── Helpers ───────────────────────────────────────────── */
 
 function formatTime(t: number): string {
@@ -40,6 +72,7 @@ function createWS(
   url: string,
   waveColor: string,
   progressColor: string,
+  texture: WsTexture,
 ): WaveSurfer {
   const ws = WaveSurfer.create({
     container,
@@ -48,10 +81,11 @@ function createWS(
     cursorColor: "transparent",
     cursorWidth: 0,
     interact: true,
-    barWidth: 2,
-    barGap: 1,
-    barRadius: 1,
-    height: 64,
+    barWidth: texture.barWidth,
+    barGap: texture.barGap,
+    barRadius: texture.barRadius,
+    height: texture.height,
+    minPxPerSec: texture.minPxPerSec,
     normalize: true,
   });
 
@@ -119,7 +153,14 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
 
     if (!containerRef.current) return;
 
-    const ws = createWS(containerRef.current, url, colors.wave, colors.progress);
+    const texture = isMixed ? MIXED_TEXTURE : ORIG_TEXTURE;
+    const ws = createWS(
+      containerRef.current,
+      url,
+      colors.wave,
+      colors.progress,
+      texture,
+    );
     wsRef.current = ws;
 
     const onReady = () => {

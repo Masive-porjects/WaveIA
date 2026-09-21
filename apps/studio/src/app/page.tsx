@@ -1435,23 +1435,27 @@ export default function Home() {
               {isMobile ? (
             /* ── MOBILE MASTERING VIEW ──────────────── */
             <>
-              {/* Player at top — always visible */}
-              <div className="relative z-[1] shrink-0 px-4 pt-3 pb-1">
-                {session && (
-                  <Player
-                    originalUrl={getAudioUrl(session.session_id, "original")}
-                    masteredUrl={
-                      isPresetCompleted(session, activePresetId)
-                        ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
-                        : null
-                    }
-                    disabled={processing}
-                    presetId={activePresetId ?? undefined}
-                    sessionId={session.session_id}
-                    burstSignal={masterBurst}
-                  />
-                )}
-              </div>
+              {/* Player at top — always visible, except the Mezcla tab:
+                  MixPanel's own A/B waves (MixWaveformAB) replace it and sit
+                  directly under the module header. */}
+              {currentTab !== "mezcla" && sheetTab !== "mezcla" && (
+                <div className="relative z-[1] shrink-0 px-4 pt-3 pb-1">
+                  {session && (
+                    <Player
+                      originalUrl={getAudioUrl(session.session_id, "original")}
+                      masteredUrl={
+                        isPresetCompleted(session, activePresetId)
+                          ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                          : null
+                      }
+                      disabled={processing}
+                      presetId={activePresetId ?? undefined}
+                      sessionId={session.session_id}
+                      burstSignal={masterBurst}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Mobile content — switch between tab content and default flow */}
               {currentTab !== null && currentTab !== "modules" ? (
@@ -1609,38 +1613,43 @@ export default function Home() {
           ) : (
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>
-              {/* Player — bigger and centered when no dock tab is selected */}
-              <motion.div
-                layout="position"
-                transition={{ type: "spring", stiffness: 40, damping: 12 }}
-                className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
-                  currentTab === null
-                    ? "flex-1 flex items-center justify-center min-h-0"
-                    : "shrink-0"
-                }`}
-              >
-                {session && (
-                  <div
-                    ref={playerScaleRef}
-                    className={`w-full origin-center ${
-                      currentTab === null ? "max-w-5xl" : ""
-                    }`}
-                  >
-                    <Player
-                      originalUrl={getAudioUrl(session.session_id, "original")}
-                      masteredUrl={
-                        isPresetCompleted(session, activePresetId)
-                          ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
-                          : null
-                      }
-                      disabled={processing}
-                      presetId={activePresetId ?? undefined}
-                      sessionId={session.session_id}
-                      burstSignal={masterBurst}
-                    />
-                  </div>
-                )}
-              </motion.div>
+              {/* Player — bigger and centered when no dock tab is selected.
+                  Hidden on the Mezcla tab: MixPanel paints its own A/B
+                  waves (MixWaveformAB) right below the module header.
+                  Mastering flow (no tab / modules) keeps it exactly as-is. */}
+              {currentTab !== "mezcla" && sheetTab !== "mezcla" && (
+                <motion.div
+                  layout="position"
+                  transition={{ type: "spring", stiffness: 40, damping: 12 }}
+                  className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
+                    currentTab === null
+                      ? "flex-1 flex items-center justify-center min-h-0"
+                      : "shrink-0"
+                  }`}
+                >
+                  {session && (
+                    <div
+                      ref={playerScaleRef}
+                      className={`w-full origin-center ${
+                        currentTab === null ? "max-w-5xl" : ""
+                      }`}
+                    >
+                      <Player
+                        originalUrl={getAudioUrl(session.session_id, "original")}
+                        masteredUrl={
+                          isPresetCompleted(session, activePresetId)
+                            ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                            : null
+                        }
+                        disabled={processing}
+                        presetId={activePresetId ?? undefined}
+                        sessionId={session.session_id}
+                        burstSignal={masterBurst}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
               {/* Vocal result bar — visible from any tab */}
               {vocalProcessed && session && (
