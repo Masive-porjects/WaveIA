@@ -85,6 +85,7 @@ describe('mixTracks', () => {
       genre_confidence: 0.87,
       sample_rate: 48000,
       duration_seconds: 96.5,
+      stem_presence: { drums: true, bass: true, other: false, vocals: true },
       qc_report: { summary: { all_ok: true, flagged: [] } },
     };
     const fetchMock = vi.fn().mockResolvedValue({
@@ -104,6 +105,12 @@ describe('mixTracks', () => {
     expect(audioUrl).toBe('blob:mock-mix');
     expect(result?.tempo_bpm).toBe(128);
     expect(result?.genre).toBe('urban');
+    expect(result?.stem_presence).toEqual({
+      drums: true,
+      bass: true,
+      other: false,
+      vocals: true,
+    });
     expect(result?.qc_report).toEqual(payload.qc_report);
   });
 

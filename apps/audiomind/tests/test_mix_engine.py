@@ -116,6 +116,15 @@ class TestMixEndpoint:
             assert "integrated_lufs" in stem
             assert "dynamic_range_db" in stem
             assert "spectral_centroid" in stem
+        # v5 — stem_presence: exactly the 4 real STEM_NAMES, all booleans.
+        # The synthetic fixture writes every stem at 0.25 amplitude
+        # (≈ −15 dBFS RMS, well above the −50 dBFS threshold) → present.
+        assert "stem_presence" in payload
+        assert list(payload["stem_presence"]) == list(mix_engine.STEM_NAMES)
+        assert all(
+            isinstance(v, bool) for v in payload["stem_presence"].values()
+        )
+        assert all(payload["stem_presence"].values())
         # The bus is padded to the LONGEST stem (vocals: 1.25 s).
         assert payload["duration_seconds"] == pytest.approx(1.25, abs=0.01)
 
@@ -302,3 +311,39 @@ class TestMixQCAndVersions:
         ).read_bytes()
 
         assert with_versions_bytes == without_versions_bytes
+
+
+class TestStemPresence:
+    """v5 — honest stems: presence from per-stem RMS, not fixed names.
+
+    Demucs always emits the 4 stems; ``stem_presence`` reports which are
+    actually audible so the UI never names an instrument that is not in
+    the material. The endpoint test above proves the payload shape
+    end-to-end; these unit tests drive the threshold helper with
+    synthetic arrays (silence → absent, real tone → present, quiet
+    residue → absent).
+    """
+
+    def test_digital_silence_is_absent(self):
+        """All-zero stem measures ≈ −inf → never clears the threshold."""
+        silence = np.zeros((2, 44100), dtype=np.float32)
+        rms_db = mix_engine._stem_rms_db(silence)
+        assert rms_db == -np.inf
+        assert rms_db < mix_engine.STEM_PRESENCE_RMS_DBFS_THRESHOLD
+
+    def test_sine_tone_is_present(self):
+        """A real stem tone (0.25 amplitude ≈ −15 dBFS RMS) is present."""
+        t = np.arange(44100, dtype=np.float64) / _SR
+        tone = (0.25 * np.sin(2.0 * np.pi * 440.0 * t)).astype(np.float32)
+        rms_db = mix_engine._stem_rms_db(tone)
+        assert rms_db == pytest.approx(-15.05, abs=0.2)
+        assert rms_db >= mix_engine.STEM_PRESENCE_RMS_DBFS_THRESHOLD
+
+    def test_missing_stem_residue_is_absent(self):
+        """A demucs "missing stem" is model residue, not silence: a tone
+        65 dB below the fixture level (≈ −80 dBFS) must be ABSENT."""
+        t = np.arange(44100, dtype=np.float64) / _SR
+        amp = 0.25 * 10 ** (-65 / 20)
+        residue = (amp * np.sin(2.0 * np.pi * 300.0 * t)).astype(np.float32)
+        rms_db = mix_engine._stem_rms_db(residue)
+        assert rms_db < mix_engine.STEM_PRESENCE_RMS_DBFS_THRESHOLD

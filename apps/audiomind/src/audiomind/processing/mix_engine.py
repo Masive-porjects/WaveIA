@@ -144,6 +144,39 @@ _STEM_ANALYSIS_FIELDS: tuple[str, ...] = (
 _DIMENSION_LAYERING_NOTE = "longest reverb brightest, shortest darkest"
 
 
+#: RMS threshold (dBFS) for a stem to count as PRESENT in the mix.
+#:
+#: Demucs always emits the 4 stems (drums/bass/other/vocals), but a song
+#: without drums or bass (or an a cappella) leaves that stem at digital
+#: silence or a tiny model residue. ``stem_presence`` reports which stems
+#: are ACTUALLY audible so the UI can honestly name only the instruments
+#: that are in the material. Justification:
+#:   - digital silence measures ≈ −inf dBFS from the all-zero samples;
+#:   - a missing stem's demucs residue sits well below −70 dBFS (model
+#:     noise floor, far under any musical content);
+#:   - a genuinely present stem almost never dips under ≈ −40 dBFS RMS
+#:     (≈ 1 % amplitude) even in its quietest passage;
+#:   - −50 dBFS (≈ 0.3 % amplitude) splits both populations with margin.
+STEM_PRESENCE_RMS_DBFS_THRESHOLD = -50.0
+
+
+def _stem_rms_db(audio: np.ndarray) -> float:
+    """RMS level of a stem (any float layout) in dBFS.
+
+    ``20*log10(sqrt(mean(x**2)))``; digital silence (or an empty array)
+    returns exactly ``-inf`` so it never clears the presence threshold.
+    Returns a native Python float — the value travels straight into a
+    JSON payload later.
+    """
+    x = np.asarray(audio)
+    if x.size == 0:
+        return -np.inf
+    mean_sq = float(np.mean(np.square(x.astype(np.float64))))
+    if mean_sq == 0.0:
+        return -np.inf
+    return float(20.0 * np.log10(np.sqrt(mean_sq)))
+
+
 def _measure_input_bpm(input_path: str | Path) -> float | None:
     """Tempo of the source via librosa (same measurement as the analyzer).
 
@@ -484,6 +517,8 @@ def build_mix(
             "duration_seconds": float,
             "analysis": {"drums": {...}, "bass": {...},
                          "other": {...}, "vocals": {...}},
+            "stem_presence": {"drums": bool, "bass": bool,
+                              "other": bool, "vocals": bool},
             "tempo_bpm": float,
             "genre": str,
             "genre_confidence": float,
@@ -498,6 +533,11 @@ def build_mix(
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
+        ``stem_presence`` reports the audible presence of each of the 4
+        real ``STEM_NAMES`` stems — its RMS ≥
+        ``STEM_PRESENCE_RMS_DBFS_THRESHOLD`` (−50 dBFS) measured on the
+        resampled source stems (a missing instrument leaves a silent or
+        residue-only stem → ``False``),
         ``eq_profiles_applied`` records the bands requested per stem
         (a stem with no profile / zero gains still appears only if a
         profile was passed for it; ``profiles={}`` ⇒ ``{}``),
@@ -636,6 +676,19 @@ def build_mix(
     # pre-pan material (no re-split): the alias survives because
     # validate_positions returns a NEW dict.
     raw_stems_for_creative = resampled_stems
+
+    # v5 — instrumentos REALES: Demucs always emits the 4 stems, but what
+    # is audible is the material's decision. Per-stem RMS (measured on the
+    # resampled stems, BEFORE the pan — presence is a property of the
+    # source, not of the routing) decides which stems the UI may truthfully
+    # claim were in the mix. Additive key: existing payloads keep working.
+    stem_presence: dict[str, bool] = {
+        name: bool(
+            _stem_rms_db(resampled_stems[name])
+            >= STEM_PRESENCE_RMS_DBFS_THRESHOLD
+        )
+        for name in STEM_NAMES
+    }
 
     pan_report: dict[str, Any] | None = None
     if pan_profiles:
@@ -947,6 +1000,7 @@ def build_mix(
         "sample_rate": target_sr,
         "duration_seconds": round(mix_result.duration_seconds, 2),
         "analysis": analysis,
+        "stem_presence": stem_presence,
         "tempo_bpm": mix_result.tempo_bpm,
         "genre": mix_result.detected_genre,
         "genre_confidence": mix_result.genre_confidence,

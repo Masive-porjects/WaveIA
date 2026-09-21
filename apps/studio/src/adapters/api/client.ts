@@ -444,6 +444,10 @@ export async function processVocalChain(
  */
 export interface MixResult {
   analysis?: Record<string, unknown>;
+  /** Real per-stem presence measured by the backend (per-stem RMS ≥
+   *  −50 dBFS on the source stems). Optional/backward-compatible: older
+   *  mixes without the key simply show no stem chips. */
+  stem_presence?: Record<string, boolean>;
   tempo_bpm?: number | null;
   genre?: string | null;
   genre_confidence?: number | null;
