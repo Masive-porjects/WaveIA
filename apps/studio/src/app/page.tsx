@@ -1037,6 +1037,7 @@ export default function Home() {
               sessionMixPath={session.mix_path ?? null}
               sessionMixAnalysis={session.mix_analysis ?? null}
               audioDurationSeconds={session.analysis?.duration_seconds ?? null}
+              genreHint={session.analysis?.detected_genre ?? null}
               disabled={processing}
             />
           </div>

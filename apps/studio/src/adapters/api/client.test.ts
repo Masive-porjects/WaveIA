@@ -130,4 +130,26 @@ describe('mixTracks', () => {
 
     await expect(mixTracks(SID)).rejects.toThrow('Mix failed: boom');
   });
+
+  it('propaga un AbortSignal opcional al fetch de /mix', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    const { audioUrl } = await mixTracks(SID, controller.signal);
+
+    expect(audioUrl).toBe('blob:mock-mix');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        method: 'POST',
+        signal: controller.signal,
+      }),
+    );
+  });
 });

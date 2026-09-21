@@ -3,11 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  Bell,
+  BrainCircuit,
   CheckCircle2,
+  ChevronDown,
   Download,
+  Ghost,
+  Home as HomeIcon,
+  Info,
   Loader2,
   Music2,
+  RefreshCw,
   ShieldCheck,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import {
   getAudioUrl,
@@ -15,6 +24,16 @@ import {
   mixTracks,
   type MixResult,
 } from "@/lib/api";
+import MixWaveformAB from "@/presentation/components/MixWaveformAB";
+
+/* ── Paleta light autocontenida del módulo ─────────────── */
+
+const CARD_STYLE: React.CSSProperties = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "1rem",
+  boxShadow: "0 4px 24px rgba(15, 23, 42, 0.06)",
+};
 
 interface MixPanelProps {
   sessionId: string | null;
@@ -25,6 +44,8 @@ interface MixPanelProps {
   /** Duración del audio original en segundos (``session.analysis``). */
   audioDurationSeconds?: number | null;
   disabled?: boolean;
+  /** ``session.analysis.detected_genre`` — alimenta el chip del header. */
+  genreHint?: string | null;
 }
 
 /** Etapas simuladas de progreso mientras corre el POST /mix (blocking). */
@@ -64,7 +85,7 @@ function formatDuration(seconds: number): string {
   return `${seconds.toFixed(1)} s`;
 }
 
-/* ── Grilla de análisis ─────────────────────────────────
+/* ── Grilla de análisis (estilo light) ───────────────────
    Renderiza SOLO los campos presentes en el payload — nunca
    inventa datos que el backend no midió. */
 function MixAnalysisGrid({ result }: { result: MixResult }) {
@@ -97,31 +118,51 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
   if (cells.length === 0 && !qc) return null;
 
   return (
-    <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-      <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest mb-2">
+    <div className="mt-4 border-t pt-4" style={{ borderColor: "#f1f5f9" }}>
+      <p
+        className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.16em]"
+        style={{ color: "#6b7280" }}
+      >
         Análisis de la mezcla
       </p>
-      {cells.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {cells.map((cell) => (
-            <div key={cell.label} className="min-w-0">
-              <p className="text-xs font-mono text-[var(--text-primary)] truncate">
-                {cell.value}
-              </p>
-              <p className="text-[9px] text-[var(--text-muted)]">{cell.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      {qc && (
-        <div
-          className="mt-2 flex items-center gap-1.5 text-[10px]"
-          style={{ color: qc.summary?.all_ok === false ? "#fbbf24" : "#30d158" }}
-        >
-          <ShieldCheck size={12} />
-          QC: {qc.summary?.all_ok === false ? "revisar" : "ok"}
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {cells.map((cell) => (
+          <div
+            key={cell.label}
+            className="min-w-0 rounded-xl px-3 py-2.5 text-center"
+            style={{
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <p
+              className="truncate font-mono text-sm font-semibold"
+              style={{ color: "#0f172a" }}
+            >
+              {cell.value}
+            </p>
+            <p
+              className="mt-0.5 text-[9px] uppercase tracking-wider"
+              style={{ color: "#9ca3af" }}
+            >
+              {cell.label}
+            </p>
+          </div>
+        ))}
+        {qc && (
+          <div
+            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold"
+            style={{
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              color: qc.summary?.all_ok === false ? "#b45309" : "#10b981",
+            }}
+          >
+            <ShieldCheck size={13} />
+            QC: {qc.summary?.all_ok === false ? "revisar" : "ok"}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -132,29 +173,40 @@ export default function MixPanel({
   sessionMixAnalysis,
   audioDurationSeconds,
   disabled,
+  genreHint,
 }: MixPanelProps) {
   const [mixing, setMixing] = useState(false);
   const [mixUrl, setMixUrl] = useState<string | null>(null);
   const [mixResult, setMixResult] = useState<MixResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
   const [progressStage, setProgressStage] = useState(0);
   const [progressPct, setProgressPct] = useState(0);
   // Sesión restaurada con mix ya hecho → el resultado se muestra al abrir;
   // la pill permite ocultarlo/mostrarlo.
   const [showResult, setShowResult] = useState(() => Boolean(sessionMixPath));
+  // Modo del header del módulo (UI local, sin API).
+  const [mode, setMode] = useState<"manual" | "ai">("manual");
+  // Dropdown decorativo "Plan Premium".
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  // Spinner decorativo del chip de género (sin API inventada).
+  const [refreshingGenre, setRefreshingGenre] = useState(false);
+
   const objectUrlRef = useRef<string | null>(null);
   const stageRef = useRef(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Revoca el objectURL local al desmontar (el player lo usa hasta ese
-  // momento, por eso NO se revoca en el finally de handleMix) y limpia
-  // el intervalo de progreso si el componente se desmonta a mitad del mix.
+  // momento, por eso NO se revoca en el finally de handleMix), limpia el
+  // intervalo si se desmonta a mitad del mix y aborta el fetch en vuelo.
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
+      abortRef.current?.abort();
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
@@ -176,8 +228,14 @@ export default function MixPanel({
 
   const handleMix = useCallback(async () => {
     if (!sessionId || mixing) return;
+    // Re-mezcla: aborta un mix previo si quedó en vuelo.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setMixing(true);
     setError(null);
+    setCancelled(false);
     // Re-mezcla: ocultar el resultado previo mientras procesa.
     setShowResult(false);
     stageRef.current = 0;
@@ -199,7 +257,7 @@ export default function MixPanel({
     }, stageMs);
 
     try {
-      const { audioUrl, result } = await mixTracks(sessionId);
+      const { audioUrl, result } = await mixTracks(sessionId, controller.signal);
       clearProgressTimer();
       objectUrlRef.current = audioUrl;
       setProgressPct(100);
@@ -208,125 +266,436 @@ export default function MixPanel({
       setShowResult(true);
     } catch (e) {
       clearProgressTimer();
-      setError(e instanceof Error ? e.message : "No se pudo mezclar el audio");
+      // Cancelación explícita del usuario: estado informativo, NO un fallo.
+      // (El backend puede seguir procesando server-side; el cliente deja de
+      // esperar y no marca done.)
+      if ((e as { name?: string })?.name === "AbortError") {
+        setCancelled(true);
+      } else {
+        setError(e instanceof Error ? e.message : "No se pudo mezclar el audio");
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setMixing(false);
     }
   }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer]);
 
-  if (!sessionId) {
-    return (
-      <p className="text-[var(--text-muted)] text-sm">
-        Carga un audio para usar la Mezcla de Audio.
-      </p>
-    );
-  }
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort();
+    // El catch del fetch hace el resto: limpia el timer, marca `cancelled`
+    // y baja `mixing`.
+  }, []);
+
+  // Spinner decorativo del chip de género (~700 ms, sin API).
+  const handleRefreshGenre = useCallback(() => {
+    setRefreshingGenre(true);
+    window.setTimeout(() => setRefreshingGenre(false), 700);
+  }, []);
 
   // Sesión recargada con mix ya hecho: el player usa la URL estable del
   // backend (nunca se re-mezcla automáticamente).
   const hasMixed = Boolean(mixUrl || sessionMixPath);
-  const audioSrc = mixUrl ?? (sessionMixPath ? getMixAudioUrl(sessionId) : null);
+  const audioSrc = sessionId
+    ? mixUrl ?? (sessionMixPath ? getMixAudioUrl(sessionId) : null)
+    : null;
   const analysis = mixResult ?? sessionMixAnalysis ?? null;
 
+  // Género real del análisis (chip + panel IA). "other" se normaliza a "Otro".
+  const rawGenre =
+    genreHint && genreHint !== "other"
+      ? genreHint
+      : analysis?.genre && analysis.genre !== "other"
+        ? analysis.genre
+        : null;
+  const genreLabel = rawGenre ? rawGenre.replace("_", " ") : "Otro";
+
+  // Recomendaciones del modo IA — SOLO datos reales ya disponibles
+  // (análisis de sesión vía genreHint + mixResult/sessionMixAnalysis).
+  const qc = analysis?.qc_report as
+    | { summary?: { all_ok?: boolean; flagged?: unknown[] } }
+    | null
+    | undefined;
+  const aiCells: { label: string; value: string }[] = [];
+  if (rawGenre) aiCells.push({ label: "Género", value: genreLabel });
+  if (typeof analysis?.tempo_bpm === "number") {
+    aiCells.push({ label: "Tempo", value: `${Math.round(analysis.tempo_bpm)} BPM` });
+  }
+  if (typeof analysis?.genre_confidence === "number") {
+    aiCells.push({
+      label: "Confianza",
+      value: `${Math.round(analysis.genre_confidence * 100)}%`,
+    });
+  }
+  if (qc) {
+    aiCells.push({
+      label: "QC",
+      value: qc.summary?.all_ok === false ? "Revisar" : "OK",
+    });
+  }
+
+  const modeOptions = [
+    {
+      id: "manual",
+      label: "Manual",
+      sub: "CONTROL TOTAL",
+      icon: SlidersHorizontal,
+    },
+    {
+      id: "ai",
+      label: "Asistente IA",
+      sub: "RECOMENDACIONES",
+      icon: BrainCircuit,
+    },
+  ] as const;
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div style={CARD_STYLE}>
+      {/* ── Header del módulo: branding + género + modo + utilidades ── */}
+      <div
+        className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3"
+        style={{ borderColor: "#f1f5f9" }}
+      >
+        {/* Logo WAVEIA */}
+        <div className="flex items-center gap-1.5">
+          <span
+            className="text-[15px] font-black tracking-tight"
+            style={{ color: "#0f172a", letterSpacing: "-0.04em" }}
+          >
+            WAVE
+            <span
+              style={{
+                background: "linear-gradient(90deg, #5e5ce6, #00d4aa)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              IA
+            </span>
+          </span>
+          <span
+            className="size-1.5 rounded-full"
+            style={{ background: "#10b981" }}
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Chip de género (dato real del análisis) + refresh decorativo */}
+        <div
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+          style={{
+            background: "#f3f4f6",
+            border: "1px solid #e5e7eb",
+            color: "#374151",
+          }}
+        >
+          <span className="text-[11px]" aria-hidden="true">
+            🎵
+          </span>
+          {genreLabel}
+          <button
+            onClick={handleRefreshGenre}
+            disabled={refreshingGenre}
+            className="ml-0.5 flex items-center rounded-full p-0.5 transition-all hover:bg-[#e5e7eb] disabled:cursor-not-allowed"
+            aria-label="Actualizar sugerencia de género"
+            title="Actualizar sugerencia de género"
+          >
+            <RefreshCw
+              size={12}
+              className={refreshingGenre ? "animate-spin" : ""}
+              style={{ color: "#9ca3af" }}
+            />
+          </button>
+        </div>
+
+        {/* Selector de modo Manual / Asistente IA */}
+        <div
+          className="flex items-center gap-1 rounded-xl p-1"
+          style={{ background: "#f3f4f6" }}
+          role="group"
+          aria-label="Modo de mezcla"
+        >
+          {modeOptions.map(({ id, label, sub, icon: Icon }) => {
+            const active = mode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setMode(id)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-all duration-200"
+                style={{
+                  background: active ? "#ffffff" : "transparent",
+                  border: `1px solid ${active ? "#e5e7eb" : "transparent"}`,
+                  boxShadow: active ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+                }}
+              >
+                <span
+                  className="flex size-6 items-center justify-center rounded-md transition-colors"
+                  style={{
+                    background: active
+                      ? "linear-gradient(135deg, #00d4aa, #10b981)"
+                      : "#e5e7eb",
+                    color: active ? "#ffffff" : "#6b7280",
+                  }}
+                >
+                  <Icon size={13} />
+                </span>
+                <span className="text-left">
+                  <span
+                    className="block text-xs font-semibold leading-tight"
+                    style={{ color: active ? "#0f172a" : "#6b7280" }}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    className="hidden text-[8px] font-semibold uppercase tracking-[0.12em] md:block"
+                    style={{ color: "#9ca3af" }}
+                  >
+                    {sub}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Iconos decorativos + Plan Premium */}
+        <div className="flex items-center gap-1">
+          {[
+            { icon: Ghost, title: "Tu espacio" },
+            { icon: Bell, title: "Notificaciones" },
+            { icon: HomeIcon, title: "Inicio" },
+          ].map(({ icon: Icon, title }) => (
+            <button
+              key={title}
+              type="button"
+              title={title}
+              aria-label={title}
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:bg-[#f3f4f6]"
+              style={{ color: "#6b7280" }}
+            >
+              <Icon size={16} />
+            </button>
+          ))}
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setPremiumOpen((v) => !v)}
+              aria-expanded={premiumOpen}
+              aria-haspopup="true"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(94,92,230,0.12), rgba(0,212,170,0.12))",
+                border: "1px solid rgba(94,92,230,0.18)",
+                color: "#5e5ce6",
+              }}
+            >
+              Plan Premium
+              <ChevronDown
+                size={13}
+                className="transition-transform duration-200"
+                style={{ transform: premiumOpen ? "rotate(180deg)" : "none" }}
+              />
+            </button>
+            {premiumOpen && (
+              <>
+                {/* Backdrop transparente para cerrar al hacer click afuera */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setPremiumOpen(false)}
+                  aria-hidden="true"
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border"
+                  style={{
+                    background: "#ffffff",
+                    borderColor: "#e5e7eb",
+                    boxShadow: "0 12px 32px rgba(15, 23, 42, 0.12)",
+                  }}
+                >
+                  <div className="px-3 py-2.5">
+                    <p
+                      className="text-xs font-semibold"
+                      style={{ color: "#0f172a" }}
+                    >
+                      Plan Premium
+                    </p>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "#9ca3af" }}>
+                      Próximamente
+                    </p>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mini-panel del Asistente IA (datos reales del análisis) ── */}
+      {mode === "ai" && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.25 }}
+          className="overflow-hidden border-b"
+          style={{ borderColor: "#f1f5f9", background: "#fafafa" }}
+        >
+          <div className="px-4 py-3">
+            <p
+              className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em]"
+              style={{ color: "#6b7280" }}
+            >
+              Recomendaciones del análisis
+            </p>
+            {aiCells.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {aiCells.map((cell) => (
+                  <span
+                    key={cell.label}
+                    className="rounded-full px-3 py-1 text-xs font-semibold"
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      color: "#0f172a",
+                    }}
+                  >
+                    {cell.value}{" "}
+                    <span
+                      className="text-[10px] font-medium normal-case"
+                      style={{ color: "#9ca3af" }}
+                    >
+                      {cell.label}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs" style={{ color: "#9ca3af" }}>
+                Los datos del análisis aparecerán cuando generes la mezcla.
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Título de sección + badges / acción primaria ── */}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
         <div>
           <h2
-            className="text-lg font-semibold text-[var(--text-primary)]"
-            style={{ letterSpacing: "-0.02em" }}
+            className="text-lg font-bold"
+            style={{ color: "#0f172a", letterSpacing: "-0.02em" }}
           >
-            Mezcla de <span className="serif-accent">Audio</span>
+            Mezcla de Audio
           </h2>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          <p className="mt-0.5 text-xs" style={{ color: "#6b7280" }}>
             Separa, ecualiza y mezcla tus stems en un bus unificado
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Pill de estado: deshabilitado sin mix; con mix muestra/oculta
-              el panel de resultado. Nunca muestra nada mientras procesa. */}
-          <button
-            onClick={() => setShowResult((v) => !v)}
-            disabled={!hasMixed || mixing}
-            aria-pressed={hasMixed && showResult}
-            title={
-              hasMixed
-                ? "Mostrar u ocultar el resultado de la mezcla"
-                : "Todavía no hay una mezcla"
-            }
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
-              transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed
-              hover:brightness-110"
-            style={{
-              background: hasMixed
-                ? "rgba(48, 209, 88, 0.12)"
-                : "var(--surface-hover)",
-              border: `1px solid ${
-                hasMixed ? "rgba(48, 209, 88, 0.2)" : "var(--border-subtle)"
-              }`,
-              color: hasMixed ? "#30d158" : "var(--text-muted)",
-            }}
-          >
-            <CheckCircle2 size={13} />
-            Audio mezclado
-          </button>
-
-          <button
-            onClick={handleMix}
-            disabled={disabled || mixing}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
-            style={{
-              background: hasMixed
-                ? "rgba(48, 209, 88, 0.12)"
-                : "linear-gradient(135deg, rgba(94,92,230,0.15), rgba(94,92,230,0.06))",
-              border: `1px solid ${
-                hasMixed ? "rgba(48, 209, 88, 0.2)" : "rgba(94,92,230,0.2)"
-              }`,
-              color: hasMixed ? "#30d158" : "#5e5ce6",
-            }}
-          >
-            {mixing ? (
-              <>
-                <Loader2 size={16} className="animate-spin" /> Procesando mezcla...
-              </>
-            ) : hasMixed ? (
-              <>
-                <CheckCircle2 size={16} /> Mezcla lista
-              </>
-            ) : (
-              <>
-                <Music2 size={16} /> Mezclar Audio
-              </>
-            )}
-          </button>
+          {hasMixed ? (
+            <>
+              {/* Pill de estado: muestra/oculta el panel de resultado.
+                  Nunca muestra nada mientras procesa. */}
+              <button
+                onClick={() => setShowResult((v) => !v)}
+                disabled={!hasMixed || mixing}
+                aria-pressed={hasMixed && showResult}
+                title={
+                  hasMixed
+                    ? "Mostrar u ocultar el resultado de la mezcla"
+                    : "Todavía no hay una mezcla"
+                }
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  background: "rgba(48, 209, 88, 0.12)",
+                  border: "1px solid rgba(48, 209, 88, 0.2)",
+                  color: "#30d158",
+                }}
+              >
+                <CheckCircle2 size={13} />
+                Audio mezclado
+              </button>
+              {/* Pill "Mezcla lista": re-mezcla permitida (mismo click que
+                  el botón primario de v1, ahora como pill verde). */}
+              <button
+                onClick={handleMix}
+                disabled={disabled || mixing}
+                title="Volver a mezclar"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  background: "rgba(48, 209, 88, 0.12)",
+                  border: "1px solid rgba(48, 209, 88, 0.2)",
+                  color: "#30d158",
+                }}
+              >
+                {mixing ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    Mezclando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={13} />
+                    Mezcla lista
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleMix}
+              disabled={disabled || mixing || !sessionId}
+              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{
+                background: "linear-gradient(135deg, #10b981, #00d4aa)",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.25)",
+              }}
+            >
+              {mixing ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Mezclando...
+                </>
+              ) : (
+                <>
+                  <Music2 size={16} /> Mezclar Audio
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Barra de progreso por etapas — solo mientras corre el /mix */}
+      {/* ── Barra de progreso por etapas — solo mientras corre el /mix ── */}
       {mixing && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
+          className="px-4 pt-4"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[var(--text-secondary)]">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: "#374151" }}>
               {MIX_STAGES[progressStage]}
             </span>
-            <span className="text-xs font-mono text-[var(--text-muted)]">
+            <span className="font-mono text-xs" style={{ color: "#9ca3af" }}>
               {progressPct}%
             </span>
           </div>
           <div
-            className="w-full h-1.5 rounded-full overflow-hidden"
-            style={{ background: "var(--surface-hover)" }}
+            className="h-1.5 w-full overflow-hidden rounded-full"
+            style={{ background: "#f3f4f6" }}
           >
             <motion.div
               className="h-full rounded-full"
               style={{
-                background: "linear-gradient(135deg, #5e5ce6, #30d158)",
+                background: "linear-gradient(90deg, #00d4aa, #10b981)",
               }}
               animate={{ width: `${progressPct}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -335,19 +704,20 @@ export default function MixPanel({
         </motion.div>
       )}
 
-      {/* Error banner */}
+      {/* ── Error banner ── */}
       {error && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
+          className="px-4 pt-4"
         >
           <div
-            className="p-3 rounded-xl text-xs"
+            className="rounded-xl p-3 text-xs font-medium"
             style={{
-              background: "rgba(220, 38, 38, 0.08)",
-              border: "1px solid rgba(220, 38, 38, 0.2)",
-              color: "var(--accent-error)",
+              background: "rgba(239, 68, 68, 0.06)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              color: "#dc2626",
             }}
           >
             {error}
@@ -355,60 +725,65 @@ export default function MixPanel({
         </motion.div>
       )}
 
-      {/* Resultado: comparación original vs mezcla + descarga + análisis.
+      {/* ── Cancelación informativa (NO es un fallo) ── */}
+      {cancelled && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="px-4 pt-4"
+        >
+          <div
+            className="flex items-center gap-2 rounded-xl p-3 text-xs font-medium"
+            style={{
+              background: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              color: "#b45309",
+            }}
+          >
+            <Info size={14} />
+            Mezcla cancelada. Podés volver a intentarlo cuando quieras.
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Vista A/B dual + acciones + análisis ──
           Solo con mix real (nunca mientras procesa) y cuando la pill
           "Audio mezclado" lo tiene visible. */}
-      {hasMixed && audioSrc && !mixing && showResult && (
+      {hasMixed && sessionId && audioSrc && !mixing && showResult && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="p-4 rounded-2xl"
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border-subtle)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-          }}
+          className="px-4 pt-4"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <p className="mb-1.5 text-[10px] text-[var(--text-muted)] uppercase tracking-widest">
-                Original
-              </p>
-              <audio
-                controls
-                src={getAudioUrl(sessionId, "original")}
-                className="w-full"
-                preload="metadata"
-              />
-            </div>
-            <div>
-              <p className="mb-1.5 text-[10px] text-[#30d158] uppercase tracking-widest">
-                Audio mezclado
-              </p>
-              <audio
-                controls
-                src={audioSrc}
-                className="w-full"
-                preload="metadata"
-              />
-            </div>
-          </div>
+          <MixWaveformAB
+            originalUrl={getAudioUrl(sessionId, "original")}
+            mixedUrl={audioSrc}
+            mixedDuration={analysis?.duration_seconds ?? null}
+          />
 
-          <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
-            <span className="text-xs text-[var(--text-secondary)]">
+          {/* Barra de acciones (bajo las ondas) */}
+          <div
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3"
+            style={{ borderColor: "#f1f5f9" }}
+          >
+            <span className="text-xs" style={{ color: "#6b7280" }}>
               Mezcla generada: escucha el resultado o descarga el WAV
             </span>
             <a
               href={audioSrc}
               download={`${sessionId}_mix.wav`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                text-[var(--text-secondary)] hover:text-[var(--text-primary)]
-                bg-[var(--surface-hover)] hover:bg-[var(--surface-active)]
-                transition-all border border-[var(--border-subtle)]"
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all hover:brightness-105"
+              style={{
+                background: "#ffffff",
+                borderColor: "#e5e7eb",
+                color: "#0f172a",
+                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+              }}
             >
-              <Download size={13} /> Descargar WAV
+              <Download size={13} />
+              Descargar WAV
             </a>
           </div>
 
@@ -416,13 +791,49 @@ export default function MixPanel({
         </motion.div>
       )}
 
-      {/* Hint inicial */}
-      {!hasMixed && !mixing && (
-        <p className="text-xs text-[var(--text-muted)] text-center pt-2">
+      {/* ── Cancelación de emergencia mientras procesa ── */}
+      {mixing && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4"
+        >
+          <span className="text-xs" style={{ color: "#9ca3af" }}>
+            Procesando la mezcla… Si tardó demasiado, podés cancelarla.
+          </span>
+          <button
+            onClick={handleCancel}
+            className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-white transition-all duration-200 hover:brightness-110 active:scale-95"
+            style={{
+              background: "#ef4444",
+              boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            <X size={13} strokeWidth={2.5} />
+            Cancelar mezcla
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── Hint inicial ── */}
+      {sessionId && !hasMixed && !mixing && !error && !cancelled && (
+        <p
+          className="px-4 pt-3 text-center text-xs"
+          style={{ color: "#9ca3af" }}
+        >
           La mezcla separa el audio en stems por rol, aplica ecualización
           por banda de frecuencia y los junta en un bus estéreo unificado.
         </p>
       )}
+      {!hasMixed && !mixing && !sessionId && (
+        <p className="px-4 pt-3 text-sm" style={{ color: "#6b7280" }}>
+          Carga un audio para usar la Mezcla de Audio.
+        </p>
+      )}
+
+      {/* Air inferior de la tarjeta */}
+      <div className="h-4" />
     </div>
   );
 }

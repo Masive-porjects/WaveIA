@@ -465,10 +465,12 @@ export interface MixResult {
  */
 export async function mixTracks(
   sessionId: string,
+  signal?: AbortSignal,
 ): Promise<{ audioUrl: string; audioBlob: Blob; result: MixResult | null }> {
   const res = await fetch(`${API_BASE}/session/${sessionId}/mix`, {
     method: "POST",
     headers: { ...licenseHeaders() },
+    ...(signal ? { signal } : {}),
   });
   if (!res.ok) {
     const err = await res
