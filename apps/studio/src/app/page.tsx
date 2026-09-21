@@ -940,7 +940,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]" style={{ letterSpacing: "-0.02em" }}>
-                  Macro-<span className="serif-accent">Carácter</span>
+                  Masterizar <span className="serif-accent">Audio</span>
                 </h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
                   Selecciona un perfil o ajusta fino abajo
