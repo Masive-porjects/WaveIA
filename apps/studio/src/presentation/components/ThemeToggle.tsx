@@ -5,7 +5,39 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const THEME_KEY = "waveai-theme";
 
-type Theme = "dark" | "light";
+export type Theme = "dark" | "light";
+
+/* ── useThemeMode ────────────────────────────────────────
+   Shared theme state (dark/light). Reads the html[data-theme]
+   attribute that the anti-FOUC script already wrote pre-hydration
+   and persists every change to localStorage. Used by ThemeToggle
+   (badge button) and the Cuenta menu item so both stay in sync. */
+export function useThemeMode() {
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  useEffect(() => {
+    const syncTimer = setTimeout(() => {
+      const current = document.documentElement.dataset.theme;
+      setTheme(current === "light" ? "light" : "dark");
+    }, 0);
+    return () => clearTimeout(syncTimer);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setTheme((prev) => {
+      const next: Theme = prev === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch {
+        // Private mode — theme still applies for this session
+      }
+      return next;
+    });
+  }, []);
+
+  return { theme, toggle, isDark: theme === "dark" };
+}
 
 /* ── Ghost (Mente y Alma) ────────────────────────────── */
 
@@ -65,36 +97,11 @@ function AISpark({ size = 12 }: { size?: number }) {
 /* ── Toggle ──────────────────────────────────────────── */
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  // The anti-FOUC script in layout.tsx already set data-theme
-  // before hydration — sync state with it once mounted.
-  useEffect(() => {
-    const syncTimer = setTimeout(() => {
-      const current = document.documentElement.dataset.theme;
-      setTheme(current === "light" ? "light" : "dark");
-    }, 0);
-    return () => clearTimeout(syncTimer);
-  }, []);
-
-  const handleToggle = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
-      try {
-        localStorage.setItem(THEME_KEY, next);
-      } catch {
-        // Private mode — theme still applies for this session
-      }
-      return next;
-    });
-  }, []);
-
-  const isDark = theme === "dark";
+  const { theme, toggle, isDark } = useThemeMode();
 
   return (
     <button
-      onClick={handleToggle}
+      onClick={toggle}
       className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0
         bg-[var(--bg-glass)] backdrop-blur-xl
         border border-[var(--border-subtle)] hover:border-[var(--border-strong)]

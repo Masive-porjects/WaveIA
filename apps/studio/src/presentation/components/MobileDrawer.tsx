@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, Music, Settings, Palette } from "lucide-react";
+import IconButton from "@/components/ui/IconButton";
 import type { SessionData } from "@/lib/api";
 
 interface MobileDrawerProps {
@@ -84,14 +85,12 @@ export default function MobileDrawer({
                   </p>
                 </div>
               </div>
-              <button
+              <IconButton
+                label="Cerrar menú"
+                icon={X}
                 onClick={onClose}
-                className="w-8 h-8 rounded-full flex items-center justify-center
-                  text-[var(--text-muted)] hover:text-[var(--text-primary)]
-                  hover:bg-[var(--surface-hover)] transition-all"
-              >
-                <X size={16} />
-              </button>
+                size="md"
+              />
             </div>
 
             {/* Divider */}

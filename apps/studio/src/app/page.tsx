@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore, useMemo } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,12 +14,10 @@ import FloatingDeliveryPanel from "@/components/FloatingDeliveryPanel";
 import FloatingReportCard from "@/components/FloatingReportCard";
 import GenreGuide from "@/components/GenreGuide";
 import MasteringGuide from "@/components/MasteringGuide";
-import FloatingNotes from "@/components/FloatingNotes";
-import FloatingGhosts from "@/components/FloatingGhosts";
 import BigGhostWithNotes from "@/components/BigGhostWithNotes";
 import ProcessingOverlay from "@/components/ProcessingOverlay";
 import Player from "@/components/Player";
-import WelcomeGate from "@/components/WelcomeGate";
+import LicenseGuard from "@/components/LicenseGuard";
 import StemSplitter, {
   createDefaultStemState,
   type StemSplitterState,
@@ -27,7 +25,8 @@ import StemSplitter, {
 import AlbumMastering from "@/presentation/components/AlbumMastering";
 import VocalChain from "@/components/VocalChain";
 import SongStarter from "@/components/SongStarter";
-import ThemeToggle from "@/components/ThemeToggle";
+import AmbientLayer from "@/components/AmbientLayer";
+import IconButton from "@/components/ui/IconButton";
 import ModuleSheet from "@/components/ModuleSheet";
 import PaintedModule from "@/components/PaintedModule";
 import ShareCard from "@/components/ShareCard";
@@ -36,15 +35,19 @@ import OverMasterWarning from "@/components/OverMasterWarning";
 import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/shared/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
+import AuthGuard from "@/components/auth/AuthGuard";
 import TrackChip from "@/presentation/components/TrackChip";
-import { ComingSoonNotice } from "@/components/ComingSoonNotice";
+import ChatPanel, {
+  NEUTRAL_PROFILE,
+  type Profile,
+} from "@/presentation/components/chat/ChatPanel";
+import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
 import {
   uploadAudio,
   processAudio,
-  resetSession,
   getAudioUrl,
   getSession,
   downloadMastered,
@@ -71,6 +74,7 @@ import {
 } from "lucide-react";
 import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
+import { LiveView } from "@/components/live/LiveView";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "modules", label: "Módulos" },
@@ -84,21 +88,6 @@ const TABS: { key: MasteringTab; label: string }[] = [
   { key: "live", label: "Live Engine" },
   { key: "album", label: "Álbum" },
 ];
-
-/* ── Active-preset readiness ─────────────────────────
-   The mastered URL for the ACTIVE preset may only be requested once that
-   preset's master is completed. Guarding with the previous preset's
-   `mastered_path` caused 404 races when switching presets during a slow
-   render: the fetch asked for `activePresetId` audio that was not ready. */
-function isPresetCompleted(
-  session: SessionData,
-  presetId: string | null | undefined,
-): boolean {
-  if (!presetId) {
-    return Boolean(session.mastered_path);
-  }
-  return session.preset_masters?.[presetId]?.status === "completed";
-}
 
 /* ── Genre-to-params mapping ────────────────────────── */
 
@@ -297,6 +286,19 @@ function useProcessingProgress(
 /* ── Note burst colors (reused for the upload animation) ── */
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
 
+/* ── Saludo del agente ───────────────────────────────── */
+
+/**
+ * El saludo NO nombra el genero detectado.
+ *
+ * El clasificador se equivoca seguido, y abrir la conversacion afirmando algo
+ * falso sobre la musica del usuario destruye la confianza en todo lo que venga
+ * despues. El genero se sigue mandando al agente para calibrar cuanto mover
+ * cada eje; simplemente no se anuncia.
+ */
+const WELCOME =
+  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
+
 /* ── Hydration-safe client detector ──────────────────── */
 
 function useIsClient(): boolean {
@@ -402,6 +404,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
   const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
+  const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
 
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
@@ -413,7 +416,7 @@ export default function Home() {
   const [vocalProcessed, setVocalProcessed] = useState(false);
 
   // Right panel collapse state — hidden by default until the user opens a tab
-  // that needs it (analysis, stereo or live).
+  // that needs it (analysis or stereo).
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   // Último tab que sincronizó el panel. Patrón oficial React de ajuste de
   // estado durante render (en vez de setState en un effect): el colapso
@@ -421,8 +424,7 @@ export default function Home() {
   const [panelSyncTab, setPanelSyncTab] = useState<MasteringTab | null>(null);
   const needsRightPanel =
     currentTab === "analysis" ||
-    currentTab === "stereo" ||
-    currentTab === "live";
+    currentTab === "stereo";
   if (currentTab !== panelSyncTab) {
     setPanelSyncTab(currentTab);
     setRightPanelOpen(needsRightPanel);
@@ -458,7 +460,7 @@ export default function Home() {
       setErrorModal({
         title: "El servidor se reinició",
         message:
-          "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
+          "La sesión se perdió mientras se procesaba. Recargá la página: si la sesión no se recupera sola, subí el audio de nuevo.",
       });
     },
   );
@@ -499,7 +501,7 @@ export default function Home() {
           setErrorModal({
             title: "Tu sesión anterior expiró",
             message:
-              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recarga de nuevo; si no, sube el audio otra vez — es lo único que falta.",
+              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recargá de nuevo; si no, subí el audio otra vez — es lo único que falta.",
           });
         }
       });
@@ -602,20 +604,8 @@ export default function Home() {
               setErrorModal({
                 title: "El servidor se reinició",
                 message:
-                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recarga y debería recuperarse; si no, sube el audio de nuevo.",
+                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recargá y debería recuperarse; si no, subí el audio de nuevo.",
               });
-              break;
-            case 422:
-              // Demo mode rejects uploads with a "Demo: ..." detail —
-              // surface it as a clear modal instead of a raw inline error.
-              if (err.message.startsWith("Demo:")) {
-                setErrorModal({
-                  title: "Límite de la demo",
-                  message: err.message,
-                });
-              } else {
-                setError(err.message || "Upload failed");
-              }
               break;
             default:
               if (err.status >= 500) {
@@ -664,7 +654,7 @@ export default function Home() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
+          "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
         );
         return;
       }
@@ -676,6 +666,33 @@ export default function Home() {
       if (abortRef.current === controller) abortRef.current = null;
     }
   }, [session, params, activePresetId, completeProgress]);
+
+  // Métricas estáticas para el Live Meter Deck (lado Original | Master).
+  // Referencias ESTABLES: no recrearlas por render (si no, el efecto del deck
+  // se re-suscribiría al bus en cada re-render de page).
+  const liveOriginalMetrics = useMemo(
+    () =>
+      session?.analysis
+        ? {
+            integrated_lufs: session.analysis.integrated_lufs,
+            true_peak_db: session.analysis.true_peak_db,
+            crest_factor_db: session.analysis.crest_factor_db ?? null,
+          }
+        : null,
+    [session],
+  );
+
+  const liveMasterMetrics = useMemo(
+    () =>
+      session?.master_result
+        ? {
+            integrated_lufs: session.master_result.integrated_lufs,
+            true_peak_db: session.master_result.true_peak_db,
+            crest_factor_db: session.master_result.crest_factor_db,
+          }
+        : null,
+    [session],
+  );
 
   /**
    * Resultados ya procesados, por preset.
@@ -758,7 +775,7 @@ export default function Home() {
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
-            "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
+            "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
           );
           return;
         }
@@ -773,25 +790,10 @@ export default function Home() {
     [session, completeProgress, params],
   );
 
-  /* ── Reset: revert the current master, leaving only the original ── */
-  const handleReset = useCallback(async () => {
-    if (!session) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      const s = await resetSession(session.session_id);
-      setSession(s);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Reset failed";
-      setError(msg);
-    } finally {
-      setProcessing(false);
-    }
-    // Volvemos parámetros y preset al estado inicial; el backend ya limpió
-    // los masters, así el Player queda mostrando solo el original.
+  /* ── Reset modules to defaults ──────────────────── */
+  const handleReset = useCallback(() => {
     setParams(DEFAULT_PARAMS);
-    setActivePresetId(null);
-  }, [session]);
+  }, []);
 
   /* ── Stem split ────────────────────────────────── */
   const handleStemSplit = useCallback(async () => {
@@ -825,20 +827,11 @@ export default function Home() {
     async (format: "wav" | "mp3") => {
       if (!session) return;
       try {
-        const blob = await downloadMastered(
-          session.session_id,
-          format,
-          activePresetId ?? undefined,
-        );
+        const blob = await downloadMastered(session.session_id, format);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        // Name it after the original upload so the export stays recognizable:
-        // "beatRap.wav" → "BeatRapMasterizado.wav" (first letter capitalized).
-        const stem = session.original_filename
-          ? session.original_filename.replace(/\.[^.]+$/, "")
-          : "waveai";
-        a.download = `${stem.charAt(0).toUpperCase()}${stem.slice(1)}Masterizado.${format}`;
+        a.download = `brikmaster_${session.session_id}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -847,7 +840,7 @@ export default function Home() {
         // Silently fail — the backend error is already surfaced
       }
     },
-    [session, activePresetId],
+    [session],
   );
 
   /* ── Back to upload ──────────────────────────────── */
@@ -856,6 +849,7 @@ export default function Home() {
     abortRef.current = null;
     setCurrentView("upload");
     setMasteringMode("manual");
+    setIntentProfile(NEUTRAL_PROFILE);
     setSession(null);
     setProcessing(false);
     setError(null);
@@ -928,7 +922,7 @@ export default function Home() {
       case "modules":
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Carga un audio para empezar.</p>
+            <p className="text-[var(--text-muted)] text-sm">Subí un audio para empezar.</p>
           );
         }
         return (
@@ -939,7 +933,7 @@ export default function Home() {
                   Macro-<span className="serif-accent">Carácter</span>
                 </h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Selecciona un perfil o ajusta fino abajo
+                  Seleccioná un perfil o ajustá fino abajo
                 </p>
               </div>
               <button
@@ -1004,7 +998,7 @@ export default function Home() {
       case "splitter": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar el Splitter.</p>
+            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar el Splitter.</p>
           );
         }
         return (
@@ -1023,7 +1017,7 @@ export default function Home() {
       case "vocal": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar VoiceChain Pro.</p>
+            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar VoiceChain Pro.</p>
           );
         }
         return (
@@ -1069,7 +1063,8 @@ export default function Home() {
   };
 
   return (
-    <WelcomeGate>
+    <AuthGuard>
+    <LicenseGuard>
     <main className="h-dvh w-screen overflow-hidden overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col antialiased">
       {/* ═══════════════════════════════════════════════
            Processing Overlay (global)
@@ -1105,17 +1100,16 @@ export default function Home() {
           platform={session.parameters?.platform_target ?? null}
         />
       )}
-      {/* Background watermark layer: strictly BELOW all content (z-0 < z-[1]),
-          heavily dimmed so notes never compete with card text. */}
-      <FloatingNotes zIndex={0} className="opacity-25" />
-      <FloatingGhosts zIndex={0} className="opacity-25" />
+      {/* Ambient layer — Awwwards ghosts + notes, vignette-dimmed near
+          decision zones, attenuated on interaction, off in focus mode. */}
+      <AmbientLayer />
 
       {/* ── Navbar ─────────────────────────────────── */}
       <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="rounded-full px-4 py-2 glass">
             <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-              Wave<span className="text-[var(--accent-primary)]">AI</span>
+              Brik<span className="text-[var(--accent-primary)]">master</span>
             </span>
           </div>
 
@@ -1137,7 +1131,7 @@ export default function Home() {
               borderColor: "var(--border-strong)",
             }}
             role="group"
-            aria-label="Elige cómo quieres masterizar"
+            aria-label="Elegí cómo querés masterizar"
           >
             {([
               {
@@ -1219,30 +1213,33 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-2">
-          {/* Theme toggle — moved here when the icon sidebar was replaced by the dock */}
-          <div className="hidden md:block">
-            <ThemeToggle />
-          </div>
+          {/* Header cleanup: theme + focus now live inside the Cuenta menu.
+              One primary action (Cuenta) + Home + mobile drawer. */}
           {currentView === "mastering" && (
-            <button
+            <IconButton
+              label="Inicio"
+              icon={HomeIcon}
               onClick={handleBackToUpload}
-              title="Inicio"
-              aria-label="Inicio"
-              className="hidden rounded-full w-9 h-9 md:flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
-            >
-              <HomeIcon size={18} />
-            </button>
+              className="hidden md:flex"
+              size="md"
+            />
           )}
-          <button
-            className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
+          <div className="hidden sm:block">
+            <UserMenu />
+          </div>
+          <IconButton
+            label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden flex"
+            aria-expanded={mobileMenuOpen}
           >
-            <span className="transition-transform duration-300 inline-flex"
+            <span
+              className="inline-flex transition-transform duration-300"
               style={{ transform: mobileMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </span>
-          </button>
+          </IconButton>
         </div>
       </nav>
 
@@ -1292,7 +1289,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          WaveIA
+                          Brikmaster Studio
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>
@@ -1300,11 +1297,11 @@ export default function Home() {
                       <h1 className="text-2xl md:text-4xl font-bold mb-1 text-knockout"
                         style={{ letterSpacing: "-0.04em" }}
                       >
-                        Masteriza Tu <span className="serif-accent">Música</span>
+                        Masterizá Tu <span className="serif-accent">Música</span>
                       </h1>
 
                       <p className="text-[var(--text-muted)] text-sm">
-                        Carga tu track, ajusta los módulos y obtén un master profesional
+                        Subí tu track, ajustá los módulos y obtené un master profesional
                       </p>
                     </div>
 
@@ -1394,10 +1391,25 @@ export default function Home() {
                 className={`${masteringMode === "ai" ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
                 aria-hidden={masteringMode !== "ai"}
               >
-                <ComingSoonNotice
-                  title="Asistente IA"
-                  message="El asistente con recomendaciones llega pronto. Mientras tanto, masterizá en modo Manual con las guías de género."
-                />
+                <motion.div
+                  className="flex h-full max-h-[min(42rem,100%)] min-h-[28rem] w-full max-w-2xl flex-col"
+                  initial={VIEW_TRANSITION.initial}
+                  animate={VIEW_TRANSITION.animate}
+                  transition={VIEW_TRANSITION.transition}
+                >
+                  <ChatPanel
+                    profile={intentProfile}
+                    onProfileChange={setIntentProfile}
+                    analysis={session?.analysis ?? undefined}
+                    welcome={WELCOME}
+                    voiceOutput={masteringMode === "ai"}
+                    onPresetSelect={(presetId) => {
+                      const preset = PRESETS.find((x) => x.id === presetId);
+                      if (!preset) return;
+                      void handlePresetSelect(preset.params, presetId);
+                    }}
+                  />
+                </motion.div>
               </div>
 
               <div
@@ -1413,8 +1425,8 @@ export default function Home() {
                   <Player
                     originalUrl={getAudioUrl(session.session_id, "original")}
                     masteredUrl={
-                      isPresetCompleted(session, activePresetId)
-                        ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                      session.mastered_path
+                        ? getAudioUrl(session.session_id, "mastered")
                         : null
                     }
                     disabled={processing}
@@ -1601,8 +1613,8 @@ export default function Home() {
                     <Player
                       originalUrl={getAudioUrl(session.session_id, "original")}
                       masteredUrl={
-                        isPresetCompleted(session, activePresetId)
-                          ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                        session.mastered_path
+                          ? getAudioUrl(session.session_id, "mastered")
                           : null
                       }
                       disabled={processing}
@@ -1708,12 +1720,14 @@ export default function Home() {
 
           {/* Expand button — visible when a tab that needs the right panel is selected and the panel is collapsed */}
           {currentView === "mastering" && masteringMode === "manual" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
-            <button
+            <IconButton
+              label="Abrir panel de análisis"
+              icon={ChevronLeft}
+              variant="ghost"
+              size="md"
               onClick={() => setRightPanelOpen(true)}
-              className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hover)] flex items-center justify-center hover:bg-[var(--bg-tertiary)] transition-all shadow-lg cursor-pointer"
-            >
-              <ChevronLeft size={14} className="text-[var(--text-secondary)]" />
-            </button>
+              className="absolute top-4 right-4 z-30 cursor-pointer"
+            />
           )}
         </main>
 
@@ -1729,16 +1743,17 @@ export default function Home() {
           <div className="w-80 lg:w-96 h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
-              <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
-                Panel de Análisis
-              </span>
-              <button
-                onClick={() => setRightPanelOpen(false)}
-                className="w-6 h-6 rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
+                  Panel de Análisis
+                </span>
+                <IconButton
+                  label="Cerrar panel de análisis"
+                  icon={ChevronRight}
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setRightPanelOpen(false)}
+                />
+              </div>
 
             {/* Content — scrollable.
                 Product decision: the general-analysis panel (and the
@@ -1755,7 +1770,7 @@ export default function Home() {
                   {session?.mastered_path && (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-3 text-center mt-4">
                       <p className="text-[10px] text-[var(--text-muted)]">
-                        ¿Quieres ver el análisis completo y descargar?
+                        ¿Querés ver el análisis completo y descargar?
                       </p>
                       <button
                         onClick={() => handleModuleClick("analysis")}
@@ -1810,25 +1825,40 @@ export default function Home() {
                   {/* Stereo Field Visualizer — dedicated tab */}
                   {session?.mastered_path ? (
                     <StereoField
-                      audioUrl={getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)}
+                      audioUrl={getAudioUrl(session.session_id, "mastered")}
                     />
                   ) : (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                       <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitas masterizar un track para ver el campo estéreo.
+                        Primero necesitás masterizar un track para ver el campo estéreo.
                       </p>
                     </div>
                   )}
                 </>
               ) : currentTab === "live" ? (
-                <ComingSoonNotice
-                  title="Live Engine"
-                  message="El motor de efectos en vivo llega pronto. Por ahora, masterizá y escuchá el resultado en Análisis."
-                />
+                <>
+                  {!session?.mastered_path ? (
+                    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-8 text-center">
+                      <p className="text-lg text-[var(--text-secondary)] mb-2">Live Engine</p>
+                      <p className="text-xs leading-relaxed text-[var(--text-muted)]">
+                        Primero necesitás masterizar un track para activar el motor en vivo.
+                      </p>
+                    </div>
+                  ) : (
+                    <LiveView
+                      masterAudioUrl={getAudioUrl(session.session_id, "mastered")}
+                      masterAudioBuffer={null}
+                      isActive={currentTab === "live" || sheetTab === "live"}
+                      presetId={activePresetId}
+                      originalMetrics={liveOriginalMetrics}
+                      masterMetrics={liveMasterMetrics}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                   <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                    Abre el módulo{" "}
+                    Abrí el módulo{" "}
                     <span className="text-[var(--text-secondary)]">Análisis</span>{" "}
                     desde el dock para ver los resultados y descargar tu master.
                   </p>
@@ -1881,6 +1911,7 @@ export default function Home() {
         </ModuleSheet>
       )}
     </main>
-    </WelcomeGate>
+    </LicenseGuard>
+    </AuthGuard>
   );
 }

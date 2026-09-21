@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MasteringParameters } from "@/lib/api";
 import DeliveryPanel from "@/components/DeliveryPanel";
+import IconButton from "@/components/ui/IconButton";
 import { SlidersVertical, X } from "lucide-react";
 
 /* ── FloatingDeliveryPanel ────────────────────────────────
@@ -26,23 +27,14 @@ export default function FloatingDeliveryPanel({
     <>
       {/* FAB — alterna el sheet de entrega */}
       <div className="fixed right-4 bottom-20 z-50 flex flex-col items-center gap-1">
-        <button
-          type="button"
-          aria-label="Entrega"
-          aria-expanded={open}
+        <IconButton
+          label="Entrega"
+          icon={SlidersVertical}
+          active={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center justify-center rounded-full transition-all duration-200 hover:brightness-110 active:scale-95"
-          style={{
-            width: 44,
-            height: 44,
-            background: "var(--surface-hover)",
-            border: "1px solid var(--border-subtle)",
-            color: "var(--accent-primary)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <SlidersVertical size={18} strokeWidth={2} aria-hidden="true" />
-        </button>
+          aria-expanded={open}
+          size="lg"
+        />
         <span className="text-[9px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
           Entrega
         </span>

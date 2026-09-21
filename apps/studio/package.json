@@ -13,8 +13,6 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "sim": "python -m simulator.main --mode server --scenario sweep",
-    "sim:presets": "python -m simulator.main --mode server --scenario presets",
     "e2e:fixtures": "python e2e/fixtures/generate_fixture.py",
     "e2e": "npm run e2e:fixtures && playwright test --config=e2e/playwright.config.ts",
     "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
