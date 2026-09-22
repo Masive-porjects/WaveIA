@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  CheckCircle2,
   Download,
+  Eye,
+  EyeOff,
   Info,
   Loader2,
   Music2,
-  Music4,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   X,
@@ -21,16 +22,8 @@ import {
 } from "@/lib/api";
 import { genreDisplayLabel } from "@/lib/audioUtils";
 import MixWaveformAB from "@/presentation/components/MixWaveformAB";
-import MixFloatingChips from "@/presentation/components/MixFloatingChips";
-import {
-  MIX_CHAIN_STAGES,
-  MIX_LANG_STORAGE_KEY,
-  STEM_CHIP_LABELS,
-  STEM_ROLE_IDS,
-  readMixLang,
-  type MixChip,
-  type MixLang,
-} from "@/presentation/components/mixI18n";
+import MixStatusStream from "@/presentation/components/MixStatusStream";
+import { MIX_STATUS_STAGES } from "@/presentation/components/mixI18n";
 
 /* ── Módulo: tokens semánticos de globals.css (dark por defecto,
    light con html[data-theme="light"]). Los acentos de marca (verde
@@ -38,12 +31,15 @@ import {
    funcionan en ambos temas. ──────────────────────────────── */
 
 const CARD_STYLE: React.CSSProperties = {
-  // position: relative ancla el overlay de chips flotantes (v5).
+  // position: relative ancla overlays internos del módulo.
   position: "relative",
-  background: "var(--bg-elevated)",
-  border: "1px solid var(--border)",
+  // Vidrio flotante: el módulo flota sobre el canvas, no es una tarjeta.
+  background: "var(--bg-glass)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
+  border: "1px solid var(--border-subtle)",
   borderRadius: "1rem",
-  boxShadow: "0 4px 24px rgba(15, 23, 42, 0.06)",
+  boxShadow: "var(--shadow-card)",
 };
 
 interface MixPanelProps {
@@ -66,52 +62,12 @@ interface MixPanelProps {
 }
 
 /**
- * Etapas/chips del progreso mientras corre el POST /mix (blocking).
- * v5 — honestidad: la cadena DSP (``MIX_CHAIN_STAGES``) es SIEMPRE cierta
- * (existe en ``mix_engine.build_mix``); los stems solo aparecen cuando el
- * backend los reporta como presentes (``stem_presence``, RMS ≥ −50 dBFS).
- * El timing de cuándo se muestra cada chip es simulado por el ticker de
- * `stageMsForDuration` (igual que la barra: cap 95 %, 100 % solo con la
- * respuesta real). NUNCA se muestra "Guitarra": demucs no la detecta
- * (vive en "other").
+ * Etapas del progreso mientras corre el POST /mix (blocking).
+ * Honestidad: la cadena DSP (``MIX_STATUS_STAGES``) es SIEMPRE cierta
+ * (existe en ``mix_engine.build_mix``). El timing de cuándo se completa
+ * cada etapa es simulado por el ticker de `stageMsForDuration` (igual que
+ * la barra: cap 95 %, 100 % solo con la respuesta real).
  */
-
-/** Pill ES/EN de los chips flotantes (diccionario local, mixI18n.ts).
- *  El resto del microcopy del módulo sigue en español neutro latino. */
-function LangToggle({
-  lang,
-  onLang,
-}: {
-  lang: MixLang;
-  onLang: (next: MixLang) => void;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label="Idioma de los chips"
-      className="flex items-center rounded-full border px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-      style={{ borderColor: "var(--border-subtle)" }}
-    >
-      {(["es", "en"] as const).map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onLang(opt)}
-          aria-pressed={lang === opt}
-          className="rounded-full px-2 py-0.5 transition-all duration-200"
-          style={{
-            color:
-              lang === opt ? "var(--text-primary)" : "var(--text-muted)",
-            background:
-              lang === opt ? "var(--surface-active)" : "transparent",
-          }}
-        >
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * Tiempo por etapa según la duración del audio. El backend es una sola
@@ -240,12 +196,13 @@ export default function MixPanel({
   // Sesión restaurada con mix ya hecho → el resultado se muestra al abrir;
   // la pill permite ocultarlo/mostrarlo.
   const [showResult, setShowResult] = useState(() => Boolean(sessionMixPath));
-  // Idioma de los chips flotantes (solo chips — mixI18n.ts); persiste en
-  // localStorage con guard try/catch (bloqueos de privacidad).
-  const [lang, setLang] = useState<MixLang>(readMixLang);
+  // Valor previo de sessionMixPath para el ajuste en render (evita
+  // setState-in-effect): cuando la sesión llega con mix ya generado DESPUÉS
+  // del mount (restauración asíncrona), mostramos el resultado.
+  const [prevSessionMixPath, setPrevSessionMixPath] = useState(sessionMixPath);
   // v6 — dimensión espacial (Delay + Reverb): elección POR MEZCLA, no
   // persistida. ON por defecto (comportamiento actual); OFF = routing
-  // Paso 03 (el backend omite dimension_report y el chip "dimension" no
+  // Paso 03 (el backend omite dimension_report y la etapa "dimension" no
   // aparece). Se deshabilita mientras corre el POST /mix.
   const [dimensionEnabled, setDimensionEnabled] = useState(true);
 
@@ -253,20 +210,10 @@ export default function MixPanel({
   const stageRef = useRef(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  // Lista dinámica de chips (etapas DSP + stems presentes) vista por el
-  // ticker; se asigna en cada render para que el intervalo siempre use la
-  // longitud actual sin re-crear el timer.
-  const chipsRef = useRef<MixChip[]>([]);
-
-  const changeLang = useCallback((next: MixLang) => {
-    setLang(next);
-    try {
-      window.localStorage.setItem(MIX_LANG_STORAGE_KEY, next);
-    } catch {
-      // Almacenamiento bloqueado (modo privado estricto): el idioma
-      // sigue vivo para esta sesión de página sin persistir.
-    }
-  }, []);
+  // Lista dinámica de etapas DSP (filtrada por dimensionEnabled) vista por
+  // el ticker; se asigna en cada render para que el intervalo siempre use
+  // la longitud actual sin re-crear el timer.
+  const stagesRef = useRef<{ id: string; label: string }[]>([]);
 
   // Revoca el objectURL local al desmontar (el player lo usa hasta ese
   // momento, por eso NO se revoca en el finally de handleMix), limpia el
@@ -285,10 +232,12 @@ export default function MixPanel({
   }, []);
 
   // La sesión puede llegar con mix ya generado después del mount
-  // (restauración asíncrona): mostrar el resultado en ese caso.
-  useEffect(() => {
+  // (restauración asíncrona): ajuste de estado durante el render cuando
+  // cambia sessionMixPath (patrón recomendado: nunca setState-in-effect).
+  if (prevSessionMixPath !== sessionMixPath) {
+    setPrevSessionMixPath(sessionMixPath);
     if (sessionMixPath) setShowResult(true);
-  }, [sessionMixPath]);
+  }
 
   const clearProgressTimer = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -316,22 +265,21 @@ export default function MixPanel({
     // Progreso por etapas simuladas: el POST /mix del backend es una sola
     // request blocking que devuelve el WAV completo; la UI avanza por etapas
     // mientras el fetch está en vuelo (timing según la duración del audio:
-    // ~1 min → etapas de 7 s; ~3 min → etapas de 15 s). El 100% solo llega
-    // con la respuesta real — nunca se marca done antes.
+    // ~1 min → etapas de 7 s; ~3 min → etapas de 15 s). Las etapas son
+    // MONÓTONAS y NO se repiten: cada tick completa una etapa más hasta la
+    // última. El 100% solo llega con la respuesta real — nunca se marca
+    // done antes.
     const stageMs = stageMsForDuration(audioDurationSeconds);
     progressIntervalRef.current = setInterval(() => {
-      // Rota el ticker con la lista dinámica actual (etapas DSP siempre
-      // presentes + stems reales cuando ya hay respuesta/persistido).
-      const total = chipsRef.current.length || 1;
-      stageRef.current = (stageRef.current + 1) % total;
+      const total = stagesRef.current.length || 1;
+      stageRef.current = Math.min(stageRef.current + 1, total - 1);
       setProgressStage(stageRef.current);
-      // El % es MONÓTONO creciente: el ticker rota en círculo para los
-      // chips, pero el progreso jamás retrocede y nunca llega a 95/100
-      // sin la respuesta real del backend.
+      // El % es MONÓTONO creciente por etapa completada: avanza una vez por
+      // etapa, jamás retrocede y nunca llega a 95/100 sin la respuesta real.
       setProgressPct((prev) =>
         Math.min(
           95,
-          Math.max(prev, Math.round((stageRef.current / total) * 100)),
+          Math.max(prev, Math.round(((stageRef.current + 1) / total) * 100)),
         ),
       );
     }, stageMs);
@@ -377,34 +325,22 @@ export default function MixPanel({
     : null;
   const analysis = mixResult ?? sessionMixAnalysis ?? null;
 
-  // Chips del progreso (v5 — instrumentos REALES): la cadena DSP siempre;
-  // los stems SOLO si el backend los marcó presentes en ``stem_presence``.
-  // Primer mix de una sesión sin datos → solo etapas DSP; al llegar la
-  // respuesta (``mixResult``) o en sesión recargada (``sessionMixAnalysis``)
-  // los stems presentes aparecen. Etiquetas ya traducidas (lang).
-  // v6 — honestidad: con ``dimensionEnabled === false`` la etapa
-  // "dimension" (Reverb + Delay) NO se aplica → su chip no aparece; el
-  // resto de la cadena DSP sigue igual.
-  const chips: MixChip[] = useMemo(() => {
-    const present = analysis?.stem_presence;
-    return [
-      ...MIX_CHAIN_STAGES.filter(
+  // Etapas del feed de progreso: la cadena DSP real de ``build_mix``,
+  // filtrada por dimensionEnabled (OFF = la etapa "dimension" no se aplica
+  // en el backend y no aparece en la UI). El orden es el de la cadena.
+  const stages = useMemo(
+    () =>
+      MIX_STATUS_STAGES.filter(
         (stage) => dimensionEnabled || stage.id !== "dimension",
-      ).map((stage) => ({
-        id: stage.id,
-        label: stage.label[lang],
-        tone: "stage" as const,
-      })),
-      ...STEM_ROLE_IDS.filter((role) => present?.[role] === true).map(
-        (role) => ({
-          id: role,
-          label: STEM_CHIP_LABELS[role][lang],
-          tone: "stem" as const,
-        }),
       ),
-    ];
-  }, [analysis, lang, dimensionEnabled]);
-  chipsRef.current = chips;
+    [dimensionEnabled],
+  );
+  // La ref se sincroniza tras cada render (prohibido escribir refs durante
+  // el render) para que el intervalo siempre use la longitud actual sin
+  // re-crear el timer.
+  useEffect(() => {
+    stagesRef.current = stages;
+  }, [stages]);
 
   // Género real del análisis (chip + panel IA). "other" se normaliza a "Otro".
   const rawGenre =
@@ -413,7 +349,7 @@ export default function MixPanel({
       : analysis?.genre && analysis.genre !== "other"
         ? analysis.genre
         : null;
-  const genreLabel = rawGenre ? rawGenre.replace("_", " ") : "Otro";
+  const genreLabel = genreDisplayLabel(rawGenre);
 
   // Recomendaciones del modo IA — SOLO datos reales ya disponibles
   // (análisis de sesión vía genreHint + mixResult/sessionMixAnalysis).
@@ -441,11 +377,6 @@ export default function MixPanel({
 
   return (
     <div style={CARD_STYLE}>
-      {/* ── Chips flotantes "pedazos de audio" — SOLO mientras mezcla.
-          Decorativos: etapas DSP reales de la cadena + stems presentes;
-          el timing es el ticker simulado (cap 95 %). aria-hidden. */}
-      {mixing && <MixFloatingChips chips={chips} stageIndex={progressStage} />}
-
       {/* ── Mini-panel del Asistente IA (datos reales del análisis) ── */}
       {mode === "ai" && (
         <motion.div
@@ -508,12 +439,10 @@ export default function MixPanel({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Toggle ES/EN de los chips flotantes (diccionario local). */}
-          <LangToggle lang={lang} onLang={changeLang} />
           {hasMixed ? (
             <>
-              {/* Pill de estado: muestra/oculta el panel de resultado.
-                  Nunca muestra nada mientras procesa. */}
+              {/* Pill de acción: muestra/oculta el panel de resultado.
+                  Ojo = toggle de visibilidad, NO badge de estado. */}
               <button
                 onClick={() => setShowResult((v) => !v)}
                 disabled={!hasMixed || mixing}
@@ -523,17 +452,17 @@ export default function MixPanel({
                     ? "Mostrar u ocultar el resultado de la mezcla"
                     : "Todavía no hay una mezcla"
                 }
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                 style={{
-                  background: "rgba(48, 209, 88, 0.12)",
-                  border: "1px solid rgba(48, 209, 88, 0.2)",
-                  color: "#30d158",
+                  background: "var(--surface-hover)",
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--text-primary)",
                 }}
               >
-                <CheckCircle2 size={13} />
-                Audio mezclado
+                {showResult ? <EyeOff size={13} /> : <Eye size={13} />}
+                Mostrar / Ocultar Panel
               </button>
-              {/* Pill "Mezcla lista": re-mezcla permitida (mismo click que
+              {/* Pill "Volver a Mezclar": re-procesa el mix (mismo click que
                   el botón primario de v1, ahora como pill verde). */}
               <button
                 onClick={handleMix}
@@ -553,8 +482,8 @@ export default function MixPanel({
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 size={13} />
-                    Mezcla lista
+                    <RefreshCw size={13} />
+                    Volver a Mezclar
                   </>
                 )}
               </button>
@@ -629,8 +558,8 @@ export default function MixPanel({
 
       {/* ── Círculo de carga por etapas — solo mientras corre el /mix ──
           El anillo avanza con `progressPct` (interpolado por etapas; nunca
-          llega a 100 hasta la respuesta real del backend). Las notas
-          musicales orbitan sobre el anillo y la etapa rota debajo. */}
+          llega a 100 hasta la respuesta real del backend). El feed
+          secuencial de etapas DSP (MixStatusStream) vive debajo del anillo. */}
       {mixing && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -651,7 +580,7 @@ export default function MixPanel({
               aria-hidden="true"
             />
 
-            {/* Anillo de progreso + notas flotando */}
+            {/* Anillo de progreso */}
             <div className="relative">
               <svg width={128} height={128} className="-rotate-90">
                 <defs>
@@ -692,26 +621,6 @@ export default function MixPanel({
                   transition={{ duration: 0.4, ease: "easeOut" }}
                 />
               </svg>
-
-              {/* Notas musicales flotando sobre el anillo */}
-              <motion.span
-                aria-hidden="true"
-                className="absolute -right-2 -top-3"
-                style={{ color: "#00d4aa" }}
-                animate={{ y: [-2, -10, -2], opacity: [0.5, 1, 0.5], rotate: [0, 14, 0] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Music2 size={16} />
-              </motion.span>
-              <motion.span
-                aria-hidden="true"
-                className="absolute -bottom-3 -left-4"
-                style={{ color: "#5e5ce6" }}
-                animate={{ y: [2, 10, 2], opacity: [0.4, 1, 0.4], rotate: [0, -12, 0] }}
-                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-              >
-                <Music4 size={14} />
-              </motion.span>
             </div>
 
             {/* % real: nunca 100 hasta la respuesta del backend */}
@@ -724,20 +633,14 @@ export default function MixPanel({
             </span>
           </div>
 
-          {/* Etapa actual rotando (chips dinámicos: DSP + stems reales) */}
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={chips[progressStage % chips.length]?.id ?? "mix"}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
-              className="text-xs font-medium"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {chips[progressStage % chips.length]?.label}
-            </motion.p>
-          </AnimatePresence>
+          {/* Feed secuencial de etapas DSP (no repetitivo): completadas en
+              verde, la siguiente activa con Loader2, el resto pendiente.
+              La fila final de éxito aparece SOLO con la respuesta real. */}
+          <MixStatusStream
+            stages={stages}
+            stageIndex={progressStage}
+            percent={progressPct}
+          />
         </motion.div>
       )}
 
@@ -786,7 +689,7 @@ export default function MixPanel({
 
       {/* ── Vista A/B dual + análisis ──
           Solo con mix real (nunca mientras procesa) y cuando la pill
-          "Audio mezclado" lo tiene visible. La fila de acciones vive
+          "Mostrar / Ocultar Panel" lo tiene visible. La fila de acciones vive
           aparte, permanente bajo el módulo. */}
       {hasMixed && sessionId && audioSrc && !mixing && showResult && (
         <motion.div
