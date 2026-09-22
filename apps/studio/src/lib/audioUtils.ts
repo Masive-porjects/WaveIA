@@ -17,6 +17,7 @@ export function genreToParams(genre: string | null): MasteringParameters {
 
   switch (genre.toLowerCase()) {
     case "urban":
+    case "hip_hop": // id emitido por _detect_genre (underscore)
     case "hip-hop":
     case "reggaeton":
       p.compression_ratio = 4.0;
@@ -62,6 +63,14 @@ export function genreToParams(genre: string | null): MasteringParameters {
 }
 
 /* ── Check if preset's master is ready to be fetched ───────── */
+
+/** Etiqueta de display para un género detectado. El backend emite ids con
+ *  underscore (``hip_hop``); null / "other" se normalizan a "Otro". */
+export function genreDisplayLabel(genre: string | null): string {
+  if (!genre || genre === "other") return "Otro";
+  if (genre === "hip_hop") return "Rap / Hip-Hop";
+  return genre.replace("_", " ");
+}
 
 export function isPresetCompleted(
   session: SessionData,
