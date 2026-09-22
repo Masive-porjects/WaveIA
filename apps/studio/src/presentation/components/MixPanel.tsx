@@ -19,6 +19,7 @@ import {
   mixTracks,
   type MixResult,
 } from "@/lib/api";
+import { genreDisplayLabel } from "@/lib/audioUtils";
 import MixWaveformAB from "@/presentation/components/MixWaveformAB";
 import MixFloatingChips from "@/presentation/components/MixFloatingChips";
 import {
@@ -149,7 +150,7 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
     cells.push({ label: "BPM", value: String(Math.round(result.tempo_bpm)) });
   }
   if (typeof result.genre === "string" && result.genre && result.genre !== "other") {
-    cells.push({ label: "Género", value: result.genre.replace("_", " ") });
+    cells.push({ label: "Género", value: genreDisplayLabel(result.genre) });
   }
   if (typeof result.genre_confidence === "number") {
     cells.push({
@@ -181,14 +182,7 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {cells.map((cell) => (
-          <div
-            key={cell.label}
-            className="min-w-0 rounded-xl px-3 py-2.5 text-center"
-            style={{
-              background: "var(--surface-hover)",
-              border: "1px solid var(--border-subtle)",
-            }}
-          >
+          <div key={cell.label} className="min-w-0 text-center">
             <p
               className="truncate font-mono text-sm font-semibold"
               style={{ color: "var(--text-primary)" }}
@@ -205,10 +199,8 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
         ))}
         {qc && (
           <div
-            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold"
+            className="flex min-w-0 items-center justify-center gap-1.5 text-sm font-semibold"
             style={{
-              background: "var(--surface-hover)",
-              border: "1px solid var(--border-subtle)",
               color: qc.summary?.all_ok === false ? "#b45309" : "#10b981",
             }}
             title={
