@@ -17,13 +17,17 @@ import sys
 
 sys.path.insert(0, "src")
 
+import wave
+
 import numpy as np
 
+from audiomind.analysis.analyzer import analyze_audio
 from audiomind.analysis.register_detection import (
     classify_register,
     detect_vocal_register,
     median_f0_per_phrase,
 )
+from audiomind.models.audio import AnalysisResult
 
 SR = 22050
 
@@ -49,6 +53,16 @@ def _vocal(f0_hz: float, duration: float = 4.0, noise: float = 0.005,
     if gap_from is not None:
         y = y * ((t < gap_from) | (t > gap_to))
     return y * (0.7 / max(abs(y)))
+
+
+def _write_wav(path, y: np.ndarray, sr: int) -> None:
+    """Write a 16-bit mono WAV (stdlib only, same as tests/create_test_wav.py)."""
+    pcm = np.clip(np.round(y * 32767), -32768, 32767).astype("<i2")
+    with wave.open(str(path), "w") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm.tobytes())
 
 
 # ── T1: librosa.pyin over the (vocal) signal ────────────────────────────
@@ -121,3 +135,43 @@ def test_t3_register_labels_from_median():
     assert classify_register(200.0) == "medio"
     assert classify_register(300.0) == "agudo"
     assert classify_register(None) is None
+
+
+# ── T4: transparent exposure in AnalysisResult ──────────────────────────
+
+def test_t4_analysis_result_defaults_are_neutral():
+    """Backward compatible: a plain AnalysisResult carries no register."""
+    res = AnalysisResult(
+        integrated_lufs=-14.0,
+        true_peak_db=-1.0,
+        dynamic_range_db=8.0,
+        spectral_centroid=3000.0,
+        tempo_bpm=120.0,
+        duration_seconds=10.0,
+        sample_rate=44100,
+        channels=2,
+    )
+    assert res.vocal_median_f0_hz is None
+    assert res.vocal_register is None
+    assert res.vocal_f0_voiced_ratio == 0.0
+    assert res.vocal_phrase_count == 0
+
+
+def test_t4_analyze_audio_populates_register(tmp_path):
+    y = _vocal(110.0, duration=3.0)
+    path = tmp_path / "vocal.wav"
+    _write_wav(path, y, SR)
+    res = analyze_audio(path)
+    assert res.vocal_register == "grave"
+    assert res.vocal_median_f0_hz is not None
+    assert 95 <= res.vocal_median_f0_hz <= 125
+    assert res.vocal_f0_voiced_ratio > 0.5
+
+
+def test_t4_analyze_audio_never_invents_register_on_noise(tmp_path):
+    rng = np.random.default_rng(3)
+    path = tmp_path / "noise.wav"
+    _write_wav(path, rng.standard_normal(int(SR * 3)), SR)
+    res = analyze_audio(path)
+    assert res.vocal_median_f0_hz is None
+    assert res.vocal_register is None
