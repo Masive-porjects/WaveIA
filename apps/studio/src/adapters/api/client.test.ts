@@ -4,8 +4,13 @@
  *  - getDownloadUrl: appendea ?preset_id para wav y mp3 cuando hay preset
  *  - Sin presetId la URL queda intacta (ruta legacy)
  */
-import { describe, it, expect } from 'vitest';
-import { getAudioUrl, getDownloadUrl } from '@/adapters/api/client';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  getAudioUrl,
+  getDownloadUrl,
+  getMixAudioUrl,
+  mixTracks,
+} from '@/adapters/api/client';
 
 // Mismo fallback que config.ts en tests (sin NEXT_PUBLIC_API_URL).
 const API = 'http://localhost:8000/api';
@@ -53,5 +58,128 @@ describe('getDownloadUrl', () => {
   it('sin presetId deja la URL intacta', () => {
     expect(getDownloadUrl(SID, 'wav')).toBe(`${API}/session/${SID}/download/wav`);
     expect(getDownloadUrl(SID, 'mp3')).toBe(`${API}/session/${SID}/download/mp3`);
+  });
+});
+
+describe('getMixAudioUrl', () => {
+  it('apunta al WAV mezclado persistido de la sesión', () => {
+    expect(getMixAudioUrl(SID)).toBe(`${API}/session/${SID}/audio/mix`);
+  });
+});
+
+describe('mixTracks', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Stub de jsdom: URL.createObjectURL no está implementado. */
+  function stubObjectUrl() {
+    URL.createObjectURL = vi.fn(() => 'blob:mock-mix') as unknown as typeof URL.createObjectURL;
+  }
+
+  it('POSTea /mix y parsea el header X-Mix-Result', async () => {
+    const payload = {
+      tempo_bpm: 128,
+      genre: 'urban',
+      genre_confidence: 0.87,
+      sample_rate: 48000,
+      duration_seconds: 96.5,
+      stem_presence: { drums: true, bass: true, other: false, vocals: true },
+      qc_report: { summary: { all_ok: true, flagged: [] } },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['RIFF...'], { type: 'audio/wav' }),
+      headers: { get: (name: string) => (name === 'X-Mix-Result' ? JSON.stringify(payload) : null) },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    const { audioUrl, result } = await mixTracks(SID);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ dimension_enabled: true }),
+      }),
+    );
+    expect(audioUrl).toBe('blob:mock-mix');
+    expect(result?.tempo_bpm).toBe(128);
+    expect(result?.genre).toBe('urban');
+    expect(result?.stem_presence).toEqual({
+      drums: true,
+      bass: true,
+      other: false,
+      vocals: true,
+    });
+    expect(result?.qc_report).toEqual(payload.qc_report);
+  });
+
+  it('devuelve result null cuando el header no parsea como JSON', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => 'not-json{' },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    const { result } = await mixTracks(SID);
+    expect(result).toBeNull();
+  });
+
+  it('lanza error con el detail del backend cuando !res.ok', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: 'Mix failed: boom' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(mixTracks(SID)).rejects.toThrow('Mix failed: boom');
+  });
+
+  it('propaga un AbortSignal opcional al fetch de /mix', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    const { audioUrl } = await mixTracks(SID, { signal: controller.signal });
+
+    expect(audioUrl).toBe('blob:mock-mix');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        method: 'POST',
+        signal: controller.signal,
+      }),
+    );
+  });
+
+  it('envía dimension_enabled: false cuando dimensionEnabled es false', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    await mixTracks(SID, { dimensionEnabled: false });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        body: JSON.stringify({ dimension_enabled: false }),
+      }),
+    );
   });
 });

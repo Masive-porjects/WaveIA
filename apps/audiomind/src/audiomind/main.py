@@ -15,6 +15,7 @@ from audiomind.api.splitter import router as splitter_router
 from audiomind.api.vocal import router as vocal_router
 from audiomind.api.songstarter import router as songstarter_router
 from audiomind.api.batch import router as batch_router
+from audiomind.api.mix import router as mix_router
 
 
 def _ttl_janitor_loop() -> None:
@@ -56,9 +57,17 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Only the mix analysis header: browsers cannot read custom response
+    # headers cross-origin (studio :3000 → backend :8000) without this.
+    expose_headers=["X-Mix-Result"],
 )
 
 app.include_router(upload_router, prefix="/api")
+# mix_router MUST be registered before mastering_router: the literal
+# GET /session/{id}/audio/mix would otherwise lose to mastering's
+# parameterized /session/{id}/audio/{audio_type} (Starlette matches in
+# registration order — see mastering.py's "literal beats parameter" note).
+app.include_router(mix_router, prefix="/api")
 app.include_router(mastering_router, prefix="/api")
 app.include_router(license_router, prefix="/api")
 app.include_router(splitter_router, prefix="/api")

@@ -179,6 +179,16 @@ body {
   100% { background-position: 200% 0; }
 }
 
+/* ── Mix: chips flotantes de "pedazos de audio" (MixFloatingChips) ──
+   Decorativo: aparecen, flotan con leve translate/rotate y desaparecen.
+   La ventana visible es la que rota (remount por tick en el componente). */
+@keyframes mixChipDrift {
+  0%   { opacity: 0; transform: translate(0, 16px) rotate(-8deg) scale(0.92); }
+  18%  { opacity: 1; }
+  82%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(10px, -42px) rotate(7deg) scale(1.04); }
+}
+
 /* ── Utility classes ────────────────────────────────── */
 
 /* Serif italic accent — Mindloop style ("Inspired", "changed.")

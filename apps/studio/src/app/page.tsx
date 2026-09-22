@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +14,7 @@ import FloatingDeliveryPanel from "@/components/FloatingDeliveryPanel";
 import FloatingReportCard from "@/components/FloatingReportCard";
 import GenreGuide from "@/components/GenreGuide";
 import MasteringGuide from "@/components/MasteringGuide";
+
 import BigGhostWithNotes from "@/components/BigGhostWithNotes";
 import ProcessingOverlay from "@/components/ProcessingOverlay";
 import Player from "@/components/Player";
@@ -22,11 +23,12 @@ import StemSplitter, {
   createDefaultStemState,
   type StemSplitterState,
 } from "@/components/StemSplitter";
+import MixPanel from "@/presentation/components/MixPanel";
 import AlbumMastering from "@/presentation/components/AlbumMastering";
 import VocalChain from "@/components/VocalChain";
 import SongStarter from "@/components/SongStarter";
 import AmbientLayer from "@/components/AmbientLayer";
-import IconButton from "@/components/ui/IconButton";
+
 import ModuleSheet from "@/components/ModuleSheet";
 import PaintedModule from "@/components/PaintedModule";
 import ShareCard from "@/components/ShareCard";
@@ -48,6 +50,7 @@ import StereoField from "@/components/StereoField";
 import {
   uploadAudio,
   processAudio,
+  resetSession,
   getAudioUrl,
   getSession,
   downloadMastered,
@@ -77,7 +80,8 @@ import type { MasteringTab } from "@/components/dock/types";
 import { LiveView } from "@/components/live/LiveView";
 
 const TABS: { key: MasteringTab; label: string }[] = [
-  { key: "modules", label: "Módulos" },
+  { key: "mezcla", label: "Mezcla de Audio" },
+  { key: "modules", label: "Masterizar Audio" },
   { key: "splitter", label: "Splitter" },
   { key: "vocal", label: "Vocal" },
   { key: "songstarter", label: "Beats" },
@@ -89,57 +93,25 @@ const TABS: { key: MasteringTab; label: string }[] = [
   { key: "album", label: "Álbum" },
 ];
 
-/* ── Genre-to-params mapping ────────────────────────── */
+/* ── Saludo del agente ───────────────────────────────── */
 
-function genreToParams(genre: string | null): MasteringParameters {
-  const p: MasteringParameters = { ...DEFAULT_PARAMS };
-  if (!genre) return p;
+/**
+ * El saludo NO nombra el género detectado.
+ *
+ * El clasificador se equivoca seguido, y abrir la conversación afirmando algo
+ * falso sobre la música del usuario destruye la confianza en todo lo que venga
+ * después. El género se sigue mandando al agente para calibrar cuánto mover
+ * cada eje; simplemente no se anuncia.
+ */
+const WELCOME =
+  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
 
-  switch (genre.toLowerCase()) {
-    case "urban":
-    case "hip-hop":
-    case "reggaeton":
-      p.compression_ratio = 4.0;
-      p.limiter_ceiling_db = -1.0;
-      p.transient_boost_db = 2.0;
-      p.haas_delay_ms = 5;
-      p.stereo_width = 1.2;
-      p.target_lufs_db = -12;
-      break;
-    case "rock":
-    case "indie":
-      p.compression_ratio = 2.5;
-      p.transient_boost_db = 1.0;
-      p.saturation_drive_db = 3.0;
-      p.saturation_warmth_db = 2.0;
-      p.stereo_width = 1.2;
-      break;
-    case "pop":
-    case "electronic":
-    case "electrónica":
-      p.clarity_brightness_db = 2.0;
-      p.compression_ratio = 3.0;
-      p.stereo_width = 1.4;
-      p.haas_delay_ms = 8;
-      break;
-    case "jazz":
-    case "classical":
-    case "clásica":
-      p.compression_ratio = 1.5;
-      p.limiter_ceiling_db = -2.0;
-      p.clarity_wet = 0.25;
-      break;
-    case "latin":
-    case "latino":
-    case "fusion":
-      p.compression_ratio = 3.0;
-      p.transient_boost_db = 1.5;
-      p.saturation_drive_db = 2.0;
-      p.stereo_width = 1.1;
-      break;
-  }
-  return p;
-}
+/* ── Active-preset readiness ─────────────────────────
+   The mastered URL for the ACTIVE preset may only be requested once that
+   preset's master is completed. Guarding with the previous preset's
+   `mastered_path` caused 404 races when switching presets during a slow
+   render: the fetch asked for `activePresetId` audio that was not ready. */
+import { isPresetCompleted, genreToParams, useIsClient, progressPct } from "@/lib/audioUtils"
 
 /* ── Analysis wait + process watchdog ─────────────────── */
 
@@ -228,7 +200,7 @@ function useProcessingProgress(
       pollingRef.current = true;
       try {
         const p = await getProcessingProgress(sessionId);
-        const pct = Math.round(Math.max(0, Math.min(100, p.progress * 100)));
+        const pct = progressPct(p.progress * 100);
         progressRef.current = pct;
         setProgress(pct);
 
@@ -285,29 +257,6 @@ function useProcessingProgress(
 
 /* ── Note burst colors (reused for the upload animation) ── */
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
-
-/* ── Saludo del agente ───────────────────────────────── */
-
-/**
- * El saludo NO nombra el genero detectado.
- *
- * El clasificador se equivoca seguido, y abrir la conversacion afirmando algo
- * falso sobre la musica del usuario destruye la confianza en todo lo que venga
- * despues. El genero se sigue mandando al agente para calibrar cuanto mover
- * cada eje; simplemente no se anuncia.
- */
-const WELCOME =
-  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
-
-/* ── Hydration-safe client detector ──────────────────── */
-
-function useIsClient(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
 
 /* ── Waveform decoration (GSAP live motion) ─────────── */
 
@@ -406,6 +355,33 @@ export default function Home() {
   const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
   const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
 
+  // Métricas estáticas para el Live Meter Deck (lado Original | Master).
+  // Referencias ESTABLES: no recrearlas por render (si no, el efecto del deck
+  // se re-suscribiría al bus en cada re-render de page).
+  const liveOriginalMetrics = useMemo(
+    () =>
+      session?.analysis
+        ? {
+            integrated_lufs: session.analysis.integrated_lufs,
+            true_peak_db: session.analysis.true_peak_db,
+            crest_factor_db: session.analysis.crest_factor_db ?? null,
+          }
+        : null,
+    [session],
+  );
+
+  const liveMasterMetrics = useMemo(
+    () =>
+      session?.master_result
+        ? {
+            integrated_lufs: session.master_result.integrated_lufs,
+            true_peak_db: session.master_result.true_peak_db,
+            crest_factor_db: session.master_result.crest_factor_db,
+          }
+        : null,
+    [session],
+  );
+
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
     createDefaultStemState(),
@@ -416,7 +392,7 @@ export default function Home() {
   const [vocalProcessed, setVocalProcessed] = useState(false);
 
   // Right panel collapse state — hidden by default until the user opens a tab
-  // that needs it (analysis or stereo).
+  // that needs it (analysis or stereo). Live is a full left-column tab.
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   // Último tab que sincronizó el panel. Patrón oficial React de ajuste de
   // estado durante render (en vez de setState en un effect): el colapso
@@ -460,7 +436,7 @@ export default function Home() {
       setErrorModal({
         title: "El servidor se reinició",
         message:
-          "La sesión se perdió mientras se procesaba. Recargá la página: si la sesión no se recupera sola, subí el audio de nuevo.",
+          "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
       });
     },
   );
@@ -501,7 +477,7 @@ export default function Home() {
           setErrorModal({
             title: "Tu sesión anterior expiró",
             message:
-              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recargá de nuevo; si no, subí el audio otra vez — es lo único que falta.",
+              "El servidor se reinició y no pudo recuperarla. Si el storage persistente está configurado en Railway, recarga de nuevo; si no, sube el audio otra vez — es lo único que falta.",
           });
         }
       });
@@ -604,8 +580,20 @@ export default function Home() {
               setErrorModal({
                 title: "El servidor se reinició",
                 message:
-                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recargá y debería recuperarse; si no, subí el audio de nuevo.",
+                  "La sesión se perdió durante el procesamiento. Si el servidor tiene el storage persistente, recarga y debería recuperarse; si no, sube el audio de nuevo.",
               });
+              break;
+            case 422:
+              // Demo mode rejects uploads with a "Demo: ..." detail —
+              // surface it as a clear modal instead of a raw inline error.
+              if (err.message.startsWith("Demo:")) {
+                setErrorModal({
+                  title: "Límite de la demo",
+                  message: err.message,
+                });
+              } else {
+                setError(err.message || "Upload failed");
+              }
               break;
             default:
               if (err.status >= 500) {
@@ -654,7 +642,7 @@ export default function Home() {
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
+          "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
         );
         return;
       }
@@ -666,33 +654,6 @@ export default function Home() {
       if (abortRef.current === controller) abortRef.current = null;
     }
   }, [session, params, activePresetId, completeProgress]);
-
-  // Métricas estáticas para el Live Meter Deck (lado Original | Master).
-  // Referencias ESTABLES: no recrearlas por render (si no, el efecto del deck
-  // se re-suscribiría al bus en cada re-render de page).
-  const liveOriginalMetrics = useMemo(
-    () =>
-      session?.analysis
-        ? {
-            integrated_lufs: session.analysis.integrated_lufs,
-            true_peak_db: session.analysis.true_peak_db,
-            crest_factor_db: session.analysis.crest_factor_db ?? null,
-          }
-        : null,
-    [session],
-  );
-
-  const liveMasterMetrics = useMemo(
-    () =>
-      session?.master_result
-        ? {
-            integrated_lufs: session.master_result.integrated_lufs,
-            true_peak_db: session.master_result.true_peak_db,
-            crest_factor_db: session.master_result.crest_factor_db,
-          }
-        : null,
-    [session],
-  );
 
   /**
    * Resultados ya procesados, por preset.
@@ -775,7 +736,7 @@ export default function Home() {
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
-            "El procesamiento tardó demasiado y se canceló. Probá de nuevo.",
+            "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
           );
           return;
         }
@@ -790,10 +751,25 @@ export default function Home() {
     [session, completeProgress, params],
   );
 
-  /* ── Reset modules to defaults ──────────────────── */
-  const handleReset = useCallback(() => {
+  /* ── Reset: revert the current master, leaving only the original ── */
+  const handleReset = useCallback(async () => {
+    if (!session) return;
+    setProcessing(true);
+    setError(null);
+    try {
+      const s = await resetSession(session.session_id);
+      setSession(s);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Reset failed";
+      setError(msg);
+    } finally {
+      setProcessing(false);
+    }
+    // Volvemos parámetros y preset al estado inicial; el backend ya limpió
+    // los masters, así el Player queda mostrando solo el original.
     setParams(DEFAULT_PARAMS);
-  }, []);
+    setActivePresetId(null);
+  }, [session]);
 
   /* ── Stem split ────────────────────────────────── */
   const handleStemSplit = useCallback(async () => {
@@ -827,11 +803,20 @@ export default function Home() {
     async (format: "wav" | "mp3") => {
       if (!session) return;
       try {
-        const blob = await downloadMastered(session.session_id, format);
+        const blob = await downloadMastered(
+          session.session_id,
+          format,
+          activePresetId ?? undefined,
+        );
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `brikmaster_${session.session_id}.${format}`;
+        // Name it after the original upload so the export stays recognizable:
+        // "beatRap.wav" → "BeatRapMasterizado.wav" (first letter capitalized).
+        const stem = session.original_filename
+          ? session.original_filename.replace(/\.[^.]+$/, "")
+          : "brikmaster";
+        a.download = `${stem.charAt(0).toUpperCase()}${stem.slice(1)}Masterizado.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -840,7 +825,7 @@ export default function Home() {
         // Silently fail — the backend error is already surfaced
       }
     },
-    [session],
+    [session, activePresetId],
   );
 
   /* ── Back to upload ──────────────────────────────── */
@@ -849,7 +834,6 @@ export default function Home() {
     abortRef.current = null;
     setCurrentView("upload");
     setMasteringMode("manual");
-    setIntentProfile(NEUTRAL_PROFILE);
     setSession(null);
     setProcessing(false);
     setError(null);
@@ -922,7 +906,7 @@ export default function Home() {
       case "modules":
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para empezar.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para empezar.</p>
           );
         }
         return (
@@ -930,10 +914,10 @@ export default function Home() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]" style={{ letterSpacing: "-0.02em" }}>
-                  Macro-<span className="serif-accent">Carácter</span>
+                  Masterizar <span className="serif-accent">Audio</span>
                 </h2>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Seleccioná un perfil o ajustá fino abajo
+                  Selecciona un perfil o ajusta fino abajo
                 </p>
               </div>
               <button
@@ -998,7 +982,7 @@ export default function Home() {
       case "splitter": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar el Splitter.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar el Splitter.</p>
           );
         }
         return (
@@ -1014,10 +998,32 @@ export default function Home() {
         );
       }
 
+      case "mezcla": {
+        if (!session) {
+          return (
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar la Mezcla de Audio.</p>
+          );
+        }
+        return (
+          <div className="w-full">
+            <MixPanel
+              sessionId={session.session_id}
+              sessionMixPath={session.mix_path ?? null}
+              sessionMixAnalysis={session.mix_analysis ?? null}
+              audioDurationSeconds={session.analysis?.duration_seconds ?? null}
+              genreHint={session.analysis?.detected_genre ?? null}
+              disabled={processing}
+              mode={masteringMode}
+              onMasterize={() => handleModuleClick("modules")}
+            />
+          </div>
+        );
+      }
+
       case "vocal": {
         if (!session) {
           return (
-            <p className="text-[var(--text-muted)] text-sm">Subí un audio para usar VoiceChain Pro.</p>
+            <p className="text-[var(--text-muted)] text-sm">Carga un audio para usar VoiceChain Pro.</p>
           );
         }
         return (
@@ -1061,6 +1067,14 @@ export default function Home() {
         return null;
     }
   };
+
+  // La pestaña Mezcla vive en el workspace de mastering ("manual") pero
+  // responde al switch global Manual/Asistente IA vía la prop `mode` de
+  // MixPanel. Cuando está activa, ese workspace debe seguir visible aunque
+  // el modo sea "ai" (MixPanel muestra su propio mini-panel de
+  // recomendaciones); el placeholder de IA solo aplica a las vistas de
+  // mastering, nunca a la mezcla.
+  const isMezclaTab = currentTab === "mezcla" || sheetTab === "mezcla";
 
   return (
     <AuthGuard>
@@ -1109,7 +1123,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <div className="rounded-full px-4 py-2 glass">
             <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-              Brik<span className="text-[var(--accent-primary)]">master</span>
+              Wave<span className="text-[var(--accent-primary)]">IA</span>
             </span>
           </div>
 
@@ -1131,7 +1145,7 @@ export default function Home() {
               borderColor: "var(--border-strong)",
             }}
             role="group"
-            aria-label="Elegí cómo querés masterizar"
+            aria-label="Elige cómo quieres masterizar"
           >
             {([
               {
@@ -1213,33 +1227,29 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-2">
-          {/* Header cleanup: theme + focus now live inside the Cuenta menu.
-              One primary action (Cuenta) + Home + mobile drawer. */}
           {currentView === "mastering" && (
-            <IconButton
-              label="Inicio"
-              icon={HomeIcon}
+            <button
               onClick={handleBackToUpload}
-              className="hidden md:flex"
-              size="md"
-            />
+              title="Inicio"
+              aria-label="Inicio"
+              className="hidden rounded-full w-9 h-9 md:flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
+            >
+              <HomeIcon size={18} />
+            </button>
           )}
           <div className="hidden sm:block">
             <UserMenu />
           </div>
-          <IconButton
-            label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          <button
+            className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden flex"
-            aria-expanded={mobileMenuOpen}
           >
-            <span
-              className="inline-flex transition-transform duration-300"
+            <span className="transition-transform duration-300 inline-flex"
               style={{ transform: mobileMenuOpen ? "rotate(180deg)" : "rotate(0deg)" }}
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </span>
-          </IconButton>
+          </button>
         </div>
       </nav>
 
@@ -1289,7 +1299,7 @@ export default function Home() {
                       <div className="inline-flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
                         <span className="text-[10px] font-medium tracking-widest uppercase text-[var(--text-secondary)]">
-                          Brikmaster Studio
+                          WaveIA
                         </span>
                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-secondary)]" />
                       </div>
@@ -1297,11 +1307,11 @@ export default function Home() {
                       <h1 className="text-2xl md:text-4xl font-bold mb-1 text-knockout"
                         style={{ letterSpacing: "-0.04em" }}
                       >
-                        Masterizá Tu <span className="serif-accent">Música</span>
+                        Masteriza Tu <span className="serif-accent">Música</span>
                       </h1>
 
                       <p className="text-[var(--text-muted)] text-sm">
-                        Subí tu track, ajustá los módulos y obtené un master profesional
+                        Carga tu track, ajusta los módulos y obtén un master profesional
                       </p>
                     </div>
 
@@ -1388,8 +1398,8 @@ export default function Home() {
               {/* Both workspaces stay mounted so switching modes preserves
                   the agent conversation and every manual module state. */}
               <div
-                className={`${masteringMode === "ai" ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
-                aria-hidden={masteringMode !== "ai"}
+                className={`${masteringMode === "ai" && !isMezclaTab ? "flex" : "hidden"} flex-1 min-h-0 items-center justify-center overflow-y-auto px-4 py-5 md:px-6 md:py-8`}
+                aria-hidden={masteringMode !== "ai" || isMezclaTab}
               >
                 <motion.div
                   className="flex h-full max-h-[min(42rem,100%)] min-h-[28rem] w-full max-w-2xl flex-col"
@@ -1413,29 +1423,33 @@ export default function Home() {
               </div>
 
               <div
-                className={`${masteringMode === "manual" ? "flex" : "hidden"} flex-1 min-h-0 flex-col`}
-                aria-hidden={masteringMode !== "manual"}
+                className={`${masteringMode === "manual" || isMezclaTab ? "flex" : "hidden"} flex-1 min-h-0 flex-col`}
+                aria-hidden={masteringMode !== "manual" && !isMezclaTab}
               >
               {isMobile ? (
             /* ── MOBILE MASTERING VIEW ──────────────── */
             <>
-              {/* Player at top — always visible */}
-              <div className="relative z-[1] shrink-0 px-4 pt-3 pb-1">
-                {session && (
-                  <Player
-                    originalUrl={getAudioUrl(session.session_id, "original")}
-                    masteredUrl={
-                      session.mastered_path
-                        ? getAudioUrl(session.session_id, "mastered")
-                        : null
-                    }
-                    disabled={processing}
-                    presetId={activePresetId ?? undefined}
-                    sessionId={session.session_id}
-                    burstSignal={masterBurst}
-                  />
-                )}
-              </div>
+              {/* Player at top — always visible, except the Mezcla tab:
+                  MixPanel's own A/B waves (MixWaveformAB) replace it and sit
+                  directly under the module header. */}
+              {currentTab !== "mezcla" && sheetTab !== "mezcla" && (
+                <div className="relative z-[1] shrink-0 px-4 pt-3 pb-1">
+                  {session && (
+                    <Player
+                      originalUrl={getAudioUrl(session.session_id, "original")}
+                      masteredUrl={
+                        isPresetCompleted(session, activePresetId)
+                          ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                          : null
+                      }
+                      disabled={processing}
+                      presetId={activePresetId ?? undefined}
+                      sessionId={session.session_id}
+                      burstSignal={masterBurst}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Mobile content — switch between tab content and default flow */}
               {currentTab !== null && currentTab !== "modules" ? (
@@ -1593,38 +1607,43 @@ export default function Home() {
           ) : (
             /* ── DESKTOP MASTERING VIEW ───────────────── */
             <>
-              {/* Player — bigger and centered when no dock tab is selected */}
-              <motion.div
-                layout="position"
-                transition={{ type: "spring", stiffness: 40, damping: 12 }}
-                className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
-                  currentTab === null
-                    ? "flex-1 flex items-center justify-center min-h-0"
-                    : "shrink-0"
-                }`}
-              >
-                {session && (
-                  <div
-                    ref={playerScaleRef}
-                    className={`w-full origin-center ${
-                      currentTab === null ? "max-w-5xl" : ""
-                    }`}
-                  >
-                    <Player
-                      originalUrl={getAudioUrl(session.session_id, "original")}
-                      masteredUrl={
-                        session.mastered_path
-                          ? getAudioUrl(session.session_id, "mastered")
-                          : null
-                      }
-                      disabled={processing}
-                      presetId={activePresetId ?? undefined}
-                      sessionId={session.session_id}
-                      burstSignal={masterBurst}
-                    />
-                  </div>
-                )}
-              </motion.div>
+              {/* Player — bigger and centered when no dock tab is selected.
+                  Hidden on the Mezcla tab: MixPanel paints its own A/B
+                  waves (MixWaveformAB) right below the module header.
+                  Mastering flow (no tab / modules) keeps it exactly as-is. */}
+              {currentTab !== "mezcla" && sheetTab !== "mezcla" && (
+                <motion.div
+                  layout="position"
+                  transition={{ type: "spring", stiffness: 40, damping: 12 }}
+                  className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
+                    currentTab === null
+                      ? "flex-1 flex items-center justify-center min-h-0"
+                      : "shrink-0"
+                  }`}
+                >
+                  {session && (
+                    <div
+                      ref={playerScaleRef}
+                      className={`w-full origin-center ${
+                        currentTab === null ? "max-w-5xl" : ""
+                      }`}
+                    >
+                      <Player
+                        originalUrl={getAudioUrl(session.session_id, "original")}
+                        masteredUrl={
+                          isPresetCompleted(session, activePresetId)
+                            ? getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)
+                            : null
+                        }
+                        disabled={processing}
+                        presetId={activePresetId ?? undefined}
+                        sessionId={session.session_id}
+                        burstSignal={masterBurst}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
               {/* Vocal result bar — visible from any tab */}
               {vocalProcessed && session && (
@@ -1720,14 +1739,12 @@ export default function Home() {
 
           {/* Expand button — visible when a tab that needs the right panel is selected and the panel is collapsed */}
           {currentView === "mastering" && masteringMode === "manual" && (currentTab === "analysis" || currentTab === "stereo" || currentTab === "live") && !rightPanelOpen && (
-            <IconButton
-              label="Abrir panel de análisis"
-              icon={ChevronLeft}
-              variant="ghost"
-              size="md"
+            <button
               onClick={() => setRightPanelOpen(true)}
-              className="absolute top-4 right-4 z-30 cursor-pointer"
-            />
+              className="absolute top-4 right-4 z-30 w-8 h-8 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hover)] flex items-center justify-center hover:bg-[var(--bg-tertiary)] transition-all shadow-lg cursor-pointer"
+            >
+              <ChevronLeft size={14} className="text-[var(--text-secondary)]" />
+            </button>
           )}
         </main>
 
@@ -1743,17 +1760,16 @@ export default function Home() {
           <div className="w-80 lg:w-96 h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
-                <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
-                  Panel de Análisis
-                </span>
-                <IconButton
-                  label="Cerrar panel de análisis"
-                  icon={ChevronRight}
-                  variant="ghost"
-                  size="md"
-                  onClick={() => setRightPanelOpen(false)}
-                />
-              </div>
+              <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
+                Panel de Análisis
+              </span>
+              <button
+                onClick={() => setRightPanelOpen(false)}
+                className="w-6 h-6 rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
 
             {/* Content — scrollable.
                 Product decision: the general-analysis panel (and the
@@ -1770,7 +1786,7 @@ export default function Home() {
                   {session?.mastered_path && (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-3 text-center mt-4">
                       <p className="text-[10px] text-[var(--text-muted)]">
-                        ¿Querés ver el análisis completo y descargar?
+                        ¿Quieres ver el análisis completo y descargar?
                       </p>
                       <button
                         onClick={() => handleModuleClick("analysis")}
@@ -1825,12 +1841,12 @@ export default function Home() {
                   {/* Stereo Field Visualizer — dedicated tab */}
                   {session?.mastered_path ? (
                     <StereoField
-                      audioUrl={getAudioUrl(session.session_id, "mastered")}
+                      audioUrl={getAudioUrl(session.session_id, "mastered", activePresetId ?? undefined)}
                     />
                   ) : (
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                       <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitás masterizar un track para ver el campo estéreo.
+                        Primero necesitas masterizar un track para ver el campo estéreo.
                       </p>
                     </div>
                   )}
@@ -1841,7 +1857,7 @@ export default function Home() {
                     <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-8 text-center">
                       <p className="text-lg text-[var(--text-secondary)] mb-2">Live Engine</p>
                       <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitás masterizar un track para activar el motor en vivo.
+                        Primero necesitas masterizar un track para activar el motor en vivo.
                       </p>
                     </div>
                   ) : (
@@ -1858,7 +1874,7 @@ export default function Home() {
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
                   <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                    Abrí el módulo{" "}
+                    Abre el módulo{" "}
                     <span className="text-[var(--text-secondary)]">Análisis</span>{" "}
                     desde el dock para ver los resultados y descargar tu master.
                   </p>
@@ -1904,7 +1920,9 @@ export default function Home() {
                   ? "Generador de ideas"
                   : sheetTab === "genres"
                     ? "Guía de géneros"
-                    : undefined
+                    : sheetTab === "mezcla"
+                      ? "Mezclar stems en un bus"
+                      : undefined
           }
         >
           {renderTabContent(sheetTab)}

@@ -732,6 +732,18 @@ class SessionData(BaseModel):
     # stays the legacy "last processed / currently selected" pointer and is
     # kept in sync on every successful preset process.
     preset_masters: dict[str, PresetMasterEntry] = Field(default_factory=dict)
+    # Mix Engine (Paso 01): the mix is NOT the master — it lives on its own
+    # pointer/analysis pair so the mastering pipeline is never affected.
+    # ``mix_analysis`` mirrors the ``X-Mix-Result`` payload served by
+    # POST /api/session/{id}/mix (per-stem analysis + full-mix tempo/genre).
+    mix_path: str | None = None
+    mix_analysis: dict | None = Field(
+        default=None,
+        description=(
+            "Mix Engine JSON analysis payload: per-stem analysis dict plus "
+            "full-mix tempo_bpm / genre / genre_confidence."
+        ),
+    )
 
 
 class BeatData(BaseModel):
