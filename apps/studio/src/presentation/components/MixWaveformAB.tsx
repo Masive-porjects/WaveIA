@@ -252,8 +252,12 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
 
   return (
     <div
-      className="flex min-w-0 flex-col rounded-xl border"
-      style={{ background: "var(--surface-hover)", borderColor: "var(--border-subtle)" }}
+      className="flex min-w-0 flex-col rounded-2xl"
+      style={{
+        background: "var(--bg-glass)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}
     >
       {/* Etiqueta + insignia */}
       <div className="flex items-center justify-between gap-2 px-3 pt-3">
@@ -278,12 +282,13 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
         )}
       </div>
 
-      {/* Onda + playhead */}
+      {/* Onda + playhead — el contenedor queda transparente: la textura
+          del waveform flota sobre el glass del lado */}
       <div
         className="relative mx-3 mt-2 w-full min-w-0 overflow-hidden rounded-lg"
         style={{
           height: 72,
-          background: "var(--surface-hover)",
+          background: "transparent",
           cursor: "pointer",
         }}
       >
