@@ -295,18 +295,23 @@ def _detect_genre(
     ):
         scores["metal"] = 0.75
 
-    # Hip-hop: slow tempo, heavy bass, dark mix
-    if 60 <= tempo <= 100 and bass_ratio > 0.35 and spectral_centroid < 2200:
+    # Hip-hop/rap: slow-mid tempo, heavy bass. The urban signature is dark
+    # in the LOW end, but bright hats can push the centroid up to ~3000 Hz:
+    # the old `spectral_centroid < 2200` guard sent those tracks to pop.
+    # Heavy bass + mid tempo must win over pop's brightness bias.
+    if 60 <= tempo <= 105 and bass_ratio > 0.32 and spectral_centroid < 3000:
         scores["hip_hop"] = 0.8
 
     # Electronic: fast tempo, flat spectral, heavy bass
     if 120 <= tempo <= 150 and spectral_flatness > 0.1 and bass_ratio > 0.4:
         scores["electronic"] = 0.85
 
-    # Reggaeton: specific tempo range, very heavy bass. Produced mixes are
+    # Reggaeton: specific tempo range, VERY heavy bass. Produced mixes are
     # dark and sub-heavy — a bright distorted signal must not qualify.
+    # More specific than hip_hop (requires deeper bass AND darker centroid):
+    # scored above it so a dark sub-heavy groove keeps reggaeton.
     if 85 <= tempo <= 105 and bass_ratio > 0.45 and spectral_centroid < 2200:
-        scores["reggaeton"] = 0.8
+        scores["reggaeton"] = 0.85
 
     # Jazz: wide dynamics, moderate centroid
     if dynamic_range > 12 and spectral_centroid < 4000:
@@ -320,8 +325,9 @@ def _detect_genre(
     if zero_crossing < 0.05 and spectral_centroid < 3000 and dynamic_range > 10:
         scores["acoustic"] = 0.7
 
-    # Pop: moderate tempo, moderate centroid
-    if 90 <= tempo <= 130 and spectral_centroid > 2500:
+    # Pop: moderate tempo, moderate centroid, and NO dominant bass — tracks
+    # with heavy low end (urban/hip-hop) must never be stolen by this rule.
+    if 90 <= tempo <= 130 and spectral_centroid > 2500 and bass_ratio < 0.38:
         scores["pop"] = 0.6
 
     # Rock: moderate-fast tempo, moderate centroid, good dynamics
