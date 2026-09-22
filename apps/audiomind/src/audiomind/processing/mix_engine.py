@@ -130,6 +130,11 @@ from audiomind.processing.render_versions import (
 )
 from audiomind.processing.resample import resample_audio
 from audiomind.processing.splitter import STEM_NAMES, split_audio
+from audiomind.processing.vocal_adaptive import (
+    apply_register_dimension,
+    apply_vocal_treatment,
+    resolve_vocal_treatment,
+)
 
 #: Per-stem fields extracted from ``AnalysisResult`` (spec: LUFS/DR/centroid).
 _STEM_ANALYSIS_FIELDS: tuple[str, ...] = (
@@ -415,6 +420,7 @@ def build_mix(
     creativity: float = 0.0,
     creative_variants: int = 0,
     creative_manual: bool = False,
+    vocal_treatment: bool = False,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -509,6 +515,18 @@ def build_mix(
             positional/QC check and are MARKED ``non_standard`` in the
             report — never blocked ("salida no-estándar se marca, no se
             bloquea").
+        vocal_treatment: Opt-in ADAPTIVE vocal treatment by measured
+            register (Eje A, ``vocal_adaptive`` — feature
+            ``odd/tasks/voz-tratamiento-adaptativo.md``). Default
+            ``False``: the exact previous routing, no vocal analysis, no
+            ``vocal_treatment_report`` key (master-safe neutral). When
+            ``True`` the register/f0 measured on the VOCAL STEM (Eje B,
+            ``analyze_audio``) drives a per-register EQ (+ ``agudo`` LP)
+            applied at the end of the vocal chain and an OPTIONAL
+            refinement of the vocal reverb knobs AFTER the genre scaling
+            (propuesta §2.3 — genre owns the direction, register fine-
+            tunes only the vocal space); no credible voice → neutral
+            ``no_voice`` plan reported, never an invented register.
 
     Returns:
         ``{
@@ -529,7 +547,8 @@ def build_mix(
             "compressor_report": {...} # Paso 05, absent when compressors disabled
             "emphasis_report": {...}   # Paso 06, absent when emphasis disabled
             "qc_report": {...},        # Paso 07, always present (informational)
-            "versions": {...}          # Paso 07, absent when with_versions=False
+            "versions": {...},         # Paso 07, absent when with_versions=False
+            "vocal_treatment_report": {...}  # Eje A, absent unless vocal_treatment=True
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -696,6 +715,28 @@ def build_mix(
             resampled_stems, pan_profiles
         )
 
+    # Eje A (entregable 2): opt-in adaptive vocal treatment. The register
+    # / median f0 measured on the VOCAL STEM (Eje B, analyzer + pyin)
+    # resolves the per-register plan ONCE, before any routing decision
+    # that consumes it. Default off skips the measurement entirely —
+    # exact previous routing (master-safe neutral). A failed analysis
+    # degrades to the neutral ``no_voice`` plan, never a crash (Alex
+    # guard): the backend never invents a register.
+    vocal_plan: dict[str, Any] | None = None
+    vocal_dimension_adjusted = False
+    vocal_stage_report: dict[str, Any] | None = None
+    if vocal_treatment:
+        from audiomind.analysis.analyzer import analyze_audio as _analyze_vocal
+
+        try:
+            vocal_result = _analyze_vocal(stems["vocals"])
+            vocal_plan = resolve_vocal_treatment(
+                vocal_result.vocal_register,
+                vocal_result.vocal_median_f0_hz,
+            )
+        except Exception:
+            vocal_plan = resolve_vocal_treatment(None, None)
+
     # Paso 06: the genre-scaled dimension profiles are computed ONCE per
     # stem (they are pure functions of the base profile + the weights)
     # and feed the PRINCIPAL routing below. Paso 08 creative variants
@@ -733,6 +774,20 @@ def build_mix(
                     emphasis_dim_scaling["vocals_reverb_size"] = round(
                         float(reverb_cfg.get("size", 0.5)), 2
                     )
+            # Eje A: the register refinement rides AFTER the genre scaling
+            # (the genre owns the direction — Paso 06; the register
+            # fine-tunes ONLY the vocal reverb knobs, propuesta §2.3) and
+            # stays inside the engine's validated ranges
+            # (``vocal_adaptive.apply_register_dimension``).
+            if (
+                vocal_plan is not None
+                and vocal_plan["status"] == "applied"
+                and name == "vocals"
+            ):
+                dim_profile = apply_register_dimension(
+                    dim_profile, vocal_plan["dimension_adjustment"]
+                )
+                vocal_dimension_adjusted = True
             effective_dimension_profiles[name] = dim_profile
 
     # Apply the stem EQ profile AFTER the pan, then the COMPRESSOR (Paso
@@ -777,6 +832,15 @@ def build_mix(
         if stem_report is not None and dim_profile is not None:
             dimension_stems_report[name] = _dimension_stem_entry(
                 stem_report, dim_profile
+            )
+        # Eje A: the adaptive treatment closes the vocal chain AFTER the
+        # dimension stage (register EQ + optional ``agudo`` LP). A
+        # ``no_voice`` plan returns the SAME array object (honest neutral
+        # bypass) and reports ``applied=False``; the creative variants
+        # (Paso 08) keep their own chain and do NOT inherit this stage.
+        if vocal_plan is not None and name == "vocals":
+            shaped, vocal_stage_report = apply_vocal_treatment(
+                shaped, target_sr, vocal_plan
             )
         bus_audio.append(shaped)
         processed_stems[name] = shaped
@@ -1035,4 +1099,29 @@ def build_mix(
         }
     if creative_report is not None:
         build_result["creative_report"] = creative_report
+
+    # Eje A (entregable 2): transparency report — QUÉ se aplicó, con qué
+    # registro medido y POR QUÉ (Spanish-neutral ``why``, honest about the
+    # HIPÓTESIS values and about a dimension stage that could not run).
+    # Present ONLY when the opt-in asked for the treatment (default off
+    # keeps the exact previous payload — master-safe neutral).
+    if vocal_treatment and vocal_plan is not None and vocal_stage_report is not None:
+        why = str(vocal_plan["why"])
+        if vocal_plan["status"] == "applied" and not dimension_enabled:
+            why += (
+                " El reverb no se ajustó: la etapa de dimensión está "
+                "desactivada."
+            )
+        build_result["vocal_treatment_report"] = {
+            "status": vocal_plan["status"],
+            "register": vocal_plan["register"],
+            "median_f0_hz": vocal_plan["median_f0_hz"],
+            "applied": vocal_stage_report["applied"],
+            "eq_bands": vocal_plan["eq_bands"],
+            "lp_hz": vocal_plan["lp_hz"],
+            "dimension_adjusted": vocal_dimension_adjusted,
+            "dimension_adjustment": vocal_plan["dimension_adjustment"],
+            "hypothesis": vocal_plan["hypothesis"],
+            "why": why,
+        }
     return build_result

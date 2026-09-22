@@ -38,9 +38,16 @@ class MixRequest(BaseModel):
     per stem) stays ENABLED by default — no body keeps the current
     behaviour. ``dimension_enabled=False`` routes the stems exactly like
     Paso 03 (no ``dimension_report`` in the payload).
+
+    ``vocal_treatment`` opts into the ADAPTIVE vocal treatment by
+    measured register (Eje A, ``vocal_adaptive``): default ``False``
+    keeps the exact previous routing (no ``vocal_treatment_report`` key);
+    ``True`` consumes the register/f0 measured on the vocal stem and
+    reports what ran in ``vocal_treatment_report``.
     """
 
     dimension_enabled: bool = True
+    vocal_treatment: bool = False
 
 
 @router.post("/session/{session_id}/mix")
@@ -58,7 +65,10 @@ async def mix_session(
     "genre_confidence": ..., "sample_rate": ..., "duration_seconds": ...}``.
     An optional JSON body (``MixRequest``) toggles the spatial dimension
     stage: ``{"dimension_enabled": false}`` disables delay+reverb (Paso 03
-    routing); no body or ``true`` keeps the default (dimension ON).
+    routing); no body or ``true`` keeps the default (dimension ON). The
+    same body opts into the adaptive vocal treatment:
+    ``{"vocal_treatment": true}`` adds ``vocal_treatment_report`` to the
+    payload (default off keeps the previous payload).
     """
     session = sessions.get(session_id)
     if not session:
@@ -95,6 +105,9 @@ async def mix_session(
                 session_id,
                 str(session.original_path),
                 dimension_profiles=dimension_profiles,
+                vocal_treatment=bool(
+                    request is not None and request.vocal_treatment
+                ),
             )
 
     try:
