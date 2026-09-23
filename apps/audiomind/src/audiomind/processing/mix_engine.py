@@ -444,6 +444,7 @@ def build_mix(
     creative_manual: bool = False,
     vocal_treatment: bool = False,
     auto_balance: bool = False,
+    stem_trims: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -564,6 +565,17 @@ def build_mix(
             ``d``, the final gains and the ``applied`` flag (honest about
             a neutral no-op); when off, the key is ABSENT (exact previous
             payload shape).
+        stem_trims: MANUAL stem faders (T5, ``odd/tasks/mix-stem-balance.md``
+            — the human decides): an optional dict of ``{stem}_db`` gains
+            in the ±6 dB band (T1) applied to the bus input AFTER the whole
+            chain (T2) and AFTER any auto-balance — the manual fader stays
+            visible/relative to the engine's result (the auto-balance
+            measured the stems WITHOUT the manual fader). ``None``
+            (default) or all-zero dicts keep the exact previous routing
+            (bit-identical neutral, spec 08) with no ``trim_report`` key;
+            with at least one non-zero gain the payload carries
+            ``trim_report`` = ``{"gains": {non-zero ``{stem}_db`` keys},
+            "applied": true}``.
 
     Returns:
         ``{
@@ -587,6 +599,7 @@ def build_mix(
             "versions": {...},         # Paso 07, absent when with_versions=False
             "vocal_treatment_report": {...}  # Eje A, absent unless vocal_treatment=True
             "balance_report": {...}    # T4, absent unless auto_balance=True
+            "trim_report": {...}       # T5, absent unless a manual trim ≠ 0 is set
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -918,6 +931,22 @@ def build_mix(
             "applied": stem_balance_result["applied"],
         }
 
+    # T5 — MANUAL stem faders (the human decides): the user's trims land ON
+    # TOP of the auto-balance result, AFTER it (the auto-balance measured
+    # the stems WITHOUT any manual fader, so the manual trim is a relative
+    # — always visible — adjustment). None or all-zero trims keep the exact
+    # previous routing (bit-identical, spec 08) and ``trim_report`` stays
+    # ABSENT (same payload shape); with at least one non-zero gain the
+    # report carries ONLY the applied keys (``gains``) + ``applied``.
+    trim_report: dict[str, Any] | None = None
+    if stem_trims:
+        manual_trims = {
+            key: value for key, value in stem_trims.items() if value != 0.0
+        }
+        if manual_trims:
+            _apply_stem_trims(processed_stems, bus_audio, manual_trims)
+            trim_report = {"gains": manual_trims, "applied": True}
+
     dimension_report: dict[str, Any] | None = None
     if dimension_enabled:
         dimension_report = {
@@ -1169,6 +1198,8 @@ def build_mix(
         build_result["creative_report"] = creative_report
     if balance_report is not None:
         build_result["balance_report"] = balance_report
+    if trim_report is not None:
+        build_result["trim_report"] = trim_report
 
     # Eje A (entregable 2): transparency report — QUÉ se aplicó, con qué
     # registro medido y POR QUÉ (Spanish-neutral ``why``, honest about the

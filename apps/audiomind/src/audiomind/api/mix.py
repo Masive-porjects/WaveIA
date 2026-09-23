@@ -19,16 +19,22 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from audiomind.api.license import require_license
 from audiomind.api.upload import sessions
 from audiomind.config import settings
 from audiomind.processing.mix_engine import build_mix
+from audiomind.processing.splitter import STEM_NAMES
+from audiomind.processing.stem_balance import TRIM_STEM_RANGE
 from audiomind.services import demo_guard
 from audiomind.session_store import save_sessions
 
 router = APIRouter()
+
+#: Claves de fader manual aceptadas por POST /mix — el mismo contrato del
+#: mesh creativo (T1) y de los trims del bus (T2): ``{stem}_db``.
+_STEM_TRIM_KEYS = tuple(f"{name}_db" for name in STEM_NAMES)
 
 
 class MixRequest(BaseModel):
@@ -52,11 +58,44 @@ class MixRequest(BaseModel):
     resolves the genre target from the same emphasis weights and
     corrects ONLY the voice toward it (±6 dB fader band of T1),
     reporting what ran in ``balance_report``.
+
+    ``stem_trims`` are the MANUAL stem faders (T5, human decides): an
+    optional dict of ``{stem}_db`` gains in the ±6 dB band applied to
+    the bus input AFTER the whole chain (T2) and AFTER any auto-balance —
+    the engine proposes, the human decides, the manual fader stays
+    visible/relative to the engine's result. ``None`` (default) or all
+    zeros keep the exact previous payload (no ``trim_report`` key,
+    bit-identical neutral). Keys outside ``drums_db | bass_db |
+    other_db | vocals_db`` or values outside [-6.0, 6.0] → 422.
     """
 
     dimension_enabled: bool = True
     vocal_treatment: bool = False
     auto_balance: bool = False
+    stem_trims: dict[str, float] | None = None
+
+    @field_validator("stem_trims")
+    @classmethod
+    def _validate_stem_trims(
+        cls, value: dict[str, float] | None
+    ) -> dict[str, float] | None:
+        """Faders manuales estrictos: solo las claves ``{stem}_db`` de
+        STEM_NAMES, cada una dentro de la banda ±6 dB (T1). Un ``ValueError``
+        aquí responde 422 automáticamente (contrato del endpoint)."""
+        if value is None:
+            return value
+        for key, db in value.items():
+            if key not in _STEM_TRIM_KEYS:
+                raise ValueError(
+                    f"stem_trims key {key!r} not allowed; expected one of "
+                    f"{', '.join(_STEM_TRIM_KEYS)}"
+                )
+            if not (TRIM_STEM_RANGE[0] <= db <= TRIM_STEM_RANGE[1]):
+                raise ValueError(
+                    f"stem_trims[{key}] must be in "
+                    f"[{TRIM_STEM_RANGE[0]}, {TRIM_STEM_RANGE[1]}]"
+                )
+        return value
 
 
 @router.post("/session/{session_id}/mix")
@@ -83,6 +122,14 @@ async def mix_session(
     ``{"auto_balance": true}`` measures the stems and corrects ONLY the
     voice toward the genre target, adding ``balance_report`` to the
     payload (default off keeps the previous payload, bit-identical).
+
+    The same body also accepts the MANUAL stem faders (T5):
+    ``{"stem_trims": {"drums_db": 2.0, "vocals_db": -1.5}}`` applies each
+    gain to its stem at the bus input AFTER the chain and AFTER any
+    auto-balance, adding ``trim_report`` (gains ≠ 0 + applied) to the
+    payload. Validated strictly: only ``drums_db | bass_db | other_db |
+    vocals_db`` keys inside ±6 dB, otherwise 422. Absent or all-zero
+    trims keep the exact previous payload (no ``trim_report`` key).
     """
     session = sessions.get(session_id)
     if not session:
@@ -125,6 +172,7 @@ async def mix_session(
                 auto_balance=bool(
                     request is not None and request.auto_balance
                 ),
+                stem_trims=request.stem_trims if request else None,
             )
 
     try:
