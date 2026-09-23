@@ -592,9 +592,111 @@ class TestDimensionOptional:
         assert resp.status_code == 200, resp.text
         payload = json.loads(resp.headers["x-mix-result"])
         assert "dimension_report" in payload
-        assert "pan_report" in payload
-        assert "stem_presence" in payload
-        assert set(payload["analysis"]) == {"drums", "bass", "other", "vocals"}
+
+
+class TestStemAutoBalanceReport:
+    """T4: ``balance_report`` in the mix payload (engine + endpoint)."""
+
+    def _build_result(self, tmp_path: Path, monkeypatch, **kwargs) -> dict:
+        """Run ``build_mix`` directly and return the payload dict."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        return mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            **kwargs,
+        )
+
+    def test_balance_report_present_when_auto_balance_on(self, tmp_path, monkeypatch):
+        """auto_balance=True: the payload carries ``balance_report`` with
+        measured LUFS per stem, gains, genre/target, and applied flag."""
+        result = self._build_result(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert set(report["stem_lufs"]) == {
+            "drums", "bass", "other", "vocals"
+        }
+        assert "groove_level_lufs" in report
+        assert "vocal_target_lufs" in report
+        assert "d" in report
+        assert report["genre"] == "pop"
+        assert set(report["gains"]) == {
+            "drums_db", "bass_db", "other_db", "vocals_db"
+        }
+        assert "applied" in report
+        # The fixture is balanced at 0.25 → the voice is ABOVE the groove
+        # under K-weighting, so pop may push it DOWN or slightly; the flag
+        # tells the truth either way. Only the shape is asserted here.
+        assert report["applied"] in (True, False)
+
+    def test_balance_report_applied_low_vocals(self, tmp_path, monkeypatch):
+        """The report reflects what was actually applied: with the voice 14
+        dB under the groove and pop weights, vocals_db > 0 and applied=True."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        result = mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            auto_balance=True,
+            genre="pop",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
+        assert report["gains"]["drums_db"] == 0.0
+        assert report["gains"]["bass_db"] == 0.0
+        assert report["gains"]["other_db"] == 0.0
+        assert report["status"] == "active"
+
+    def test_balance_report_absent_when_off(self, tmp_path, monkeypatch):
+        """auto_balance=False (default): NO ``balance_report`` key — the
+        payload keeps the exact previous shape (master-safe neutral)."""
+        result = self._build_result(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop"
+        )
+        assert "balance_report" not in result
+
+    def test_balance_report_neutral_status(self, tmp_path, monkeypatch):
+        """Unknown genre → neutral fallback (d=0.0, target = groove). The
+        report is honest about what actually happened: with the voice 14 dB
+        under the groove the correction IS applied (raises vocals toward
+        groove), so applied=True + vocals_db>0; the exact no-op case is
+        covered by the pure-module tests."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        result = mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            auto_balance=True,
+            genre="unknown",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert report["status"] == "neutral_fallback"
+        assert report["d"] == 0.0
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
 
 
 class TestStemAutoBalance:

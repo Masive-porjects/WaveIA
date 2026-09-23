@@ -558,7 +558,12 @@ def build_mix(
             target from the SAME emphasis weights (explicit ``genre`` or
             measured from the input) and corrects ONLY the voice toward
             that target — bounded by the ±6 dB fader band of T1; a
-            no-op/neutral outcome leaves the audio untouched.
+            no-op/neutral outcome leaves the audio untouched. When on, the
+            payload carries ``balance_report`` (T4): resolved genre +
+            status, measured stem LUFS, groove/target levels, the computed
+            ``d``, the final gains and the ``applied`` flag (honest about
+            a neutral no-op); when off, the key is ABSENT (exact previous
+            payload shape).
 
     Returns:
         ``{
@@ -581,6 +586,7 @@ def build_mix(
             "qc_report": {...},        # Paso 07, always present (informational)
             "versions": {...},         # Paso 07, absent when with_versions=False
             "vocal_treatment_report": {...}  # Eje A, absent unless vocal_treatment=True
+            "balance_report": {...}    # T4, absent unless auto_balance=True
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -877,16 +883,18 @@ def build_mix(
         bus_audio.append(shaped)
         processed_stems[name] = shaped
 
-    # T3 — auto-balance: measure the processed stems and correct ONLY the
+    # T3/T4 — auto-balance: measure the processed stems and correct ONLY the
     # voice toward the genre target (emphasis weights), bounded by the
     # ±6 dB fader band. OFF (default) = no measurement, no mutation: the
     # routing stays bit-identical to the manual-fader-only path. The gains
     # reuse the EXACT T2 application point (``_apply_stem_trims`` after
     # the chain, before the pad/sum) so neutral and manual behavior are
     # unchanged. A neutral/no-op outcome (``applied=False``) also leaves
-    # the audio untouched. The measured ``compute_stem_balance`` envelope
-    # (stem LUFS, gains, target) becomes the ``balance_report`` in the
-    # payload at T4.
+    # the audio untouched. When ON, the measured ``compute_stem_balance``
+    # envelope (stem LUFS, gains, target) plus the resolved genre is
+    # exposed as ``balance_report`` in the payload (T4); when OFF the key
+    # is absent (master-safe neutral payload shape).
+    balance_report: dict[str, Any] | None = None
     if auto_balance:
         auto_balance_weights: dict[str, Any] = resolve_emphasis(
             detected_genre, detected_confidence
@@ -898,6 +906,17 @@ def build_mix(
             _apply_stem_trims(
                 processed_stems, bus_audio, stem_balance_result["gains"]
             )
+        balance_report = {
+            "genre": auto_balance_weights["genre"],
+            "genre_confidence": auto_balance_weights["genre_confidence"],
+            "status": auto_balance_weights["status"],
+            "stem_lufs": stem_balance_result["stem_lufs"],
+            "groove_level_lufs": stem_balance_result["groove_level_lufs"],
+            "vocal_target_lufs": stem_balance_result["vocal_target_lufs"],
+            "d": stem_balance_result["d"],
+            "gains": stem_balance_result["gains"],
+            "applied": stem_balance_result["applied"],
+        }
 
     dimension_report: dict[str, Any] | None = None
     if dimension_enabled:
@@ -1148,6 +1167,8 @@ def build_mix(
         }
     if creative_report is not None:
         build_result["creative_report"] = creative_report
+    if balance_report is not None:
+        build_result["balance_report"] = balance_report
 
     # Eje A (entregable 2): transparency report — QUÉ se aplicó, con qué
     # registro medido y POR QUÉ (Spanish-neutral ``why``, honest about the
