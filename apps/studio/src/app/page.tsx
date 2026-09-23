@@ -8,7 +8,7 @@ import { VIEW_TRANSITION, fadeUp } from "@/shared/motion";
 import { API_BASE } from "@/adapters/api/config";
 import DropZone from "@/components/DropZone";
 import AnalysisPanel from "@/components/AnalysisPanel";
-import ModulePanel, { PRESETS } from "@/components/ModulePanel";
+import ModulePanel from "@/components/ModulePanel";
 import { PLATFORM_DEFAULTS } from "@/components/DeliveryPanel";
 import FloatingDeliveryPanel from "@/components/FloatingDeliveryPanel";
 import FloatingReportCard from "@/components/FloatingReportCard";
@@ -38,10 +38,7 @@ import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/shared/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
 import TrackChip from "@/presentation/components/TrackChip";
-import ChatPanel, {
-  NEUTRAL_PROFILE,
-  type Profile,
-} from "@/presentation/components/chat/ChatPanel";
+import { ComingSoonNotice } from "@/components/ComingSoonNotice";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
@@ -75,7 +72,6 @@ import {
 } from "lucide-react";
 import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
-import { LiveView } from "@/components/live/LiveView";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "mezcla", label: "Mezcla de Audio" },
@@ -90,19 +86,6 @@ const TABS: { key: MasteringTab; label: string }[] = [
   { key: "live", label: "Live Engine" },
   { key: "album", label: "Álbum" },
 ];
-
-/* ── Saludo del agente ───────────────────────────────── */
-
-/**
- * El saludo NO nombra el género detectado.
- *
- * El clasificador se equivoca seguido, y abrir la conversación afirmando algo
- * falso sobre la música del usuario destruye la confianza en todo lo que venga
- * después. El género se sigue mandando al agente para calibrar cuánto mover
- * cada eje; simplemente no se anuncia.
- */
-const WELCOME =
-  "Ya escuché tu track. Dime qué quieres cambiar y lo traduzco a las perillas.";
 
 /* ── Active-preset readiness ─────────────────────────
    The mastered URL for the ACTIVE preset may only be requested once that
@@ -351,34 +334,6 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
   const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
-  const [intentProfile, setIntentProfile] = useState<Profile>(NEUTRAL_PROFILE);
-
-  // Métricas estáticas para el Live Meter Deck (lado Original | Master).
-  // Referencias ESTABLES: no recrearlas por render (si no, el efecto del deck
-  // se re-suscribiría al bus en cada re-render de page).
-  const liveOriginalMetrics = useMemo(
-    () =>
-      session?.analysis
-        ? {
-            integrated_lufs: session.analysis.integrated_lufs,
-            true_peak_db: session.analysis.true_peak_db,
-            crest_factor_db: session.analysis.crest_factor_db ?? null,
-          }
-        : null,
-    [session],
-  );
-
-  const liveMasterMetrics = useMemo(
-    () =>
-      session?.master_result
-        ? {
-            integrated_lufs: session.master_result.integrated_lufs,
-            true_peak_db: session.master_result.true_peak_db,
-            crest_factor_db: session.master_result.crest_factor_db,
-          }
-        : null,
-    [session],
-  );
 
   // Stem splitter state
   const [stemState, setStemState] = useState<StemSplitterState>(
@@ -1401,17 +1356,9 @@ export default function Home() {
                   animate={VIEW_TRANSITION.animate}
                   transition={VIEW_TRANSITION.transition}
                 >
-                  <ChatPanel
-                    profile={intentProfile}
-                    onProfileChange={setIntentProfile}
-                    analysis={session?.analysis ?? undefined}
-                    welcome={WELCOME}
-                    voiceOutput={masteringMode === "ai"}
-                    onPresetSelect={(presetId) => {
-                      const preset = PRESETS.find((x) => x.id === presetId);
-                      if (!preset) return;
-                      void handlePresetSelect(preset.params, presetId);
-                    }}
+                  <ComingSoonNotice
+                    title="Asistente IA"
+                    message="El asistente con recomendaciones llega pronto. Mientras tanto, masterizá en modo Manual con las guías de género."
                   />
                 </motion.div>
               </div>
@@ -1847,23 +1794,10 @@ export default function Home() {
                 </>
               ) : currentTab === "live" ? (
                 <>
-                  {!session?.mastered_path ? (
-                    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-8 text-center">
-                      <p className="text-lg text-[var(--text-secondary)] mb-2">Live Engine</p>
-                      <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        Primero necesitas masterizar un track para activar el motor en vivo.
-                      </p>
-                    </div>
-                  ) : (
-                    <LiveView
-                      masterAudioUrl={getAudioUrl(session.session_id, "mastered")}
-                      masterAudioBuffer={null}
-                      isActive={currentTab === "live" || sheetTab === "live"}
-                      presetId={activePresetId}
-                      originalMetrics={liveOriginalMetrics}
-                      masterMetrics={liveMasterMetrics}
-                    />
-                  )}
+                  <ComingSoonNotice
+                    title="Live Engine"
+                    message="El motor de efectos en vivo llega pronto. Por ahora, masterizá y escuchá el resultado en Análisis."
+                  />
                 </>
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border-subtle)] p-4 text-center">
