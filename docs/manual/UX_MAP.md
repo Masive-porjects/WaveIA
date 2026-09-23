@@ -121,11 +121,10 @@ flowchart LR
     LV --> FX[FxSlotPanel<br/>filtro · drive · delay · reverb]
     LV --> Meters[LiveMeters]
     LV --> Rec[LiveRecorderBar]
-    Bridge[Bridge WS :8765] --> LV
 ```
 
 - Requiere **master previo** (empty state si no hay).
-- `bridgeConnected` / `bridgeLatency` vienen del bridge, no de la vista.
+- **`bridgeConnected` / `bridgeLatency` son vestigios del bridge WS removido** — el Live Engine es standalone (knobs → `LiveParams` directos, sin websocket ni MIDI).
 - Patrón React oficial de descarte de buffer: ajuste durante render (`decodedUrl !== masterAudioUrl`).
 
 ## 6. Chat del Asistente IA

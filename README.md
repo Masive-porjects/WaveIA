@@ -4,7 +4,7 @@
 
 # WaveAI
 
-**Estudio de mastering asistido por IA + Live Engine controlado por gestos.**
+**Estudio de mastering asistido por IA + Live Engine Web Audio.**
 
 <sub>La onda púrpura→cian es la marca, el favicon y el icono de la app.</sub>
 
@@ -19,10 +19,10 @@ WaveAI es una sola interfaz de mastering IA:
 1. **Studio de mastering IA** — subes un WAV/MP3, el backend analiza (loudness, espectro, tempo, género) y corre una cadena DSP de 13 etapas para entregar un master profesional con player **A/B** (original vs masterizado).
 2. **Live Engine** — el master se carga en un motor Web Audio en el navegador con FX en tiempo real.
 
-**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb). Un **bridge** Python traduce MIDI (CC) a `LiveParams` por WebSocket. Todo en la pestaña **"Live"** del studio.
+**La unión:** WaveAI masteriza primero (offline, una vez). El master se carga en un **Live Engine** (Web Audio API en el navegador) con FX en tiempo real (filtro → drive → delay/echo → reverb), operado **standalone** desde los knobs de la UI — sin WebSocket ni MIDI (el bridge y el simulator fueron removidos). Todo en la pestaña **"Live"** del studio.
 
 ```
-MIDI Source → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
+Knobs UI → LiveParams → Studio Live Engine (Web Audio) → Knobs/Meters/Audio
 ```
 
 ## Mapa del repo
@@ -30,12 +30,10 @@ MIDI Source → Bridge (smoother) → WS :8765 → Studio Live Engine (Web Audio
 | Ruta | Stack | Rol |
 |---|---|---|
 | `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
-| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
-| `apps/bridge/` | Python, websockets, rtmidi | MIDI → `LiveParams` → WS :8765 |
+| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering + Mix Engine (análisis + cadena de 13 etapas) |
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
-| `simulator/` | Python | Emisor de `LiveParams` sintéticos |
 | `e2e/` | Playwright | master → live |
-| `docs/` | Markdown | Especificaciones, setup, reportes de integración — índice central en [`docs/README.md`](docs/README.md) |
+| `docs/` | Markdown | Especificaciones, setup, reportes de integración — índice central en [`docs/README.md`](docs/README.md) + [`docs/ESTADO_PROYECTO.md`](docs/ESTADO_PROYECTO.md) |
 
 ## Compliance Phase 1 (feature destacada)
 
@@ -67,20 +65,17 @@ cd apps/audiomind && uvicorn audiomind.main:app --port 8000
 # Frontend (studio)
 cd apps/studio && bun install && bun run dev
 # → http://localhost:3000
-
-# Bridge (Live Engine)
-cd apps/bridge && python -m src.main             # WS :8765
 ```
 
-**Windows — un solo click** (`scripts/`): doble click en `scripts\start\start-all.bat` hace todo — si falta el entorno corre el setup primero (`.venv`, deps Python, `bun install`, build de `apps/agent`, `.env.local`) y luego levanta los 3 servicios en ventanas separadas con health checks incluidos. `scripts\stop\stop-all.bat` los detiene. Opciones: `scripts\setup\setup.bat` corre solo el setup; por defecto el Live Engine usa el simulator en WS :8765 (sin hardware MIDI); con `-Bridge` arranca el bridge real para un controlador MIDI.
+**Windows — un solo click** (`scripts/`): doble click en `scripts\start\start-all.bat` hace todo — si falta el entorno corre el setup primero (`.venv`, deps Python, `bun install`, build de `apps/agent`, `.env.local`) y luego levanta backend + studio en ventanas separadas con health checks incluidos. `scripts\stop\stop-all.bat` los detiene. Opciones: `scripts\setup\setup.bat` corre solo el setup.
 
 **Docker** (sin instalar Python/bun en el host):
 
 ```bash
-docker compose up --build   # studio :3000 + audiomind :8000 + simulator :8765
+docker compose up --build   # studio :3000 + audiomind :8000
 ```
 
-Detalles y decisiones (por qué el bridge no va en contenedor, volúmenes, build-args): `docs/runbooks/DOCKER.md`.
+Detalles y decisiones (volúmenes, build-args): `docs/runbooks/DOCKER.md`.
 
 ## Verificación
 
@@ -89,14 +84,10 @@ Detalles y decisiones (por qué el bridge no va en contenedor, volúmenes, build
 cd apps/audiomind && pytest tests/ -q
 uvicorn audiomind.main:app --port 8000           # → curl localhost:8000/health
 
-# Bridge
-cd apps/bridge && pytest tests/ -q
-
 # Studio (lint + build)
 cd apps/studio && npm run lint && npm run build
 
-# Integral
-python -m simulator.main --mode server --scenario sweep   # desde la raíz
+# e2e
 npm run e2e                                               # desde apps/studio
 ```
 
@@ -106,7 +97,7 @@ npm run e2e                                               # desde apps/studio
 
 - **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo — regenera tipos con `packages/contracts/scripts/gen_types.sh`, nunca edites los generados a mano.
 - **Neutral = bypass**: parámetro neutral = audio idéntico (bit-exacto en backend, defaults del schema en Live Engine).
-- **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado; mensajes completos, el último estado gana.
+- **El audio NUNCA viaja por WebSocket** — el Live Engine es **standalone** (knobs de la UI → `LiveParams`): no hay socket, ni MIDI, ni bridge (removidos).
 - **`setTargetAtTime` siempre** (nunca asignación directa en Web Audio — anti-zipper).
 - **Microcopy en español latino neutro/colombiano** (sin voseo): "Sube tu audio", "Ajusta", "Prueba de nuevo".
 - **Commits semánticos** (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), sin atribución AI.

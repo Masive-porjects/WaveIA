@@ -15,15 +15,21 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 | Ruta | Stack | Rol |
 |---|---|---|
 | `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
-| `apps/bridge/` | Python, websockets, rtmidi | MIDI → `LiveParams` → WS :8765 |
-| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
+| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) + Mix Engine |
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad del protocolo |
-| `simulator/` | Python | Emisor de `LiveParams` sintéticos (sweep/presets/random) |
 | `e2e/` | Playwright | master → live |
+
+> ⚠️ `apps/bridge/` (MIDI → WS :8765) y `simulator/` (Python) fueron **removidos** del repo — el Live Engine es standalone, sin WebSocket ni MIDI. Detalle en [`ESTADO_PROYECTO.md`](ESTADO_PROYECTO.md) §5.
 
 ---
 
 ## Índice de documentación
+
+### Estado del proyecto (relevamiento read-only, verificado)
+
+| Documento | Para qué sirve | Estado |
+|---|---|---|
+| [`ESTADO_PROYECTO.md`](ESTADO_PROYECTO.md) | Relevamiento completo: tres motores, frontend, agent, entorno, ramas git, suites verificadas y pendientes del usuario | **Vigente** (2026-09-21; aún vigente en lo estructural. Para el estado al día de Mix Engine/Stem Balance ver `odd/tasks/mix-stem-balance.md` y los commits de develop) |
 
 ### `docs/reference/` — CANÓNICO (describe el producto real; reglas vigentes)
 

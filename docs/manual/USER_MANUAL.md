@@ -143,4 +143,4 @@ Cadena real: análisis → gain staging a −6 dBFS → HPF 30 Hz → match EQ p
 
 ## Live Engine (pestaña del dock)
 
-Requisito: haber masterizado un track (si no: *"Primero necesitas masterizar un track para activar el motor en vivo."*). Bridge MIDI → WebSocket `:8765` → FX en vivo (filtro, drive, delay, echo, reverb). Si el socket se cae > 2 s, el engine **vuelve solo a neutral** para no sonar roto.
+Requisito: haber masterizado un track (si no: *"Primero necesitas masterizar un track para activar el motor en vivo."*). El Live Engine es **standalone** (Web Audio en el navegador): los knobs de la pestaña "Live" generan `LiveParams` directamente → FX en vivo (filtro, drive, delay, echo, reverb). Sin WebSocket ni MIDI — los knobs devueltos a sus defaults = master idéntico al original (neutral = bypass).

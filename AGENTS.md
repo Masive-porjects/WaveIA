@@ -21,24 +21,24 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 | Ruta | Stack | Rol |
 |---|---|---|
 | `apps/studio/` | Next.js 16 + React 19 + TS + Tailwind 4 | Mastering UI + pestaña Live (Web Audio) |
-| `apps/bridge/` | Python, websockets, rtmidi | MIDI → `LiveParams` → WS :8765 |
-| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | DSP de mastering (análisis + cadena de 13 etapas) |
+| `apps/audiomind/` | Python/FastAPI, librosa, pedalboard | MSP de mastering (análisis + cadena de 13 etapas) + Mix Engine (mezcla IA+DSP) |
 | `packages/contracts/` | JSON Schema + generador | `live_params.schema.json` = fuente de verdad |
-| `simulator/` | Python | Emisor de `LiveParams` sintéticos (sweep/presets/random) |
 | `e2e/` | Playwright | master → live |
+
+> ⚠️ `apps/bridge/` y `simulator/` fueron **removidos** — el Live Engine es standalone (knobs del navegador, sin WebSocket ni MIDI). Ver `docs/ESTADO_PROYECTO.md` §5.
 
 ## Reglas NO negociables (de la spec 08 §11–12)
 
 - **`packages/contracts/live_params.schema.json` es la fuente de verdad** del protocolo. Si cambia, regenera tipos con `packages/contracts/scripts/gen_types.sh` (TS → `studio/src/lib/live/liveParams.gen.ts`, Python → bridge). Nunca edites los tipos generados a mano.
 - **Neutral = bypass**: en el backend, parámetro neutral = audio idéntico (bypass bit-exacto); en el Live Engine, defaults del schema = master idéntico al original. Presérvalo en TODAS las rutas.
-- **El audio NUNCA viaja por el socket** — solo `LiveParams` y estado. Mensajes completos (no deltas), el último estado gana; el navegador ignora mensajes con `ts` menor al último aplicado.
+- **El audio NUNCA viaja por WebSocket** — el Live Engine es **standalone**: los knobs de la UI generan `LiveParams` directamente (sin socket ni MIDI; bridge y simulator removidos). Mensajes completos, no deltas; el último estado gana.
 - **Todo cambio de parámetro Web Audio con `setTargetAtTime(value, ctx.currentTime, 0.02)` — NUNCA asignación directa** (anti-zipper).
 - **Escalado logarítmico del filtro**: `filter_cutoff = 200 * (12000/200)^(v/127)` (200 Hz–12 kHz ≈ 6 octavas; lineal produce saltos).
 - **Sesiones del backend en memoria** (dict + `SessionCache`) — se pierden al reiniciar el backend. `ProcessingStatus`: `uploaded → analyzing → processing → completed | error`.
 - **Los knobs del Live Engine NO son `MasteringParameters`** — no reprocesar el track; son nodos Web Audio.
 - **El limiter es 8× oversampling** (si tocas MasteringGuide escribe 8×, no 4×).
 - **Microcopy en español latino neutro/colombiano** (sin voseo): "Cargá" NO — "Carga tu audio", "Ajusta", "Prueba de nuevo", "Elige", "Toca".
-- **Socket caído > 2 s → Live Engine vuelve a neutral** (defaults del schema). Heartbeat cada 5 s.
+- **Neutral = bypass**: los knobs devueltos a sus defaults del schema = master idéntico al original (sin socket ni heartbeat — estado standalone).
 - **SOLID**: SRP por módulo, Strategy para slots FX, DIP hacia los contratos.
 
 ## Comandos de verificación (corre esto antes de declarar algo terminado)
@@ -48,16 +48,11 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 cd apps/audiomind && pytest tests/ -q
 uvicorn audiomind.main:app --port 8000   # → curl localhost:8000/health
 
-# Bridge
-cd apps/bridge && pytest tests/ -q
-python -m src.main                        # WS :8765
-
 # Studio
 cd apps/studio && npm run build && npm run lint
 npm run dev                               # http://localhost:3000
 
 # Integral
-python -m simulator.main --mode server --scenario sweep   # desde la raíz
 npm run e2e                               # desde apps/studio
 ```
 
