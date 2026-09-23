@@ -3,8 +3,8 @@
 The plan maestro (``odd/tasks/plan-motor-de-mezcla.md``, paso 08) turns the
 book's "envelope of ranges" into a ``MODO CREATIVO``: the engine draws N
 variants of the mix sampling values INSIDE the standard's ranges (EQ gain/Q,
-compressor ratios/timing, dimension sends, pan envelopes, bus recipe, vocal
-trim) with a per-variant reproducible seed, a ``creativity`` slider in
+compressor ratios/timing, dimension sends, pan envelopes, bus recipe, stem
+faders) with a per-variant reproducible seed, a ``creativity`` slider in
 [0, 1] scaling the deviation from the strict standard, and a safety net —
 rejection sampling against the Paso 03 positional validation and the Paso 07
 QC report ("red de seguridad": a variant that violates an objective check is
@@ -26,8 +26,10 @@ standard.
 The envelope rule is documented per param: the book's explicit range where
 the book defines one (Q 1.0–1.4 on cuts / 0.5–0.8 on boosts — pág. 32;
 guitar 8:1–10:1 — págs. 56–57; bus 2–3 dB GR band — págs. 53–56; pre-delay
-< 40 ms — Swedien pág. 39; reverb size 0.1–1.0 — ``reverb.py``; vocals trim
-±0.5–1 dB — plan paso 07), otherwise a documented calibration around the
+< 40 ms — Swedien pág. 39; reverb size 0.1–1.0 — ``reverb.py``; stem
+trims ±6 dB — Mix Stem Balance T1 (product 2026-09-23; the vocals ±1 dB
+band of the plan paso 07 alternative versions is NOT the fader limit),
+otherwise a documented calibration around the
 standard (multiplicative ±50 % for ratios/gains, ±100 % for timing),
 clamped to the engine's own hard limits.
 
@@ -81,8 +83,11 @@ _BUS_RATIO_RANGE = (1.5, 4.0)
 #: Auto-correction clamp window around the 6 dB standard (documented
 #: calibration; the plan fixes the clamp at 6 dB).
 _PAN_CORRECTION_RANGE = (4.0, 8.0)
-#: Vocals trim band of the alternative versions (plan paso 07: ±0.5–1 dB).
-_TRIM_VOCALS_RANGE = (-1.0, 1.0)
+#: Stem balance fader band (Mix Stem Balance feature, T1): every stem
+#: gets a ±6 dB trim envelope — wide enough to close a real vocal v.
+#: drums gap (measured ~7 dB on the producer session) while keeping the
+#: 0.0 dB neutral standard.
+_TRIM_STEM_RANGE = (-6.0, 6.0)
 #: Multiplicative band around the standard for sampled ratios/gains.
 _MULT_RATIO = 0.5
 #: Multiplicative band around the standard for sampled timings.
@@ -379,20 +384,25 @@ def _bus_entries() -> tuple[dict[str, Any], ...]:
 
 
 def _trim_entries() -> tuple[dict[str, Any], ...]:
-    """Vocal trim (the "vocal fader" of the creative mode) — the plan
-    paso 07 band: vocals up/down ±0.5–1 dB."""
-    return (
+    """Stem balance faders (Mix Stem Balance, T1): every stem gets a
+    ±6 dB trim (drums/bass/other/vocals), applied at the bus input after
+    the chain — the creative-mode "mixer fader board". The vocals entry
+    keeps the plan paso 07 meaning (vocal fader); the ±1 dB band of the
+    alternative versions is NOT the fader limit — the product decision
+    (2026-09-23) widens the faders to ±6 dB and keeps 0.0 dB neutral."""
+    return tuple(
         {
-            "key": "trim.vocals_db",
+            "key": f"trim.{stem}_db",
             "stage": "trim",
-            "stem": "vocals",
-            "path": ("vocals_db",),
-            "min": _TRIM_VOCALS_RANGE[0],
-            "max": _TRIM_VOCALS_RANGE[1],
+            "stem": stem,
+            "path": (f"{stem}_db",),
+            "min": _TRIM_STEM_RANGE[0],
+            "max": _TRIM_STEM_RANGE[1],
             "standard": 0.0,
-            "source": "plan maestro paso 07 — vocal up/down ±0.5–1 dB",
+            "source": "Mix Stem Balance T1 — stem fader ±6 dB (product 2026-09-23)",
             "apply": "set",
-        },
+        }
+        for stem in ("drums", "bass", "other", "vocals")
     )
 
 
@@ -507,7 +517,7 @@ def apply_variant_to_profiles(
         "dimension": DIMENSION_PROFILES,
         "comp": STEM_COMPRESSOR_PROFILES,
         "bus": BUS_COMPRESSOR_PROFILE,
-        "trim": {"vocals_db": 0.0},
+        "trim": {"drums_db": 0.0, "bass_db": 0.0, "other_db": 0.0, "vocals_db": 0.0},
     }
     roots = {stage: copy.deepcopy(base) for stage, base in bases.items()}
     if variant:
