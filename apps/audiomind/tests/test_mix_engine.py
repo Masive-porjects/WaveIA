@@ -1080,3 +1080,68 @@ class TestStemTrims:
         report = with_trims["trim_report"]
         assert report["applied"] is True
         assert report["gains"] == {"drums_db": 2.0}
+
+
+class TestStemBalanceNeutralityE2E:
+    """T7 (E2E) — neutralidad bit-exacta sobre POST /mix real: faders en 0
+    y auto OFF = WAV byte-idéntico al que sirve sin body (spec 08: neutral
+    = bypass también a nivel HTTP, no solo en el motor)."""
+
+    def _mix_wav_md5(self, tmp_path, monkeypatch, body=None) -> str:
+        import hashlib
+
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json=body,
+        )
+        assert resp.status_code == 200, resp.text
+        return hashlib.md5(resp.content).hexdigest()
+
+    def test_no_body_vs_all_zero_trims_serves_identical_wav(
+        self, tmp_path, monkeypatch
+    ):
+        """Sin body vs ``{"stem_trims": {4 stems en 0}, "auto_balance": false}``
+        → el WAV servido es byte-idéntico (mismo md5)."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        zero_trims = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={
+                "auto_balance": False,
+                "stem_trims": {
+                    "drums_db": 0.0,
+                    "bass_db": 0.0,
+                    "other_db": 0.0,
+                    "vocals_db": 0.0,
+                },
+            },
+        )
+        assert baseline == zero_trims
+
+    def test_partial_zero_trims_are_neutral_on_their_stem(
+        self, tmp_path, monkeypatch
+    ):
+        """Fader explícito en 0 para un stem + los demás ausentes → mismo
+        WAV que sin body (0 dB no altera la red)."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        zero_vocals = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={"stem_trims": {"vocals_db": 0.0}},
+        )
+        assert baseline == zero_vocals
+
+    def test_nonzero_trim_changes_served_wav(
+        self, tmp_path, monkeypatch
+    ):
+        """Fader ≠ 0 SÍ cambia el WAV servido (el md5 difiere del baseline):
+        la neutralidad es selectiva, no un caso vacío."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        trimmed = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={"stem_trims": {"vocals_db": 3.0}},
+        )
+        assert baseline != trimmed
