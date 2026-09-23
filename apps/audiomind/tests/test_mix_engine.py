@@ -594,6 +594,116 @@ class TestDimensionOptional:
         assert "dimension_report" in payload
 
 
+class TestAutoBalanceEndpoint:
+    """T5: POST /mix expone ``auto_balance`` (body) — OFF por defecto =
+    payload idéntico al actual; ON → ``balance_report`` en el header."""
+
+    def test_mix_endpoint_no_body_keeps_payload_without_balance_report(
+        self, tmp_path, monkeypatch
+    ):
+        """Sin body (default) → 200, header SIN ``balance_report`` — el
+        shape previo exacto (neutral bit-exacto, spec 08)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(f"/api/session/{session_id}/mix")
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+        assert "stem_presence" in payload
+        assert set(payload["analysis"]) == {"drums", "bass", "other", "vocals"}
+
+    def test_mix_endpoint_explicit_false_keeps_payload_without_report(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"auto_balance": false}`` explícito → mismo contrato que sin
+        body: OFF neutral, sin ``balance_report``."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": False},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+
+    def test_mix_endpoint_auto_balance_true_adds_report(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"auto_balance": true}`` → 200 + ``balance_report`` con el shape
+        completo (genre/status/stem_lufs/groove/vocal_target/d/gains/applied)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": True},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        report = payload["balance_report"]
+        assert set(report["stem_lufs"]) == {
+            "drums", "bass", "other", "vocals"
+        }
+        assert "groove_level_lufs" in report
+        assert "vocal_target_lufs" in report
+        assert "d" in report
+        assert set(report["gains"]) == {
+            "drums_db", "bass_db", "other_db", "vocals_db"
+        }
+        assert "applied" in report
+        assert report["genre"] in ("active", "neutral_fallback") or isinstance(
+            report["genre"], str
+        )
+
+    def test_mix_endpoint_auto_balance_raises_low_vocals(
+        self, tmp_path, monkeypatch
+    ):
+        """Voz 14 dB bajo el groove + auto_balance=true → el reporte muestra
+        gain vocal > 0 y applied=True a través del endpoint real."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": True},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        report = payload["balance_report"]
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
+        assert report["gains"]["drums_db"] == 0.0
+        assert report["gains"]["bass_db"] == 0.0
+        assert report["gains"]["other_db"] == 0.0
+
+    def test_mix_endpoint_coerces_boolean_strings(
+        self, tmp_path, monkeypatch
+    ):
+        """Pydantic v2 lax coacciona strings booleanos (``"false"``) →
+        OFF, sin ``balance_report``. Mismo comportamiento que los campos
+        hermanos ``dimension_enabled``/``vocal_treatment`` (bool lax); el
+        contrato documenta true/false JSON y el modelo no usa
+        ``StrictBool`` a propósito (consistencia con el resto del body)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": "false"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+
+
 class TestStemAutoBalanceReport:
     """T4: ``balance_report`` in the mix payload (engine + endpoint)."""
 

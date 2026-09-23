@@ -44,10 +44,19 @@ class MixRequest(BaseModel):
     keeps the exact previous routing (no ``vocal_treatment_report`` key);
     ``True`` consumes the register/f0 measured on the vocal stem and
     reports what ran in ``vocal_treatment_report``.
+
+    ``auto_balance`` opts into the STEM AUTO-BALANCE (feature
+    ``odd/tasks/mix-stem-balance.md``, T3–T5): default ``False`` keeps
+    the exact previous payload (no ``balance_report`` key, bit-identical
+    neutral); ``True`` measures integrated LUFS on the processed stems,
+    resolves the genre target from the same emphasis weights and
+    corrects ONLY the voice toward it (±6 dB fader band of T1),
+    reporting what ran in ``balance_report``.
     """
 
     dimension_enabled: bool = True
     vocal_treatment: bool = False
+    auto_balance: bool = False
 
 
 @router.post("/session/{session_id}/mix")
@@ -69,6 +78,11 @@ async def mix_session(
     same body opts into the adaptive vocal treatment:
     ``{"vocal_treatment": true}`` adds ``vocal_treatment_report`` to the
     payload (default off keeps the previous payload).
+
+    The same body opts into the stem auto-balance:
+    ``{"auto_balance": true}`` measures the stems and corrects ONLY the
+    voice toward the genre target, adding ``balance_report`` to the
+    payload (default off keeps the previous payload, bit-identical).
     """
     session = sessions.get(session_id)
     if not session:
@@ -107,6 +121,9 @@ async def mix_session(
                 dimension_profiles=dimension_profiles,
                 vocal_treatment=bool(
                     request is not None and request.vocal_treatment
+                ),
+                auto_balance=bool(
+                    request is not None and request.auto_balance
                 ),
             )
 
