@@ -93,6 +93,104 @@ def _fake_split(input_path: str | Path, output_dir: str | Path | None = None,
     }
 
 
+def _fake_split_low_vocals(input_path: str | Path, output_dir: str | Path
+                           | None = None, model: str = "htdemucs") -> dict:
+    """Stand-in for Demucs with the voice ~14 dB BELOW the groove band.
+
+    Mirrors the producer session (voice noticeably under the groove):
+    drums/bass/other at 0.25 (≈ −15 dBFS RMS), vocals at 0.05 → the
+    auto-balance must raise ONLY the vocals, leaving the groove untouched.
+    """
+    out = Path(output_dir).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    stems: dict[str, str] = {}
+    for name, (hz, seconds) in _STEM_SPECS.items():
+        stem_path = out / f"{name}.wav"
+        gain = 0.05 if name == "vocals" else 0.25
+        t = np.linspace(0.0, seconds, int(_SR * seconds), endpoint=False)
+        sf.write(str(stem_path), gain * np.sin(2.0 * np.pi * hz * t), _SR)
+        stems[name] = str(stem_path)
+    return {
+        "stems": stems,
+        "sample_rate": _SR,
+        "duration_seconds": 1.25,
+        "stem_audio_dir": str(out),
+    }
+
+
+def _fake_split_groove_vocals(input_path: str | Path, output_dir: str | Path
+                              | None = None, model: str = "htdemucs") -> dict:
+    """Stand-in for Demucs with the voice ALREADY at the groove level.
+
+    Drums/bass/other at 0.25; the voice is scaled by MEASURED LUFS until
+    it sits within ~0.1 dB of the groove level (mean of drums/bass). A
+    balanced mix must need no auto-balance correction: the target equals
+    the current position."
+    """
+    from audiomind.processing.loudness import measure_lufs
+
+    out = Path(output_dir).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    stems: dict[str, str] = {}
+    for name, (hz, seconds) in _STEM_SPECS.items():
+        stem_path = out / f"{name}.wav"
+        _write_tone(stem_path, hz=hz, seconds=seconds)
+        stems[name] = str(stem_path)
+    vocal_path = out / "vocals.wav"
+    vocals = sf.read(str(vocal_path), dtype="float32")[0]
+    lufs = {
+        name: measure_lufs(
+            sf.read(str(out / f"{name}.wav"), dtype="float32")[0].T, _SR
+        )
+        for name in ("drums", "bass", "other", "vocals")
+    }
+    groove = float(np.mean([lufs["drums"], lufs["bass"]]))
+    gap = groove - lufs["vocals"]
+    vocals = vocals * (10.0 ** (gap / 20.0))
+    sf.write(str(vocal_path), vocals, _SR)
+    return {
+        "stems": stems,
+        "sample_rate": _SR,
+        "duration_seconds": 1.25,
+        "stem_audio_dir": str(out),
+    }
+
+
+def _band_energy_db(audio: np.ndarray, sr: int, hz: float,
+                    hz_half_width: float = 4.0) -> float:
+    """Energy in dB of the FFT band around ``hz`` (mono mix of 2 ch)."""
+    mono = audio.mean(axis=0)
+    n = mono.shape[0]
+    windowed = mono * np.hanning(n)
+    spec = np.fft.rfft(windowed)
+    freqs = np.fft.rfftfreq(n, d=1.0 / sr)
+    mask = np.abs(freqs - hz) <= hz_half_width
+    return float(10.0 * np.log10(np.sum(np.abs(spec[mask]) ** 2) + 1e-12))
+
+
+def _render_mix(tmp_path: Path, monkeypatch, *, auto_balance: bool,
+                genre: str | None = None,
+                splitter=_fake_split) -> tuple[np.ndarray, int]:
+    """Render a mix through ``build_mix`` and read the written WAV."""
+    monkeypatch.setattr(mix_engine, "split_audio", splitter)
+    session_id = _register_session(tmp_path)
+    mix_engine.build_mix(
+        session_id,
+        str(Path(sessions[session_id].original_path)),
+        profiles={},
+        pan_profiles={},
+        dimension_profiles={},
+        compressor_profiles={},
+        emphasis_profiles={},
+        with_versions=False,
+        auto_balance=auto_balance,
+        genre=genre,
+        genre_confidence=0.9,
+    )
+    mix_path = settings.output_dir / f"{session_id}_mix.wav"
+    return _read_wav(mix_path)
+
+
 class TestMixEndpoint:
     """Integration tests for POST /api/session/{id}/mix."""
 
@@ -494,6 +592,71 @@ class TestDimensionOptional:
         assert resp.status_code == 200, resp.text
         payload = json.loads(resp.headers["x-mix-result"])
         assert "dimension_report" in payload
+        assert "pan_report" in payload
+        assert "stem_presence" in payload
+        assert set(payload["analysis"]) == {"drums", "bass", "other", "vocals"}
+
+
+class TestStemAutoBalance:
+    """T3: auto-balance toggle in ``build_mix`` (default OFF, bit-exact)."""
+
+    def test_auto_balance_disabled_keeps_original_mix(self, tmp_path, monkeypatch):
+        """auto_balance=False (default): bit-identical to the plain routing."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False
+        )
+        audio_base, sr_base = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop"
+        )
+        assert sr == sr_base
+        assert np.array_equal(audio_off, audio_base)
+
+    def test_auto_balance_low_vocals_raises_vocal_band_only(
+        self, tmp_path, monkeypatch
+    ):
+        """With the voice 14 dB under the groove, pop auto-balance raises
+        the vocal band and leaves drums/bass/other untouched."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop",
+            splitter=_fake_split_low_vocals,
+        )
+        audio_on, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            splitter=_fake_split_low_vocals,
+        )
+        assert sr == sr_on
+        vocal_off = _band_energy_db(audio_off, sr, 440.0)
+        vocal_on = _band_energy_db(audio_on, sr, 440.0)
+        # pop weights (0.7/0.3): target headroom keeps at least +2 dB.
+        assert vocal_on > vocal_off + 2.0, (
+            f"vocal band should rise: {vocal_off:.2f} → {vocal_on:.2f} dB"
+        )
+        # the groove band (drums 120 Hz) is NOT a correction target.
+        groove_off = _band_energy_db(audio_off, sr, 120.0)
+        groove_on = _band_energy_db(audio_on, sr, 120.0)
+        assert abs(groove_on - groove_off) < 0.5
+
+    def test_auto_balance_neutral_weights_unchanged(self, tmp_path, monkeypatch):
+        """Neutral 0.5/0.5 (unknown genre): target = groove level, and a
+        mix ALREADY on the groove needs no correction → no audible change."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False,
+            splitter=_fake_split_groove_vocals,
+        )
+        audio_on, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="unknown",
+            splitter=_fake_split_groove_vocals,
+        )
+        assert sr == sr_on
+        # Balanced fixture: the correction closes a ~0 dB gap → no change.
+        vocal_off = _band_energy_db(audio_off, sr, 440.0)
+        vocal_on = _band_energy_db(audio_on, sr, 440.0)
+        assert abs(vocal_on - vocal_off) < 0.6
+
+
+class TestDimensionEndpointDisabled:
+    """POST del hook: ``dimension_enabled=false`` omite el report; true lo
+    conserva (mismo contrato que el engine-level de TestDimensionOptional)."""
 
     def test_mix_endpoint_dimension_disabled_omits_dimension_report(
         self, tmp_path, monkeypatch

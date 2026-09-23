@@ -130,6 +130,7 @@ from audiomind.processing.render_versions import (
 )
 from audiomind.processing.resample import resample_audio
 from audiomind.processing.splitter import STEM_NAMES, split_audio
+from audiomind.processing.stem_balance import compute_stem_balance
 from audiomind.processing.vocal_adaptive import (
     apply_register_dimension,
     apply_vocal_treatment,
@@ -442,6 +443,7 @@ def build_mix(
     creative_variants: int = 0,
     creative_manual: bool = False,
     vocal_treatment: bool = False,
+    auto_balance: bool = False,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -548,6 +550,15 @@ def build_mix(
             (propuesta §2.3 — genre owns the direction, register fine-
             tunes only the vocal space); no credible voice → neutral
             ``no_voice`` plan reported, never an invented register.
+        auto_balance: Opt-in stem auto-balance (T3, ``stem_balance`` —
+            feature ``odd/tasks/mix-stem-balance.md``). Default ``False``:
+            the exact previous routing (bit-identical neutral, no
+            measurement, no mutation). When ``True`` the engine measures
+            integrated LUFS on the PROCESSED stems, resolves the genre
+            target from the SAME emphasis weights (explicit ``genre`` or
+            measured from the input) and corrects ONLY the voice toward
+            that target — bounded by the ±6 dB fader band of T1; a
+            no-op/neutral outcome leaves the audio untouched.
 
     Returns:
         ``{
@@ -696,13 +707,13 @@ def build_mix(
     emphasis_resolved: dict[str, Any] | None = None
     emphasis_dim_scaling: dict[str, float] = {}
     scaled_bus_target: float | None = None
+    # T3 — the auto-balance reuses the SAME measured/explicit genre as the
+    # emphasis stage: one detection serves both when both are enabled.
+    detected_genre = genre
+    detected_confidence = genre_confidence
+    if (emphasis_enabled or auto_balance) and detected_genre is None:
+        detected_genre, detected_confidence = _measure_input_genre(input_path)
     if emphasis_enabled:
-        detected_genre = genre
-        detected_confidence = genre_confidence
-        if detected_genre is None:
-            detected_genre, detected_confidence = _measure_input_genre(
-                input_path
-            )
         emphasis_resolved = resolve_emphasis(
             detected_genre, detected_confidence, emphasis_profiles
         )
@@ -865,6 +876,28 @@ def build_mix(
             )
         bus_audio.append(shaped)
         processed_stems[name] = shaped
+
+    # T3 — auto-balance: measure the processed stems and correct ONLY the
+    # voice toward the genre target (emphasis weights), bounded by the
+    # ±6 dB fader band. OFF (default) = no measurement, no mutation: the
+    # routing stays bit-identical to the manual-fader-only path. The gains
+    # reuse the EXACT T2 application point (``_apply_stem_trims`` after
+    # the chain, before the pad/sum) so neutral and manual behavior are
+    # unchanged. A neutral/no-op outcome (``applied=False``) also leaves
+    # the audio untouched. The measured ``compute_stem_balance`` envelope
+    # (stem LUFS, gains, target) becomes the ``balance_report`` in the
+    # payload at T4.
+    if auto_balance:
+        auto_balance_weights: dict[str, Any] = resolve_emphasis(
+            detected_genre, detected_confidence
+        )
+        stem_balance_result = compute_stem_balance(
+            processed_stems, target_sr, auto_balance_weights
+        )
+        if stem_balance_result["applied"]:
+            _apply_stem_trims(
+                processed_stems, bus_audio, stem_balance_result["gains"]
+            )
 
     dimension_report: dict[str, Any] | None = None
     if dimension_enabled:
