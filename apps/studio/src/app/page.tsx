@@ -37,13 +37,11 @@ import OverMasterWarning from "@/components/OverMasterWarning";
 import MobileDrawer from "@/components/MobileDrawer";
 import { useIsMobile } from "@/shared/useIsMobile";
 import MobilePresetStrip from "@/components/MobilePresetStrip";
-import AuthGuard from "@/components/auth/AuthGuard";
 import TrackChip from "@/presentation/components/TrackChip";
 import ChatPanel, {
   NEUTRAL_PROFILE,
   type Profile,
 } from "@/presentation/components/chat/ChatPanel";
-import UserMenu from "@/components/auth/UserMenu";
 import type { VocalChainParams } from "@/lib/api";
 import SignalChain from "@/components/SignalChain";
 import StereoField from "@/components/StereoField";
@@ -1077,7 +1075,6 @@ export default function Home() {
   const isMezclaTab = currentTab === "mezcla" || sheetTab === "mezcla";
 
   return (
-    <AuthGuard>
     <LicenseGuard>
     <main className="h-dvh w-screen overflow-hidden overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col antialiased">
       {/* ═══════════════════════════════════════════════
@@ -1237,9 +1234,6 @@ export default function Home() {
               <HomeIcon size={18} />
             </button>
           )}
-          <div className="hidden sm:block">
-            <UserMenu />
-          </div>
           <button
             className="lg:hidden rounded-full w-9 h-9 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -1930,6 +1924,5 @@ export default function Home() {
       )}
     </main>
     </LicenseGuard>
-    </AuthGuard>
   );
 }
