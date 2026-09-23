@@ -313,6 +313,96 @@ class TestMixQCAndVersions:
         assert with_versions_bytes == without_versions_bytes
 
 
+class TestApplyStemTrims:
+    """T2 — stem faders land at the bus input AFTER the chain: every stem
+    (drums/bass/other/vocals) scales by 10^(db/20); 0.0 dB stems stay
+    bit-exact (neutral = bypass)."""
+
+    def _synthetic(self, stem: str) -> np.ndarray:
+        """A float32 stereo tone at the stem's fixture Hz — same lengths
+        as ``_STEM_SPECS`` so the pad/sum path mirrors a real mix."""
+        sr = _SR
+        seconds = _STEM_SPECS[stem][1]
+        hz = _STEM_SPECS[stem][0]
+        t = np.linspace(0.0, seconds, int(sr * seconds), endpoint=False)
+        mono = 0.25 * np.sin(2.0 * np.pi * hz * t)
+        return np.stack([mono, mono]).astype(np.float32)
+
+    def _fixture(self) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+        names = ("drums", "bass", "other", "vocals")
+        processed = {stem: self._synthetic(stem) for stem in names}
+        bus_audio = [processed[name] for name in mix_engine.STEM_NAMES]
+        return processed, bus_audio
+
+    def test_apply_scales_each_stem_by_its_own_db(self):
+        """Cada stem escala por 10^(db/20); los demás quedan idénticos."""
+        processed, bus_audio = self._fixture()
+        original = {name: arr.copy() for name, arr in processed.items()}
+
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": -3.0, "bass_db": 0.0, "other_db": 2.0, "vocals_db": 1.5},
+        )
+
+        np.testing.assert_allclose(
+            processed["drums"], original["drums"] * 10.0 ** (-3.0 / 20.0), rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            processed["other"], original["other"] * 10.0 ** (2.0 / 20.0), rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            processed["vocals"], original["vocals"] * 10.0 ** (1.5 / 20.0), rtol=1e-6
+        )
+        # bass en 0.0 queda EXACTO (sin multiplicación, bit-exact).
+        assert np.array_equal(processed["bass"], original["bass"])
+        # el bus audio se actualiza en sync con processed (mismo objeto).
+        for name in ("drums", "other", "vocals"):
+            idx = mix_engine.STEM_NAMES.index(name)
+            assert bus_audio[idx] is processed[name]
+
+    def test_trim_zero_keeps_every_stem_bitexact(self):
+        """Neutral = bypass: trims 0.0 no tocan nada (spec 08)."""
+        processed, bus_audio = self._fixture()
+        originals = {name: arr.copy() for name, arr in processed.items()}
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": 0.0, "bass_db": 0.0, "other_db": 0.0, "vocals_db": 0.0},
+        )
+        for name, arr in originals.items():
+            assert np.array_equal(processed[name], arr)
+            assert bus_audio[mix_engine.STEM_NAMES.index(name)] is processed[name]
+
+    def test_apply_skips_missing_stems(self):
+        """Un stem ausente del processed no rompe la aplicación."""
+        # regulary synthetic minus vocals
+        processed, bus_audio = self._fixture()
+        del processed["vocals"]
+        names = [n for n in mix_engine.STEM_NAMES if n in processed]
+        bus_audio = [processed[name] for name in names]
+
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": -3.0, "bass_db": 0.0, "other_db": 0.0, "vocals_db": 1.5},
+        )
+        assert processed["drums"].shape[1] > 0  # applied
+        assert np.allclose(
+            processed["drums"],
+            self._synthetic("drums") * 10.0 ** (-3.0 / 20.0),
+            rtol=1e-6,
+        )
+
+    def test_apply_round_trips_through_entry_peak(self):
+        """Peak check integrado: un fader de +6 dB sube el pico del stem."""
+        processed, bus_audio = self._fixture()
+        peak_before = float(np.max(np.abs(processed["vocals"])))
+        mix_engine._apply_stem_trims(
+            processed, bus_audio, {"vocals_db": 6.0},
+        )
+        peak_after = float(np.max(np.abs(processed["vocals"])))
+        assert peak_after > peak_before
+        assert abs(peak_after / peak_before - 10.0 ** (6.0 / 20.0)) < 1e-6
+
+
 class TestStemPresence:
     """v5 — honest stems: presence from per-stem RMS, not fixed names.
 

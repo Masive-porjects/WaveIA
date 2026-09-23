@@ -275,6 +275,27 @@ def _apply_scaled_bus_compression(
     }
 
 
+def _apply_stem_trims(
+    variant_processed: dict[str, np.ndarray],
+    variant_bus_audio: list[np.ndarray],
+    variant_trims: dict[str, float],
+) -> None:
+    """Stem balance faders (Mix Stem Balance, T2): every stem scales by
+    10**(db/20) at the bus input, AFTER the stem chain — the creative-mode
+    "mixer fader board". 0.0 dB trims are SKIPPED, so neutral stays
+    bit-exact (spec 08); a trim of a stem absent from ``variant_processed``
+    is a no-op. Mutates BOTH the processed dict and the bus audio list in
+    sync (same objects) — the caller re-reads ``variant_processed``.
+    """
+    for stem in STEM_NAMES:
+        gain_db = float(variant_trims.get(f"{stem}_db", 0.0))
+        if gain_db == 0.0 or stem not in variant_processed:
+            continue
+        gain = 10.0 ** (gain_db / 20.0)
+        variant_processed[stem] = variant_processed[stem] * gain
+        variant_bus_audio[STEM_NAMES.index(stem)] = variant_processed[stem]
+
+
 def _apply_bus_profile(
     bus: np.ndarray,
     sr: int,
@@ -955,8 +976,8 @@ def build_mix(
             """Route one variant from the raw stems to a validated bus.
 
             Mirrors the principal chain (pan → EQ → compresor → sends →
-            sum → 2-bus) with the variant's SIX routing roots; the vocal
-            trim lands at the bus input (a fader AFTER the stem chain,
+            sum → 2-bus) with the variant's SIX routing roots; the stem
+            trims land at the bus input (faders AFTER the stem chain,
             versions-style). Variant roots are deep copies of the shared
             constants — the principal constants are never touched.
             """
@@ -1001,15 +1022,10 @@ def build_mix(
                 variant_processed[name] = shaped
                 variant_bus_audio.append(shaped)
 
-            # Creative fader: the vocals trim applied at the bus input,
-            # AFTER the chain (same semantic as render_versions).
-            vocals_db = float(variant_trims.get("vocals_db", 0.0))
-            if vocals_db != 0.0 and "vocals" in variant_processed:
-                gain = 10.0 ** (vocals_db / 20.0)
-                variant_processed["vocals"] = variant_processed["vocals"] * gain
-                variant_bus_audio[STEM_NAMES.index("vocals")] = (
-                    variant_processed["vocals"]
-                )
+            # Creative faders: the stem trims applied at the bus input,
+            # AFTER the chain — same semantic as render_versions, but for
+            # every stem (drums/bass/other/vocals, Mix Stem Balance T2).
+            _apply_stem_trims(variant_processed, variant_bus_audio, variant_trims)
 
             max_len = max(audio.shape[1] for audio in variant_bus_audio)
             variant_bus = np.zeros((2, max_len), dtype=np.float32)
