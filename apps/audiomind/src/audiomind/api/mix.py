@@ -157,7 +157,7 @@ async def mix_session(
             # v6 — spatial dimension optional: None = enabled (default,
             # DIMENSION_PROFILES), {} = disabled (routing identical to
             # Paso 03, no dimension_report).
-            dimension_profiles = (
+            dimension_profiles: dict[str, dict[str, Any]] | None = (
                 None
                 if (request is None or request.dimension_enabled)
                 else {}

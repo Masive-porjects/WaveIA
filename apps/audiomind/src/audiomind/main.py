@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 import threading
 import time
 
@@ -45,9 +46,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Increase upload body limit from default 16MB to match config
+# Increase upload body limit from default 16MB to match config.
+# ``Request.max_body_size`` is a runtime monkey-patch (Starlette's Request
+# class exposes no such attribute — upload.py reads it at startup to enforce
+# the same limit); the ``# type: ignore[attr-defined]`` documents the
+# intentional deviation while keeping direct attribute assignment.
 from starlette.requests import Request
-Request.max_body_size = settings.max_file_size_mb * 1024 * 1024
+Request.max_body_size = settings.max_file_size_mb * 1024 * 1024  # type: ignore[attr-defined]
 app.state.max_body_size = settings.max_file_size_mb * 1024 * 1024
 
 app.add_middleware(
@@ -77,12 +82,12 @@ app.include_router(batch_router, prefix="/api")
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
 
 
 @app.get("/api/demo/stats")
-async def demo_stats():
+async def demo_stats() -> dict[str, Any]:
     """Read-only demo validation meter (no secrets, no mutation).
 
     Reports the number of heavy-DSP pipeline executions since process

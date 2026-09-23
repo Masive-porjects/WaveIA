@@ -182,6 +182,7 @@ def analyze_audio(file_path: str | Path) -> AnalysisResult:
 
     # Load audio
     y, sr = librosa.load(str(file_path), sr=None, mono=False)
+    sr = int(sr)
 
     # Ensure stereo
     if y.ndim == 1:
@@ -217,7 +218,7 @@ def analyze_audio(file_path: str | Path) -> AnalysisResult:
 
     # Tempo
     tempo, _ = librosa.beat.beat_track(y=y_mono, sr=sr)
-    tempo_val = float(tempo) if np.isscalar(tempo) else float(tempo[0])
+    tempo_val = float(np.asarray(tempo).reshape(-1)[0])
 
     # Genre detection (rule-based)
     genre, confidence = _detect_genre(

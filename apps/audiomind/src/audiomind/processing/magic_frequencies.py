@@ -233,11 +233,14 @@ def apply_stem_eq(
         return audio
 
     # Pedalboard is heavy — lazy import, same policy as resampling.
+    # Pedalboard is referenced module-qualified: pedalboard's __init__
+    # re-exports it without __all__ and mypy strict (implicit_reexport=False)
+    # therefore rejects a plain from-import of the name.
+    import pedalboard
     from pedalboard import (
         HighShelfFilter,
         LowShelfFilter,
         PeakFilter,
-        Pedalboard,
     )
 
     plugins: list[Any] = []
@@ -256,4 +259,4 @@ def apply_stem_eq(
                 q=float(band.get("q", 1.0)),
             )
         )
-    return Pedalboard(plugins)(audio, sr)
+    return pedalboard.Pedalboard(plugins)(audio, sr)

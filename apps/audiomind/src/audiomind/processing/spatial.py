@@ -4,8 +4,15 @@ Handles M/S encoding, per-preset spatial effects on the Side channel,
 and phase correlation safety enforcement.
 """
 import numpy as np
-from pedalboard import HighpassFilter, LowpassFilter, PeakFilter, Pedalboard, Reverb
+import pedalboard
+from pedalboard import HighpassFilter, LowpassFilter, PeakFilter, Reverb
 from scipy.signal import butter, sosfilt
+
+# pedalboard's __init__ re-exports Pedalboard via a plain named import and
+# defines no __all__; with implicit_reexport=False (mypy strict) the name is
+# not treated as exported. Bind the module attribute explicitly — identical
+# runtime behavior, satisfies mypy.
+Pedalboard = pedalboard.Pedalboard
 
 #: Default side-channel high-pass corner (Hz) — Phase B (B1) anchor: sits
 #: BELOW the engine's 120 Hz mono-compat collapse (stage 9) and ABOVE the
@@ -88,7 +95,7 @@ def apply_side_hpf(
     # Cast back to the input dtype: sosfilt promotes to the coefficient
     # dtype (float64), but the stage contract is shape/dtype preservation
     # (the same convention the de-esser and multiband stages follow).
-    return sosfilt(sos, side, axis=-1).astype(side.dtype, copy=False)
+    return np.asarray(sosfilt(sos, side, axis=-1)).astype(side.dtype, copy=False)
 
 
 def apply_claridad_spatial(side: np.ndarray, sr: int) -> np.ndarray:
