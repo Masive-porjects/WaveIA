@@ -182,4 +182,61 @@ describe('mixTracks', () => {
       }),
     );
   });
+
+  it('envía auto_balance: true solo cuando autoBalance es true', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    await mixTracks(SID, { autoBalance: true });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        body: JSON.stringify({ dimension_enabled: true, auto_balance: true }),
+      }),
+    );
+  });
+
+  it('envía stem_trims con los faders ≠ 0 y omite los ceros', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    await mixTracks(SID, { stemTrims: { drums_db: 2, bass_db: 0, vocals_db: 0 } });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        body: JSON.stringify({ dimension_enabled: true, stem_trims: { drums_db: 2 } }),
+      }),
+    );
+  });
+
+  it('omite stem_trims cuando todos valen 0 (body previo exacto)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x']),
+      headers: { get: () => null },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stubObjectUrl();
+
+    await mixTracks(SID, { stemTrims: { drums_db: 0, bass_db: 0 } });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/session/${SID}/mix`,
+      expect.objectContaining({
+        body: JSON.stringify({ dimension_enabled: true }),
+      }),
+    );
+  });
 });
