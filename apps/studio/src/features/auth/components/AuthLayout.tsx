@@ -11,7 +11,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[var(--bg-app)] text-[var(--text-primary)] overflow-hidden">
+    <div className="relative h-screen max-h-screen flex flex-col justify-between bg-[var(--bg-app)] text-[var(--text-primary)] overflow-hidden select-none">
       {/* Crystal atmosphere — soft radial accents over base like LicenseGuard */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -30,12 +30,12 @@ export default function AuthLayout({
       <FloatingNotes />
 
       {/* Top Navigation */}
-      <header className="relative z-30 flex items-center justify-between px-6 py-4">
+      <header className="relative z-30 shrink-0 flex items-center justify-between px-6 py-2.5">
         <Link
           href="/"
-          className="rounded-full px-4 py-2 glass hover:border-[var(--accent-primary)] transition-colors group flex items-center gap-1 shadow-sm"
+          className="rounded-full px-3.5 py-1.5 glass hover:border-[var(--accent-primary)] transition-colors group flex items-center gap-1 shadow-sm"
         >
-          <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+          <span className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">
             Wave<span className="text-[var(--accent-primary)]">IA</span>
           </span>
         </Link>
@@ -47,13 +47,13 @@ export default function AuthLayout({
       </header>
 
       {/* Main Form Container with Ghost leaning over */}
-      <main className="relative z-20 flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-6">
-        <div className="flex flex-col items-center w-full max-w-md">
+      <main className="relative z-20 flex-1 flex flex-col items-center justify-center px-4 py-1 sm:px-6 min-h-0 overflow-hidden">
+        <div className="flex flex-col items-center w-full max-w-[400px]">
           <BigGhostWithNotes
-            size={140}
-            radius={110}
-            noteCount={8}
-            className="relative -mb-10 pointer-events-none select-none"
+            size={95}
+            radius={75}
+            noteCount={5}
+            className="relative -mb-6 pointer-events-none select-none shrink-0"
             style={{
               opacity: 0.9,
               zIndex: 30,
@@ -65,7 +65,7 @@ export default function AuthLayout({
       </main>
 
       {/* Footer */}
-      <footer className="relative z-20 py-4 text-center text-xs text-[var(--text-muted)]">
+      <footer className="relative z-20 shrink-0 py-2 text-center text-[11px] text-[var(--text-muted)]">
         &copy; {new Date().getFullYear()} WaveIA Studio &bull; Next-Gen Audio Engine
       </footer>
     </div>
