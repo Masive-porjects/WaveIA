@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { fadeUp } from "@/shared/motion";
+import { useTranslation } from "@/i18n/useTranslation";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
@@ -14,6 +15,7 @@ interface DropZoneProps {
 }
 
 export default function DropZone({ onFileSelected, onError, disabled, compact }: DropZoneProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -56,22 +58,22 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         const ext = file.name.split(".").pop()?.toLowerCase();
         if (ext !== "wav" && ext !== "mp3") {
           onError?.(
-            "Formato no soportado",
-            "Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!",
+            t("common.error"),
+            t("upload.invalidFormat"),
           );
           return;
         }
         if (file.size > MAX_FILE_SIZE_BYTES) {
           onError?.(
-            "Archivo demasiado grande",
-            "Por favor, sube un archivo que pese menos de 50MB. ¡Mantengamos el estudio ágil!",
+            t("common.error"),
+            t("upload.fileTooLarge"),
           );
           return;
         }
         onFileSelected(file);
       }
     },
-    [onFileSelected, disabled]
+    [onFileSelected, disabled, onError, t]
   );
 
   const handleFileInput = useCallback(
@@ -82,22 +84,22 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         const ext = file.name.split(".").pop()?.toLowerCase();
         if (ext !== "wav" && ext !== "mp3") {
           onError?.(
-            "Formato no soportado",
-            "Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!",
+            t("common.error"),
+            t("upload.invalidFormat"),
           );
           return;
         }
         if (file.size > MAX_FILE_SIZE_BYTES) {
           onError?.(
-            "Archivo demasiado grande",
-            "Por favor, sube un archivo que pese menos de 50MB. ¡Mantengamos el estudio ágil!",
+            t("common.error"),
+            t("upload.fileTooLarge"),
           );
           return;
         }
         onFileSelected(file);
       }
     },
-    [onFileSelected, onError]
+    [onFileSelected, onError, t]
   );
 
   if (compact) {
@@ -131,7 +133,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
           className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
         />
         <p className="text-xs text-[var(--text-muted)]">
-          {isDragging ? "Suelta tu track aquí" : "Arrastra un track diferente"}
+          {isDragging ? t("upload.dropHere") : t("upload.changeTrack")}
         </p>
         <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">WAV, MP3</p>
       </div>
@@ -223,18 +225,18 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
 
         <div>
           <h2 className="text-lg font-bold text-[var(--text-primary)] mb-1">
-            {isDragging ? "Suelta tu track aquí" : "Carga tu track para masterizar"}
+            {isDragging ? t("upload.dropHere") : t("upload.dropzoneTitle")}
           </h2>
           <p className="text-xs text-[var(--text-secondary)] max-w-sm mx-auto">
-            Arrastra tu archivo o haz clic para comenzar.
+            {t("upload.dropzoneSubtitle")}
             <br />
-            <span className="text-[var(--text-muted)]">Soporta WAV y MP3 — máximo 50MB</span>
+            <span className="text-[var(--text-muted)]">{t("upload.supportedFormats")}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--border-subtle)]" />
-          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">o</span>
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">{t("upload.or")}</span>
           <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--border-subtle)]" />
         </div>
 
@@ -247,7 +249,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          Seleccionar archivo
+          {t("upload.selectFile")}
         </div>
       </div>
     </motion.div>

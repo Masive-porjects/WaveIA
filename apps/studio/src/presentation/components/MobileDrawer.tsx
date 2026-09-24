@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, Music, Settings, Palette } from "lucide-react";
+import { X, Upload, Music } from "lucide-react";
 import IconButton from "@/components/ui/IconButton";
 import type { SessionData } from "@/lib/api";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useTranslation } from "@/i18n/useTranslation";
 
 interface MobileDrawerProps {
   open: boolean;
@@ -23,6 +25,7 @@ export default function MobileDrawer({
   onBackToUpload,
 }: MobileDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   /* Close on ESC */
   useEffect(() => {
@@ -135,7 +138,11 @@ export default function MobileDrawer({
             <div className="mx-5 h-px bg-[var(--border-subtle)]" />
 
             {/* Actions */}
-            <div className="px-5 py-4 flex flex-col gap-1.5">
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs text-[var(--text-secondary)]">{t("common.language")}</span>
+                <LanguageSwitcher />
+              </div>
               <button
                 onClick={() => {
                   onBackToUpload();

@@ -72,6 +72,7 @@ import {
 } from "lucide-react";
 import ModuleDock from "@/components/dock/ModuleDock";
 import type { MasteringTab } from "@/components/dock/types";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "mezcla", label: "Mezcla de Audio" },
@@ -1179,6 +1180,7 @@ export default function Home() {
         )}
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           {currentView === "mastering" && (
             <button
               onClick={handleBackToUpload}
