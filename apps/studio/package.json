@@ -7,7 +7,6 @@
   },
   "scripts": {
     "dev": "next dev",
-    "dev:convex": "convex dev",
     "build": "bun run --filter @midimastering/agent build && next build",
     "start": "next start",
     "lint": "eslint",
@@ -20,11 +19,8 @@
     "eleven:list": "node scripts/eleven-list.mjs"
   },
   "dependencies": {
-    "@auth/core": "^0.41.1",
-    "@convex-dev/auth": "^0.0.95",
     "@gsap/react": "^2.1.2",
     "@midimastering/agent": "*",
-    "convex": "^1.45.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "jszip": "^3.10.1",

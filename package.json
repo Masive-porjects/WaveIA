@@ -12,7 +12,6 @@
     "build": "bun run --filter studio build",
     "start": "bun run --filter studio start",
     "dev:studio": "bun run --filter studio dev",
-    "dev:convex": "bun run --filter studio dev:convex",
     "build:studio": "bun run --filter studio build",
     "lint:studio": "bun run --filter studio lint",
     "test:studio": "bun run --filter studio test",
