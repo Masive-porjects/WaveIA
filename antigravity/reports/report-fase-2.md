@@ -80,6 +80,14 @@ Todos los componentes extraídos se organizaron bajo la estructura por caracter�
     - Título principal ("Géneros Musicales" / "Musical Genres"), subtítulo de guía educativa.
     - Tarjetas de géneros dinámicas (`urban`, `rock`, `pop`, `jazz`, `latin`) traduciendo nombre, descripción técnica de espectro/loudness y los 4 puntos clave de mastering comercial por género.
     - Nota al pie basada en estándares de la industria.
+  - [`MasteringGuide.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/MasteringGuide.tsx) (Cadena de Master):
+    - Título "Cadena de Master" / "Mastering Chain" y subtítulo de funcionamiento paso a paso.
+    - Todos los 7 pasos DSP (`01` Gain Staging, `02` Match EQ, `03` Compresión Proporcional, `04` M/S Processing, `05` Saturación Armónica THD, `06` True Peak Limiting, `07` Noise-Shaped Dithering).
+    - Sección de "Tips para un Master Exitoso" (headroom, limitación de bus, exportación WAV 24-bit, verificación en mono).
+    - Tarjeta de autoría de algoritmo y calibración de audio internacional.
+  - [`SignalChain.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/SignalChain.tsx):
+    - Encabezado "Cadena de Señal" / "Signal Chain" y flujo inferior `Input → Processing → Output`.
+    - Bloques de procesamiento y estados traducidos (`Claridad`/`Clarity`, `Compresor`/`Compressor`, `Saturación`/`Saturation`, `Limiter`, `ON`/`BYPASS`).
   - [`FloatingDeliveryPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/FloatingDeliveryPanel.tsx):
     - Botón flotante ("Entrega" / "Delivery"), modal emergente, encabezados y atributos aria traducidos.
   - [`Player.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/Player.tsx):
@@ -91,7 +99,7 @@ Todos los componentes extraídos se organizaron bajo la estructura por caracter�
   - [`AnalysisPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/AnalysisPanel.tsx):
     - Empty state ("Carga un audio..."), banner de audio ya masterizado con nivel de confianza, tarjeta de preset objetivo (target LUFS, ceiling, ratio), banner de validación Layer 2, y cuadrícula de métricas (rango dinámico, tempo, género con fallback a "No identificado", duración y sample rate).
 - [`es.json`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/es.json) y [`en.json`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/en.json):
-  - Añadidas secciones completas: `mastering.presets.*`, `mastering.fineTune`, `mastering.transparentWarning`, `mastering.knobs.*`, `vocal.*`, `songstarter.*`, `genreGuide.*`, `player.*`, `splitter.*`, `delivery.*`, `analysis.*`, y claves globales en `common`.
+  - Añadidas secciones completas: `mastering.presets.*`, `mastering.fineTune`, `mastering.transparentWarning`, `mastering.knobs.*`, `vocal.*`, `songstarter.*`, `genreGuide.*`, `pipeline.*`, `signalChain.*`, `player.*`, `splitter.*`, `delivery.*`, `analysis.*`, y claves globales en `common`.
 
 ---
 

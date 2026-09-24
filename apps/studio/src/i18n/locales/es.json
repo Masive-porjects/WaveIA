@@ -360,6 +360,74 @@
     },
     "footnote": "Basado en estándares de la industria de mastering comercial y análisis espectral de lanzamientos certificados."
   },
+  "pipeline": {
+    "title": "Cadena de",
+    "titleAccent": "Master",
+    "subtitle": "Cómo funciona WaveIA paso a paso — cadena DSP profesional",
+    "steps": {
+      "01": {
+        "title": "Gain Staging",
+        "description": "Normalizamos la señal de entrada a un headroom consistente de -6 dBFS. Esto asegura que todos los módulos DSP trabajen con el mismo margen dinámico, independientemente de qué tan fuerte o suave sea tu mezcla original."
+      },
+      "02": {
+        "title": "Match EQ (Corrección Espectral por Género)",
+        "description": "Analizamos el contenido espectral de tu audio y lo comparamos con perfiles objetivo de la industria comercial. Cada género tiene una 'firma espectral ideal' — el Match EQ empuja tu mezcla hacia ese target sin aplanar el carácter único de tu música."
+      },
+      "03": {
+        "title": "Compresión Proporcional",
+        "description": "El umbral de compresión se calcula dinámicamente a partir del RMS real de tu audio. La relación la controlas tú con el módulo 'Fuego / Empuje'. Más ratio = más control de picos; menos ratio = más dinámica natural."
+      },
+      "04": {
+        "title": "Procesamiento M/S (Mid/Side)",
+        "description": "Separamos la señal en canal Central (Mid, todo lo que suena en mono) y Lateral (Side, todo lo que suena en estéreo). Esto permite procesar la reverberación, el ancho estéreo y el delay Haas de forma independiente sin ensuciar el centro."
+      },
+      "05": {
+        "title": "Saturación Armónica (THD)",
+        "description": "Aplicamos distorsión armónica controlada simulando cinta analógica. El módulo 'Cinta / Saturación' te permite inyectar calidez y armónicos pares (al estilo cinta magnética) que el oído humano percibe como 'musicales' y 'cálidos'."
+      },
+      "06": {
+        "title": "True Peak Limiting (4x Oversampling)",
+        "description": "El limitador final trabaja con sobremuestreo 4x para atrapar picos entre muestras (inter-sample peaks) que los limitadores estándar no ven. Combinado con el Codec Pre-Matching, ajustamos el techo dinámicamente para evitar distorsión en streaming."
+      },
+      "07": {
+        "title": "Noise-Shaped Dithering (Lipshitz 2nd Order)",
+        "description": "Al exportar en 16 bits, aplicamos dither con modelado de ruido de 2do orden (Lipshitz) que empuja el piso de ruido de cuantización por encima de 15 kHz, donde el oído humano es menos sensible. El resultado: audio de 16 bits que suena como si fuera de 24."
+      }
+    },
+    "tipsTitle": "Tips para un Master Exitoso",
+    "tipsSubtitle": "Antes de subir tu audio, revisá estos puntos",
+    "tips": [
+      {
+        "title": "Deja headroom en tu mezcla",
+        "body": "Exporta tu mezcla con picos entre -6 dBFS y -3 dBFS. NO subas el master fader de tu DAW. El headroom le da espacio al motor DSP de WaveIA para trabajar sin recortar transitorios."
+      },
+      {
+        "title": "No apliques limitación en el bus maestro",
+        "body": "Si ya limitaste la mezcla en tu DAW, el motor no puede diferenciar entre tu intención creativa y la distorsión. Deja el bus maestro limpio — WaveIA se encarga de la limitación final profesional."
+      },
+      {
+        "title": "Exporta en WAV de 24 bits",
+        "body": "El formato WAV de 24-bit a 44.1 kHz o 48 kHz es el estándar de la industria. Evitá MP3, AAC u otros formatos con pérdida — el algoritmo necesita la información completa para procesar correctamente."
+      },
+      {
+        "title": "Verificá que el bajo no esté saturado en mono",
+        "body": "Las frecuencias bajo 120 Hz se convierten a mono automáticamente para evitar problemas de fase en vinilo y sistemas club. Si tu bajo ya tiene problemas de fase, escuchalo en mono ANTES de subir el archivo."
+      }
+    ],
+    "authorship": "Brikman Paul, el creador de WaveIA, se ha tomado el trabajo de pulir meticulosamente cada algoritmo y modelo matemático DSP para garantizar que cada canción que pase por la plataforma suene superbién, competitiva y lista para la industria musical internacional."
+  },
+  "signalChain": {
+    "title": "Cadena de Señal",
+    "flow": "Input → Procesamiento → Output",
+    "on": "ON",
+    "bypass": "BYPASS",
+    "blocks": {
+      "eq": "Claridad",
+      "comp": "Compresor",
+      "sat": "Saturación",
+      "lim": "Limiter"
+    }
+  },
   "analysis": {
     "openAnalysis": "Abrir Análisis →",
     "openAnalysisShort": "Abrir Análisis",

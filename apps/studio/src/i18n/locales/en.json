@@ -360,6 +360,74 @@
     },
     "footnote": "Based on commercial mastering industry standards and spectral analysis of certified releases."
   },
+  "pipeline": {
+    "title": "Mastering",
+    "titleAccent": "Chain",
+    "subtitle": "How WaveIA works step-by-step — professional DSP chain",
+    "steps": {
+      "01": {
+        "title": "Gain Staging",
+        "description": "We normalize input audio to a consistent -6 dBFS headroom. This guarantees that all DSP modules operate within identical dynamic ranges, regardless of how hot or quiet your original mix was."
+      },
+      "02": {
+        "title": "Match EQ (Genre Spectral Calibration)",
+        "description": "We analyze your track's spectral content and match it against target profiles from commercial hit releases. Match EQ gently pushes your balance toward genre targets without flattening the organic character."
+      },
+      "03": {
+        "title": "Proportional Compression",
+        "description": "Compression thresholds are dynamically computed from your track's live RMS energy. Ratio is controlled via the 'Punch / Glue' macro: higher ratio clamps peaks, lower ratio breathes dynamically."
+      },
+      "04": {
+        "title": "M/S (Mid/Side) Processing",
+        "description": "We decouple the center (Mid - mono components) from the stereo sides (Side - width, reverb, Haas delay). This allows independent spatio-temporal expansion without muddying the phantom center."
+      },
+      "05": {
+        "title": "Harmonic Saturation (THD)",
+        "description": "Controlled harmonic distortion simulating analog magnetic tape. The 'Tape / Warmth' engine introduces musical even-order harmonics that human ears perceive as creamy, warm, and vintage."
+      },
+      "06": {
+        "title": "True Peak Limiting (4x Oversampling)",
+        "description": "The final brickwall limiter runs with 4x oversampling to catch inter-sample peaks that standard peak limiters miss. Paired with Codec Pre-Matching, ceiling dynamically prevents streaming transcode distortion."
+      },
+      "07": {
+        "title": "Noise-Shaped Dithering (Lipshitz 2nd Order)",
+        "description": "When exporting in 16-bit, we apply 2nd-order noise-shaped dither (Lipshitz), pushing quantization noise floor above 15 kHz where ears are least sensitive. The result: 16-bit files sounding with 24-bit depth."
+      }
+    },
+    "tipsTitle": "Tips for a Flawless Master",
+    "tipsSubtitle": "Before uploading your audio, review these points",
+    "tips": [
+      {
+        "title": "Leave headroom in your mix",
+        "body": "Export your mix with peak levels between -6 dBFS and -3 dBFS. Do NOT push the master fader on your DAW. Headroom gives the DSP engine space to operate without clipping transients."
+      },
+      {
+        "title": "Do not apply limiting on your master bus",
+        "body": "If you already slammed a limiter onto the mix, the DSP engine cannot distinguish your artistic intent from hard distortion. Keep the master bus clean — WaveIA handles professional final limiting."
+      },
+      {
+        "title": "Export in 24-bit WAV",
+        "body": "24-bit WAV at 44.1 kHz or 48 kHz is the global studio standard. Avoid lossy MP3 or AAC uploads — the neural and DSP algorithms require full uncompressed spectral information."
+      },
+      {
+        "title": "Verify low-end in mono",
+        "body": "Frequencies below 120 Hz are automatically focused to mono to prevent phase cancellation on club subwoofers and vinyl lathes. Check your mix in mono BEFORE uploading."
+      }
+    ],
+    "authorship": "Brikman Paul, creator of WaveIA, has meticulously tuned every DSP algorithm and mathematical model to ensure that every song processed on the platform sounds stellar, competitive, and ready for global distribution."
+  },
+  "signalChain": {
+    "title": "Signal Chain",
+    "flow": "Input → Processing → Output",
+    "on": "ON",
+    "bypass": "BYPASS",
+    "blocks": {
+      "eq": "Clarity",
+      "comp": "Compressor",
+      "sat": "Saturation",
+      "lim": "Limiter"
+    }
+  },
   "analysis": {
     "openAnalysis": "Open Analysis →",
     "openAnalysisShort": "Open Analysis",
