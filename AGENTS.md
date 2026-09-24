@@ -37,7 +37,16 @@ Pipeline: `Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web 
 - **Sesiones del backend en memoria** (dict + `SessionCache`) — se pierden al reiniciar el backend. `ProcessingStatus`: `uploaded → analyzing → processing → completed | error`.
 - **Los knobs del Live Engine NO son `MasteringParameters`** — no reprocesar el track; son nodos Web Audio.
 - **El limiter es 8× oversampling** (si tocas MasteringGuide escribe 8×, no 4×).
-- **Microcopy en español latino neutro/colombiano** (sin voseo): "Cargá" NO — "Carga tu audio", "Ajusta", "Prueba de nuevo", "Elige", "Toca".
+- **Microcopy y Multiidioma Obligatorio (i18n)**:
+  - **Toda nueva integración, componente o pantalla DEBE integrarse con el sistema multiidioma** usando el hook `useTranslation()`.
+  - Los textos se deben registrar simultáneamente en `apps/studio/src/i18n/locales/es.json` y `en.json`.
+  - **Prohibido el texto "hardcodeado"** en código TSX/JSX y **prohibido el spanglish** (consistencia absoluta: español latino neutro sin voseo en `es.json` e inglés nativo en `en.json`).
+  - Ejemplo microcopy: "Carga tu audio", "Ajusta", "Prueba de nuevo", "Elige", "Toca" (sin voseo tipo "Cargá").
+- **Estética y Sistema de Diseño WaveIA (Obligatorio en Nuevas Integraciones)**:
+  - **Fidelidad al Design System**: Utilizar siempre los tokens de color y superficies del tema oscuro (`var(--bg-base)`, `var(--surface-elevated)`, `var(--bg-glass-elevated)`, `var(--accent-primary)`, `var(--border-subtle)`, `var(--text-primary)`, `var(--text-secondary)`). Prohibido usar colores planos genéricos fuera de la paleta.
+  - **Identidad de Marca**: Preservar y aplicar los elementos distintivos de WaveIA (mascota fantasma `BigGhostWithNotes`, `FloatingGhosts`, notas musicales flotantes, gradientes de luz y cristales con `backdrop-blur-2xl`).
+  - **Ergonomía y Cero Scroll Innecesario**: Vistas modales, accesos (`/login`, `/register`) y tarjetas compactas deben caber de forma limpia en el viewport (`100vh`) sin barras de scroll verticales forzadas.
+  - **Micro-interacciones y Animaciones**: Uso de `framer-motion` para transiciones de estado, micro-indicadores interactivos en tiempo real y retroalimentación visual en hover/focus/loading.
 - **Neutral = bypass**: los knobs devueltos a sus defaults del schema = master idéntico al original (sin socket ni heartbeat — estado standalone).
 - **SOLID**: SRP por módulo, Strategy para slots FX, DIP hacia los contratos.
 
