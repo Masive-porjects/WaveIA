@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User as UserIcon, LogOut, Sparkles, ChevronDown, ShieldCheck, Mail } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
@@ -191,15 +191,6 @@ export default function UserMenu() {
                 <span>{t("admin.menuLink", "Panel de Administración")}</span>
               </Link>
             )}
-
-            <Link
-              href="/"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              <Sparkles size={14} className="text-[var(--accent-primary)]" />
-              <span>{t("nav.studio", "Mastering Studio")}</span>
-            </Link>
 
             <button
               type="button"
