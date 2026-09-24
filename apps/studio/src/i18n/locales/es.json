@@ -91,7 +91,13 @@
     "pwdUpper": "1 Mayús.",
     "pwdLower": "1 Minús.",
     "pwdNumber": "1 Núm.",
-    "pwdSpecial": "1 Símbolo"
+    "pwdSpecial": "1 Símbolo",
+    "login": "Iniciar Sesión",
+    "register": "Crear Cuenta",
+    "logout": "Cerrar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "welcome": "Bienvenido a WaveAI"
   },
   "admin": {
     "menuLink": "Panel de Administración",
@@ -587,16 +593,7 @@
     "serverRestartTitle": "El servidor se reinició",
     "serverRestartMessage": "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
     "sessionExpiredTitle": "Tu sesión anterior expiró",
-    "sessionExpiredMessage": "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar.",
-    "uploadFailed": "Error al subir el archivo"
-  },
-  "auth": {
-    "login": "Iniciar Sesión",
-    "register": "Crear Cuenta",
-    "logout": "Cerrar Sesión",
-    "email": "Correo Electrónico",
-    "password": "Contraseña",
-    "welcome": "Bienvenido a WaveAI"
+    "sessionExpiredMessage": "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar."
   },
   "theme": {
     "toggleDark": "Cambiar a tema oscuro",

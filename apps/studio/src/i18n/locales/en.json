@@ -91,7 +91,13 @@
     "pwdUpper": "1 Upper",
     "pwdLower": "1 Lower",
     "pwdNumber": "1 Num",
-    "pwdSpecial": "1 Symbol"
+    "pwdSpecial": "1 Symbol",
+    "login": "Sign In",
+    "register": "Sign Up",
+    "logout": "Sign Out",
+    "email": "Email Address",
+    "password": "Password",
+    "welcome": "Welcome to WaveAI"
   },
   "admin": {
     "menuLink": "Admin Panel",
@@ -587,16 +593,7 @@
     "serverRestartTitle": "Server restarted",
     "serverRestartMessage": "The session was lost during processing. Reload the page: if the session is not restored, upload your audio again.",
     "sessionExpiredTitle": "Your previous session expired",
-    "sessionExpiredMessage": "The server was restarted and could not recover it. Upload your audio again to continue.",
-    "uploadFailed": "Failed to upload audio file"
-  },
-  "auth": {
-    "login": "Sign In",
-    "register": "Sign Up",
-    "logout": "Sign Out",
-    "email": "Email Address",
-    "password": "Password",
-    "welcome": "Welcome to WaveAI"
+    "sessionExpiredMessage": "The server was restarted and could not recover it. Upload your audio again to continue."
   },
   "theme": {
     "toggleDark": "Switch to dark theme",
