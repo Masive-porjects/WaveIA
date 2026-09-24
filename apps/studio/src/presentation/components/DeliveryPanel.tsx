@@ -182,8 +182,10 @@ export default function DeliveryPanel({ params, onChange }: DeliveryPanelProps) 
         {freePlatform && (
           <div className="space-y-1.5">
             <p className="text-[9px] text-[var(--text-muted)] leading-relaxed">
-              Ajuste manual — aplica cuando la plataforma es Automático o
-              Personalizado.
+              {t(
+                "delivery.manualTweakNote",
+                "Ajuste manual — aplica cuando la plataforma es Automático o Personalizado."
+              )}
             </p>
             <PlatformSelector
               value={params.target_lufs_db}
@@ -196,12 +198,12 @@ export default function DeliveryPanel({ params, onChange }: DeliveryPanelProps) 
       {/* ── Output SR + bit depth ──────────────────────────── */}
       <div className="space-y-2">
         <span className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest">
-          Formato de salida
+          {t("delivery.outputFormat", "Formato de salida")}
         </span>
 
         <div className="space-y-1">
           <span className="text-[9px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
-            Sample rate
+            {t("delivery.sampleRateLabel", "Sample rate")}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {SR_OPTIONS.map((opt) => {
@@ -238,7 +240,7 @@ export default function DeliveryPanel({ params, onChange }: DeliveryPanelProps) 
 
         <div className="space-y-1">
           <span className="text-[9px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
-            Bit depth
+            {t("delivery.bitDepthLabel", "Bit depth")}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {([16, 24] as const).map((bits) => {

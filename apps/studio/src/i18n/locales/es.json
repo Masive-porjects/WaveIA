@@ -67,6 +67,24 @@
     "expand": "Expandir",
     "collapse": "Minimizar"
   },
+  "trackChip": {
+    "yourTrack": "Tu track",
+    "changeTrack": "Cambiar de track",
+    "confirmYes": "Sí, cambiar",
+    "confirmNo": "No",
+    "genres": {
+      "reggaeton": "reggaetón",
+      "hip_hop": "hip hop",
+      "electronic": "electrónica",
+      "acoustic": "acústico",
+      "classical": "clásica",
+      "metal": "metal",
+      "jazz": "jazz",
+      "pop": "pop",
+      "rock": "rock",
+      "other": "otro"
+    }
+  },
   "mastering": {
     "title": "Masterización Profesional",
     "loadAudioPrompt": "Carga un audio para empezar.",
@@ -186,6 +204,7 @@
   "upload": {
     "heroPrefix": "Masteriza Tu",
     "heroAccent": "Música",
+    "heroSubtitle": "Carga tu track, ajusta los módulos y obtén un master profesional",
     "lufsStandard": "-14 LUFS Standard",
     "dspModules": "4 Módulos DSP",
     "proQuality": "Calidad Profesional",
@@ -239,7 +258,11 @@
     "ceilingTarget": "Techo del Limitador",
     "delivery": "Entrega",
     "closePanel": "Cerrar panel de entrega",
-    "configTitle": "Configuración de entrega"
+    "configTitle": "Configuración de entrega",
+    "outputFormat": "Formato de salida",
+    "sampleRateLabel": "Sample rate",
+    "bitDepthLabel": "Bit depth",
+    "manualTweakNote": "Ajuste manual — aplica cuando la plataforma es Automático o Personalizado."
   },
   "mezcla": {
     "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio."

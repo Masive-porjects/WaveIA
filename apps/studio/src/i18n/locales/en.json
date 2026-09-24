@@ -67,6 +67,24 @@
     "expand": "Expand",
     "collapse": "Minimize"
   },
+  "trackChip": {
+    "yourTrack": "Your track",
+    "changeTrack": "Change track",
+    "confirmYes": "Yes, change",
+    "confirmNo": "No",
+    "genres": {
+      "reggaeton": "reggaeton",
+      "hip_hop": "hip hop",
+      "electronic": "electronic",
+      "acoustic": "acoustic",
+      "classical": "classical",
+      "metal": "metal",
+      "jazz": "jazz",
+      "pop": "pop",
+      "rock": "rock",
+      "other": "other"
+    }
+  },
   "mastering": {
     "title": "Professional Mastering",
     "loadAudioPrompt": "Upload an audio file to get started.",
@@ -186,6 +204,7 @@
   "upload": {
     "heroPrefix": "Master Your",
     "heroAccent": "Music",
+    "heroSubtitle": "Load your track, adjust modules and get a professional master",
     "lufsStandard": "-14 LUFS Standard",
     "dspModules": "4 DSP Modules",
     "proQuality": "Professional Quality",
@@ -239,7 +258,11 @@
     "ceilingTarget": "Limiter Ceiling",
     "delivery": "Delivery",
     "closePanel": "Close delivery panel",
-    "configTitle": "Delivery Configuration"
+    "configTitle": "Delivery Configuration",
+    "outputFormat": "Output Format",
+    "sampleRateLabel": "Sample rate",
+    "bitDepthLabel": "Bit depth",
+    "manualTweakNote": "Manual adjustment — applies when platform is Automatic or Custom."
   },
   "mezcla": {
     "loadAudioPrompt": "Upload an audio file to use Audio Mix."
