@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
-import { registerSchema, type RegisterFormData } from "../schemas/authSchemas";
+import { getRegisterSchema, type RegisterFormData } from "../schemas/authSchemas";
 import SocialAuthButtons from "./SocialAuthButtons";
 
 export default function RegisterForm() {
@@ -35,13 +35,15 @@ export default function RegisterForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const schema = useMemo(() => getRegisterSchema(t), [t]);
+
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: {
       fullName: "",
@@ -53,11 +55,11 @@ export default function RegisterForm() {
   const watchedPassword = watch("password") || "";
 
   const passwordChecks = [
-    { label: "8+ carac.", valid: watchedPassword.length >= 8 },
-    { label: "1 Mayús.", valid: /[A-Z]/.test(watchedPassword) },
-    { label: "1 Minús.", valid: /[a-z]/.test(watchedPassword) },
-    { label: "1 Núm.", valid: /[0-9]/.test(watchedPassword) },
-    { label: "1 Símbolo", valid: /[^A-Za-z0-9]/.test(watchedPassword) },
+    { label: t("auth.pwdMinLen", "8+ carac."), valid: watchedPassword.length >= 8 },
+    { label: t("auth.pwdUpper", "1 Mayús."), valid: /[A-Z]/.test(watchedPassword) },
+    { label: t("auth.pwdLower", "1 Minús."), valid: /[a-z]/.test(watchedPassword) },
+    { label: t("auth.pwdNumber", "1 Núm."), valid: /[0-9]/.test(watchedPassword) },
+    { label: t("auth.pwdSpecial", "1 Símbolo"), valid: /[^A-Za-z0-9]/.test(watchedPassword) },
   ];
 
   const supabase = createClient();

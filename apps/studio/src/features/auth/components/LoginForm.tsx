@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
-import { loginSchema, type LoginFormData } from "../schemas/authSchemas";
+import { getLoginSchema, type LoginFormData } from "../schemas/authSchemas";
 import SocialAuthButtons from "./SocialAuthButtons";
 
 export default function LoginForm() {
@@ -22,12 +22,15 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  const schema = useMemo(() => getLoginSchema(t), [t]);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(schema),
+    mode: "onChange",
     defaultValues: {
       email: "",
       password: "",
