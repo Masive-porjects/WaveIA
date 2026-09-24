@@ -93,6 +93,106 @@ def _fake_split(input_path: str | Path, output_dir: str | Path | None = None,
     }
 
 
+def _fake_split_low_vocals(input_path: str | Path, output_dir: str | Path
+                           | None = None, model: str = "htdemucs") -> dict:
+    """Stand-in for Demucs with the voice ~14 dB BELOW the groove band.
+
+    Mirrors the producer session (voice noticeably under the groove):
+    drums/bass/other at 0.25 (≈ −15 dBFS RMS), vocals at 0.05 → the
+    auto-balance must raise ONLY the vocals, leaving the groove untouched.
+    """
+    out = Path(output_dir).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    stems: dict[str, str] = {}
+    for name, (hz, seconds) in _STEM_SPECS.items():
+        stem_path = out / f"{name}.wav"
+        gain = 0.05 if name == "vocals" else 0.25
+        t = np.linspace(0.0, seconds, int(_SR * seconds), endpoint=False)
+        sf.write(str(stem_path), gain * np.sin(2.0 * np.pi * hz * t), _SR)
+        stems[name] = str(stem_path)
+    return {
+        "stems": stems,
+        "sample_rate": _SR,
+        "duration_seconds": 1.25,
+        "stem_audio_dir": str(out),
+    }
+
+
+def _fake_split_groove_vocals(input_path: str | Path, output_dir: str | Path
+                              | None = None, model: str = "htdemucs") -> dict:
+    """Stand-in for Demucs with the voice ALREADY at the groove level.
+
+    Drums/bass/other at 0.25; the voice is scaled by MEASURED LUFS until
+    it sits within ~0.1 dB of the groove level (mean of drums/bass). A
+    balanced mix must need no auto-balance correction: the target equals
+    the current position."
+    """
+    from audiomind.processing.loudness import measure_lufs
+
+    out = Path(output_dir).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    stems: dict[str, str] = {}
+    for name, (hz, seconds) in _STEM_SPECS.items():
+        stem_path = out / f"{name}.wav"
+        _write_tone(stem_path, hz=hz, seconds=seconds)
+        stems[name] = str(stem_path)
+    vocal_path = out / "vocals.wav"
+    vocals = sf.read(str(vocal_path), dtype="float32")[0]
+    lufs = {
+        name: measure_lufs(
+            sf.read(str(out / f"{name}.wav"), dtype="float32")[0].T, _SR
+        )
+        for name in ("drums", "bass", "other", "vocals")
+    }
+    groove = float(np.mean([lufs["drums"], lufs["bass"]]))
+    gap = groove - lufs["vocals"]
+    vocals = vocals * (10.0 ** (gap / 20.0))
+    sf.write(str(vocal_path), vocals, _SR)
+    return {
+        "stems": stems,
+        "sample_rate": _SR,
+        "duration_seconds": 1.25,
+        "stem_audio_dir": str(out),
+    }
+
+
+def _band_energy_db(audio: np.ndarray, sr: int, hz: float,
+                    hz_half_width: float = 4.0) -> float:
+    """Energy in dB of the FFT band around ``hz`` (mono mix of 2 ch)."""
+    mono = audio.mean(axis=0)
+    n = mono.shape[0]
+    windowed = mono * np.hanning(n)
+    spec = np.fft.rfft(windowed)
+    freqs = np.fft.rfftfreq(n, d=1.0 / sr)
+    mask = np.abs(freqs - hz) <= hz_half_width
+    return float(10.0 * np.log10(np.sum(np.abs(spec[mask]) ** 2) + 1e-12))
+
+
+def _render_mix(tmp_path: Path, monkeypatch, *, auto_balance: bool,
+                genre: str | None = None,
+                stem_trims: dict[str, float] | None = None,
+                splitter=_fake_split) -> tuple[np.ndarray, int]:
+    """Render a mix through ``build_mix`` and read the written WAV."""
+    monkeypatch.setattr(mix_engine, "split_audio", splitter)
+    session_id = _register_session(tmp_path)
+    mix_engine.build_mix(
+        session_id,
+        str(Path(sessions[session_id].original_path)),
+        profiles={},
+        pan_profiles={},
+        dimension_profiles={},
+        compressor_profiles={},
+        emphasis_profiles={},
+        with_versions=False,
+        auto_balance=auto_balance,
+        stem_trims=stem_trims,
+        genre=genre,
+        genre_confidence=0.9,
+    )
+    mix_path = settings.output_dir / f"{session_id}_mix.wav"
+    return _read_wav(mix_path)
+
+
 class TestMixEndpoint:
     """Integration tests for POST /api/session/{id}/mix."""
 
@@ -313,6 +413,96 @@ class TestMixQCAndVersions:
         assert with_versions_bytes == without_versions_bytes
 
 
+class TestApplyStemTrims:
+    """T2 — stem faders land at the bus input AFTER the chain: every stem
+    (drums/bass/other/vocals) scales by 10^(db/20); 0.0 dB stems stay
+    bit-exact (neutral = bypass)."""
+
+    def _synthetic(self, stem: str) -> np.ndarray:
+        """A float32 stereo tone at the stem's fixture Hz — same lengths
+        as ``_STEM_SPECS`` so the pad/sum path mirrors a real mix."""
+        sr = _SR
+        seconds = _STEM_SPECS[stem][1]
+        hz = _STEM_SPECS[stem][0]
+        t = np.linspace(0.0, seconds, int(sr * seconds), endpoint=False)
+        mono = 0.25 * np.sin(2.0 * np.pi * hz * t)
+        return np.stack([mono, mono]).astype(np.float32)
+
+    def _fixture(self) -> tuple[dict[str, np.ndarray], list[np.ndarray]]:
+        names = ("drums", "bass", "other", "vocals")
+        processed = {stem: self._synthetic(stem) for stem in names}
+        bus_audio = [processed[name] for name in mix_engine.STEM_NAMES]
+        return processed, bus_audio
+
+    def test_apply_scales_each_stem_by_its_own_db(self):
+        """Cada stem escala por 10^(db/20); los demás quedan idénticos."""
+        processed, bus_audio = self._fixture()
+        original = {name: arr.copy() for name, arr in processed.items()}
+
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": -3.0, "bass_db": 0.0, "other_db": 2.0, "vocals_db": 1.5},
+        )
+
+        np.testing.assert_allclose(
+            processed["drums"], original["drums"] * 10.0 ** (-3.0 / 20.0), rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            processed["other"], original["other"] * 10.0 ** (2.0 / 20.0), rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            processed["vocals"], original["vocals"] * 10.0 ** (1.5 / 20.0), rtol=1e-6
+        )
+        # bass en 0.0 queda EXACTO (sin multiplicación, bit-exact).
+        assert np.array_equal(processed["bass"], original["bass"])
+        # el bus audio se actualiza en sync con processed (mismo objeto).
+        for name in ("drums", "other", "vocals"):
+            idx = mix_engine.STEM_NAMES.index(name)
+            assert bus_audio[idx] is processed[name]
+
+    def test_trim_zero_keeps_every_stem_bitexact(self):
+        """Neutral = bypass: trims 0.0 no tocan nada (spec 08)."""
+        processed, bus_audio = self._fixture()
+        originals = {name: arr.copy() for name, arr in processed.items()}
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": 0.0, "bass_db": 0.0, "other_db": 0.0, "vocals_db": 0.0},
+        )
+        for name, arr in originals.items():
+            assert np.array_equal(processed[name], arr)
+            assert bus_audio[mix_engine.STEM_NAMES.index(name)] is processed[name]
+
+    def test_apply_skips_missing_stems(self):
+        """Un stem ausente del processed no rompe la aplicación."""
+        # regulary synthetic minus vocals
+        processed, bus_audio = self._fixture()
+        del processed["vocals"]
+        names = [n for n in mix_engine.STEM_NAMES if n in processed]
+        bus_audio = [processed[name] for name in names]
+
+        mix_engine._apply_stem_trims(
+            processed, bus_audio,
+            {"drums_db": -3.0, "bass_db": 0.0, "other_db": 0.0, "vocals_db": 1.5},
+        )
+        assert processed["drums"].shape[1] > 0  # applied
+        assert np.allclose(
+            processed["drums"],
+            self._synthetic("drums") * 10.0 ** (-3.0 / 20.0),
+            rtol=1e-6,
+        )
+
+    def test_apply_round_trips_through_entry_peak(self):
+        """Peak check integrado: un fader de +6 dB sube el pico del stem."""
+        processed, bus_audio = self._fixture()
+        peak_before = float(np.max(np.abs(processed["vocals"])))
+        mix_engine._apply_stem_trims(
+            processed, bus_audio, {"vocals_db": 6.0},
+        )
+        peak_after = float(np.max(np.abs(processed["vocals"])))
+        assert peak_after > peak_before
+        assert abs(peak_after / peak_before - 10.0 ** (6.0 / 20.0)) < 1e-6
+
+
 class TestStemPresence:
     """v5 — honest stems: presence from per-stem RMS, not fixed names.
 
@@ -405,6 +595,283 @@ class TestDimensionOptional:
         payload = json.loads(resp.headers["x-mix-result"])
         assert "dimension_report" in payload
 
+
+class TestAutoBalanceEndpoint:
+    """T5: POST /mix expone ``auto_balance`` (body) — OFF por defecto =
+    payload idéntico al actual; ON → ``balance_report`` en el header."""
+
+    def test_mix_endpoint_no_body_keeps_payload_without_balance_report(
+        self, tmp_path, monkeypatch
+    ):
+        """Sin body (default) → 200, header SIN ``balance_report`` — el
+        shape previo exacto (neutral bit-exacto, spec 08)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(f"/api/session/{session_id}/mix")
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+        assert "stem_presence" in payload
+        assert set(payload["analysis"]) == {"drums", "bass", "other", "vocals"}
+
+    def test_mix_endpoint_explicit_false_keeps_payload_without_report(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"auto_balance": false}`` explícito → mismo contrato que sin
+        body: OFF neutral, sin ``balance_report``."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": False},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+
+    def test_mix_endpoint_auto_balance_true_adds_report(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"auto_balance": true}`` → 200 + ``balance_report`` con el shape
+        completo (genre/status/stem_lufs/groove/vocal_target/d/gains/applied)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": True},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        report = payload["balance_report"]
+        assert set(report["stem_lufs"]) == {
+            "drums", "bass", "other", "vocals"
+        }
+        assert "groove_level_lufs" in report
+        assert "vocal_target_lufs" in report
+        assert "d" in report
+        assert set(report["gains"]) == {
+            "drums_db", "bass_db", "other_db", "vocals_db"
+        }
+        assert "applied" in report
+        assert report["genre"] in ("active", "neutral_fallback") or isinstance(
+            report["genre"], str
+        )
+
+    def test_mix_endpoint_auto_balance_raises_low_vocals(
+        self, tmp_path, monkeypatch
+    ):
+        """Voz 14 dB bajo el groove + auto_balance=true → el reporte muestra
+        gain vocal > 0 y applied=True a través del endpoint real."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": True},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        report = payload["balance_report"]
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
+        assert report["gains"]["drums_db"] == 0.0
+        assert report["gains"]["bass_db"] == 0.0
+        assert report["gains"]["other_db"] == 0.0
+
+    def test_mix_endpoint_coerces_boolean_strings(
+        self, tmp_path, monkeypatch
+    ):
+        """Pydantic v2 lax coacciona strings booleanos (``"false"``) →
+        OFF, sin ``balance_report``. Mismo comportamiento que los campos
+        hermanos ``dimension_enabled``/``vocal_treatment`` (bool lax); el
+        contrato documenta true/false JSON y el modelo no usa
+        ``StrictBool`` a propósito (consistencia con el resto del body)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": "false"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "balance_report" not in payload
+
+
+class TestStemAutoBalanceReport:
+    """T4: ``balance_report`` in the mix payload (engine + endpoint)."""
+
+    def _build_result(self, tmp_path: Path, monkeypatch, **kwargs) -> dict:
+        """Run ``build_mix`` directly and return the payload dict."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        return mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            **kwargs,
+        )
+
+    def test_balance_report_present_when_auto_balance_on(self, tmp_path, monkeypatch):
+        """auto_balance=True: the payload carries ``balance_report`` with
+        measured LUFS per stem, gains, genre/target, and applied flag."""
+        result = self._build_result(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert set(report["stem_lufs"]) == {
+            "drums", "bass", "other", "vocals"
+        }
+        assert "groove_level_lufs" in report
+        assert "vocal_target_lufs" in report
+        assert "d" in report
+        assert report["genre"] == "pop"
+        assert set(report["gains"]) == {
+            "drums_db", "bass_db", "other_db", "vocals_db"
+        }
+        assert "applied" in report
+        # The fixture is balanced at 0.25 → the voice is ABOVE the groove
+        # under K-weighting, so pop may push it DOWN or slightly; the flag
+        # tells the truth either way. Only the shape is asserted here.
+        assert report["applied"] in (True, False)
+
+    def test_balance_report_applied_low_vocals(self, tmp_path, monkeypatch):
+        """The report reflects what was actually applied: with the voice 14
+        dB under the groove and pop weights, vocals_db > 0 and applied=True."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        result = mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            auto_balance=True,
+            genre="pop",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
+        assert report["gains"]["drums_db"] == 0.0
+        assert report["gains"]["bass_db"] == 0.0
+        assert report["gains"]["other_db"] == 0.0
+        assert report["status"] == "active"
+
+    def test_balance_report_absent_when_off(self, tmp_path, monkeypatch):
+        """auto_balance=False (default): NO ``balance_report`` key — the
+        payload keeps the exact previous shape (master-safe neutral)."""
+        result = self._build_result(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop"
+        )
+        assert "balance_report" not in result
+
+    def test_balance_report_neutral_status(self, tmp_path, monkeypatch):
+        """Unknown genre → neutral fallback (d=0.0, target = groove). The
+        report is honest about what actually happened: with the voice 14 dB
+        under the groove the correction IS applied (raises vocals toward
+        groove), so applied=True + vocals_db>0; the exact no-op case is
+        covered by the pure-module tests."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        result = mix_engine.build_mix(
+            session_id, original_path,
+            profiles={},
+            pan_profiles={},
+            dimension_profiles={},
+            compressor_profiles={},
+            emphasis_profiles={},
+            with_versions=False,
+            auto_balance=True,
+            genre="unknown",
+            genre_confidence=0.9,
+        )
+        report = result["balance_report"]
+        assert report["status"] == "neutral_fallback"
+        assert report["d"] == 0.0
+        assert report["applied"] is True
+        assert report["gains"]["vocals_db"] > 0.0
+
+
+class TestStemAutoBalance:
+    """T3: auto-balance toggle in ``build_mix`` (default OFF, bit-exact)."""
+
+    def test_auto_balance_disabled_keeps_original_mix(self, tmp_path, monkeypatch):
+        """auto_balance=False (default): bit-identical to the plain routing."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False
+        )
+        audio_base, sr_base = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop"
+        )
+        assert sr == sr_base
+        assert np.array_equal(audio_off, audio_base)
+
+    def test_auto_balance_low_vocals_raises_vocal_band_only(
+        self, tmp_path, monkeypatch
+    ):
+        """With the voice 14 dB under the groove, pop auto-balance raises
+        the vocal band and leaves drums/bass/other untouched."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False, genre="pop",
+            splitter=_fake_split_low_vocals,
+        )
+        audio_on, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            splitter=_fake_split_low_vocals,
+        )
+        assert sr == sr_on
+        vocal_off = _band_energy_db(audio_off, sr, 440.0)
+        vocal_on = _band_energy_db(audio_on, sr, 440.0)
+        # pop weights (0.7/0.3): target headroom keeps at least +2 dB.
+        assert vocal_on > vocal_off + 2.0, (
+            f"vocal band should rise: {vocal_off:.2f} → {vocal_on:.2f} dB"
+        )
+        # the groove band (drums 120 Hz) is NOT a correction target.
+        groove_off = _band_energy_db(audio_off, sr, 120.0)
+        groove_on = _band_energy_db(audio_on, sr, 120.0)
+        assert abs(groove_on - groove_off) < 0.5
+
+    def test_auto_balance_neutral_weights_unchanged(self, tmp_path, monkeypatch):
+        """Neutral 0.5/0.5 (unknown genre): target = groove level, and a
+        mix ALREADY on the groove needs no correction → no audible change."""
+        audio_off, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False,
+            splitter=_fake_split_groove_vocals,
+        )
+        audio_on, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="unknown",
+            splitter=_fake_split_groove_vocals,
+        )
+        assert sr == sr_on
+        # Balanced fixture: the correction closes a ~0 dB gap → no change.
+        vocal_off = _band_energy_db(audio_off, sr, 440.0)
+        vocal_on = _band_energy_db(audio_on, sr, 440.0)
+        assert abs(vocal_on - vocal_off) < 0.6
+
+
+class TestDimensionEndpointDisabled:
+    """POST del hook: ``dimension_enabled=false`` omite el report; true lo
+    conserva (mismo contrato que el engine-level de TestDimensionOptional)."""
+
     def test_mix_endpoint_dimension_disabled_omits_dimension_report(
         self, tmp_path, monkeypatch
     ):
@@ -440,3 +907,241 @@ class TestDimensionOptional:
         assert resp.status_code == 200, resp.text
         payload = json.loads(resp.headers["x-mix-result"])
         assert "dimension_report" in payload
+
+
+class TestStemTrimsEndpoint:
+    """T5 (faders) — POST /mix expone ``stem_trims`` manuales: dict de
+    ``*_db`` por los 4 stems, rango ±6 dB (T1) aplicado al bus DESPUÉS de
+    la cadena (T2). El fader humano va ENCIMA del auto-balance (el motor
+    propone, el humano decide): el ``balance_report`` mide SIN el fader y
+    el ``trim_report`` reporta solo las claves ≠ 0 aplicadas. Sin trims o
+    todos 0 → payload previo exacto (sin ``trim_report``). Validación
+    estricta: claves desconocidas o valores fuera de rango → 422."""
+
+    def test_mix_endpoint_stem_trims_applies_and_reports(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"stem_trims": {"drums_db": 2.0}}`` → 200 + header con
+        ``trim_report.gains.drums_db == 2.0`` y ``applied=True``."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"stem_trims": {"drums_db": 2.0}},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        report = payload["trim_report"]
+        assert report["applied"] is True
+        assert report["gains"] == {"drums_db": 2.0}
+
+    def test_mix_endpoint_auto_balance_then_manual_fader_stacks(
+        self, tmp_path, monkeypatch
+    ):
+        """auto_balance ON + fader manual vocal: ``balance_report`` mide y
+        corrige SIN el fader (vocals_db > 0) y ``trim_report`` queda ENCIMA
+        (vocals_db == 1.0) — el orden es el contrato (el motor propone, el
+        humano decide)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split_low_vocals)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"auto_balance": True, "stem_trims": {"vocals_db": 1.0}},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        balance = payload["balance_report"]
+        assert balance["applied"] is True
+        assert balance["gains"]["vocals_db"] > 0.0
+        trims = payload["trim_report"]
+        assert trims["applied"] is True
+        assert trims["gains"] == {"vocals_db": 1.0}
+
+    def test_mix_endpoint_stem_trims_out_of_range_rejected(
+        self, tmp_path, monkeypatch
+    ):
+        """``{"stem_trims": {"drums_db": 7.0}}`` → 422 (banda ±6 dB)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"stem_trims": {"drums_db": 7.0}},
+        )
+
+        assert resp.status_code == 422, resp.text
+
+    def test_mix_endpoint_stem_trims_unknown_keys_rejected(
+        self, tmp_path, monkeypatch
+    ):
+        """Claves fuera del contrato (``guitar_db``/``drums``) → 422."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        for trims in ({"guitar_db": 1.0}, {"drums": 1.0}):
+            resp = client.post(
+                f"/api/session/{session_id}/mix",
+                json={"stem_trims": trims},
+            )
+            assert resp.status_code == 422, resp.text
+
+    def test_mix_endpoint_all_zero_trims_keep_previous_payload(
+        self, tmp_path, monkeypatch
+    ):
+        """Trims todos 0 → 200 sin ``trim_report`` (payload previo exacto)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json={"stem_trims": {"drums_db": 0.0, "bass_db": 0.0}},
+        )
+
+        assert resp.status_code == 200, resp.text
+        payload = json.loads(resp.headers["x-mix-result"])
+        assert "trim_report" not in payload
+
+
+class TestStemTrims:
+    """T5 (motor) — faders manuales en ``build_mix``: aplican DESPUÉS del
+    auto-balance (mide SIN fader), reportan ``trim_report`` solo con algún
+    trim ≠ 0 y conservan la neutralidad bit-exacta con ``None``/todos 0."""
+
+    def test_manual_trims_raise_only_their_stem_band(self, tmp_path, monkeypatch):
+        """Un fader de +3 dB en voces sube la banda 440 Hz y NO mueve la del
+        groove (120 Hz): el trim es por stem, a la entrada del bus."""
+        audio_off, sr = _render_mix(tmp_path, monkeypatch, auto_balance=False)
+        audio_on, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False,
+            stem_trims={"vocals_db": 3.0},
+        )
+        assert sr == sr_on
+        vocal_off = _band_energy_db(audio_off, sr, 440.0)
+        vocal_on = _band_energy_db(audio_on, sr, 440.0)
+        assert vocal_on > vocal_off + 2.0
+        groove_off = _band_energy_db(audio_off, sr, 120.0)
+        groove_on = _band_energy_db(audio_on, sr, 120.0)
+        assert abs(groove_on - groove_off) < 0.5
+
+    def test_manual_trims_on_top_of_auto_balance(self, tmp_path, monkeypatch):
+        """auto_balance + fader: el fader sube su stem ENCIMA del resultado
+        del motor (ambos aplican; el trim manual es relativo a lo que el
+        motor propuso)."""
+        audio_auto_only, sr = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            splitter=_fake_split_low_vocals,
+        )
+        audio_auto_plus_trim, sr_on = _render_mix(
+            tmp_path, monkeypatch, auto_balance=True, genre="pop",
+            stem_trims={"vocals_db": 1.5},
+            splitter=_fake_split_low_vocals,
+        )
+        assert sr == sr_on
+        vocal_auto = _band_energy_db(audio_auto_only, sr, 440.0)
+        vocal_both = _band_energy_db(audio_auto_plus_trim, sr, 440.0)
+        assert vocal_both > vocal_auto + 1.0
+
+    def test_no_trims_and_zero_trims_are_bitexact(self, tmp_path, monkeypatch):
+        """``stem_trims=None`` vs todos 0: routing idéntico (neutralidad
+        bit-exacta de la red existente, spec 08)."""
+        audio_none, sr = _render_mix(tmp_path, monkeypatch, auto_balance=False)
+        audio_zero, sr_zero = _render_mix(
+            tmp_path, monkeypatch, auto_balance=False,
+            stem_trims={
+                "drums_db": 0.0, "bass_db": 0.0,
+                "other_db": 0.0, "vocals_db": 0.0,
+            },
+        )
+        assert sr == sr_zero
+        assert np.array_equal(audio_none, audio_zero)
+
+    def test_trim_report_shape_only_non_zero_keys(self, tmp_path, monkeypatch):
+        """``trim_report`` presente solo con trims ≠ 0; ``gains`` = SOLO las
+        claves ≠ 0; ausente cuando no hay fader activo (payload previo)."""
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        original_path = str(Path(sessions[session_id].original_path))
+        base = mix_engine.build_mix(
+            session_id, original_path, profiles={}, pan_profiles={},
+            dimension_profiles={}, compressor_profiles={},
+            emphasis_profiles={}, with_versions=False, auto_balance=False,
+        )
+        assert "trim_report" not in base
+        with_trims = mix_engine.build_mix(
+            session_id, original_path, profiles={}, pan_profiles={},
+            dimension_profiles={}, compressor_profiles={},
+            emphasis_profiles={}, with_versions=False, auto_balance=False,
+            stem_trims={"drums_db": 2.0, "vocals_db": 0.0},
+        )
+        report = with_trims["trim_report"]
+        assert report["applied"] is True
+        assert report["gains"] == {"drums_db": 2.0}
+
+
+class TestStemBalanceNeutralityE2E:
+    """T7 (E2E) — neutralidad bit-exacta sobre POST /mix real: faders en 0
+    y auto OFF = WAV byte-idéntico al que sirve sin body (spec 08: neutral
+    = bypass también a nivel HTTP, no solo en el motor)."""
+
+    def _mix_wav_md5(self, tmp_path, monkeypatch, body=None) -> str:
+        import hashlib
+
+        monkeypatch.setattr(mix_engine, "split_audio", _fake_split)
+        session_id = _register_session(tmp_path)
+        resp = client.post(
+            f"/api/session/{session_id}/mix",
+            json=body,
+        )
+        assert resp.status_code == 200, resp.text
+        return hashlib.md5(resp.content).hexdigest()
+
+    def test_no_body_vs_all_zero_trims_serves_identical_wav(
+        self, tmp_path, monkeypatch
+    ):
+        """Sin body vs ``{"stem_trims": {4 stems en 0}, "auto_balance": false}``
+        → el WAV servido es byte-idéntico (mismo md5)."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        zero_trims = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={
+                "auto_balance": False,
+                "stem_trims": {
+                    "drums_db": 0.0,
+                    "bass_db": 0.0,
+                    "other_db": 0.0,
+                    "vocals_db": 0.0,
+                },
+            },
+        )
+        assert baseline == zero_trims
+
+    def test_partial_zero_trims_are_neutral_on_their_stem(
+        self, tmp_path, monkeypatch
+    ):
+        """Fader explícito en 0 para un stem + los demás ausentes → mismo
+        WAV que sin body (0 dB no altera la red)."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        zero_vocals = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={"stem_trims": {"vocals_db": 0.0}},
+        )
+        assert baseline == zero_vocals
+
+    def test_nonzero_trim_changes_served_wav(
+        self, tmp_path, monkeypatch
+    ):
+        """Fader ≠ 0 SÍ cambia el WAV servido (el md5 difiere del baseline):
+        la neutralidad es selectiva, no un caso vacío."""
+        baseline = self._mix_wav_md5(tmp_path, monkeypatch)
+        trimmed = self._mix_wav_md5(
+            tmp_path,
+            monkeypatch,
+            body={"stem_trims": {"vocals_db": 3.0}},
+        )
+        assert baseline != trimmed

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 from enum import Enum
@@ -67,7 +67,7 @@ class MasteringParameters(BaseModel):
     # and peaks that render the character (bass punch, air, presence).
     # Empty list = no additional plugins (bit-exact bypass), so existing
     # masters are unchanged unless a preset explicitly ships bands.
-    eq_bands: list[dict] = Field(
+    eq_bands: list[dict[str, Any]] = Field(
         default_factory=list,
         description=(
             "Preset character EQ bands applied after match EQ: "
@@ -748,7 +748,7 @@ class SessionData(BaseModel):
     # ``mix_analysis`` mirrors the ``X-Mix-Result`` payload served by
     # POST /api/session/{id}/mix (per-stem analysis + full-mix tempo/genre).
     mix_path: str | None = None
-    mix_analysis: dict | None = Field(
+    mix_analysis: dict[str, Any] | None = Field(
         default=None,
         description=(
             "Mix Engine JSON analysis payload: per-stem analysis dict plus "
@@ -773,7 +773,7 @@ class BeatData(BaseModel):
     output_path: str = ""
     stems: dict[str, str] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ── Album / EP batch mastering (Phase D, P1-2) ───────────────────────────

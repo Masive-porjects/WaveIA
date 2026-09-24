@@ -4,13 +4,11 @@
 #
 #   studio     → http://localhost:3000
 #   audiomind  → http://localhost:8000/health
-#   simulator  → ws://localhost:8765  (mock del bridge: emite LiveParams)
 #
-# El bridge real (apps/bridge) NO se dockeriza: python-rtmidi necesita el
-# stack MIDI del host (hardware/driver). Para Live Engine sin controlador
-# MIDI se usa el simulator, igual que en e2e. Si tienes MIDI, corre el
-# bridge en el host con scripts/start/start-bridge.bat (ocupa :8765 —
-# comenta el servicio simulator para evitar el conflicto de puerto).
+# El Live Engine es standalone (knobs del navegador, Web Audio — sin
+# WebSocket ni MIDI). El bridge (apps/bridge) y el simulator fueron
+# removidos del producto; el servicio `simulator` que quedaba en este
+# compose apuntaba a un módulo Python inexistente y se eliminó.
 
 services:
   audiomind:
@@ -35,26 +33,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 40s
-    restart: unless-stopped
-
-  simulator:
-    build:
-      context: .
-      dockerfile: simulator/Dockerfile
-    ports:
-      - "8765:8765"
-    # Para otro escenario: docker compose run --service-ports simulator
-    #   --mode server --scenario presets --host 0.0.0.0
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import socket;socket.create_connection(('localhost',8765),3)"
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
     restart: unless-stopped
 
   studio:

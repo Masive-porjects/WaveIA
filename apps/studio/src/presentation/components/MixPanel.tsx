@@ -126,6 +126,37 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
     | null
     | undefined;
 
+  // T6 — celdas honestas de balance: SOLO cuando el payload las trae.
+  // ``trim_report`` = faders manuales aplicados; ``balance_report`` = lo
+  // que el auto-balance midió/corrigió. Nunca se inventan datos.
+  const stemLabel: Record<string, string> = {
+    drums_db: "Batería",
+    bass_db: "Bajo",
+    other_db: "Otros",
+    vocals_db: "Voz",
+  };
+  const fmtGains = (gains?: Record<string, number>) =>
+    (gains ? Object.entries(gains) : [])
+      .filter(([, db]) => db !== 0)
+      .map(
+        ([key, db]) =>
+          `${stemLabel[key] ?? key} ${db > 0 ? "+" : ""}${db.toFixed(1)} dB`,
+      )
+      .join(" · ");
+  const trimReport = result.trim_report as
+    | { gains?: Record<string, number> }
+    | null
+    | undefined;
+  const balanceReport = result.balance_report as
+    | { gains?: Record<string, number> }
+    | null
+    | undefined;
+  const trimGainsText = fmtGains(trimReport?.gains);
+  const balanceGainsText = fmtGains(balanceReport?.gains);
+  if (trimGainsText) cells.push({ label: "Balance", value: trimGainsText });
+  if (balanceGainsText)
+    cells.push({ label: "Auto-balance", value: balanceGainsText });
+
   if (cells.length === 0 && !qc) return null;
 
   return (
@@ -176,6 +207,82 @@ function MixAnalysisGrid({ result }: { result: MixResult }) {
   );
 }
 
+/* ── Faders de Balance (T6) ────────────────────────────────
+   Contrato del backend (T5): claves ``*_db`` de los 4 stems, rango
+   ±6 dB, 0 = neutral (sin ``trim_report``). El valor mostrado se clampa
+   a la banda y el estado se commitea AL SOLTAR el fader (el arrastre vive
+   solo en el draft local — el mix lee faders commiteados). */
+const STEM_FADERS: { key: string; label: string }[] = [
+  { key: "drums_db", label: "Batería" },
+  { key: "bass_db", label: "Bajo" },
+  { key: "other_db", label: "Otros" },
+  { key: "vocals_db", label: "Voz" },
+];
+const FADER_DEFAULTS: Record<string, number> = {
+  drums_db: 0,
+  bass_db: 0,
+  other_db: 0,
+  vocals_db: 0,
+};
+const FADER_BAND = 6.0;
+
+function FaderControl({
+  label,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  disabled: boolean;
+  onCommit: (db: number) => void;
+}) {
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? value;
+  const clamp = Math.max(-FADER_BAND, Math.min(FADER_BAND, shown));
+  const commit = useCallback(() => {
+    if (draft !== null && draft !== value) onCommit(draft);
+    setDraft(null);
+  }, [draft, value, onCommit]);
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="truncate text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          {label}
+        </span>
+        <span
+          className="font-mono text-[10px] font-semibold"
+          style={{
+            color: clamp === 0 ? "var(--text-muted)" : "var(--text-primary)",
+          }}
+        >
+          {clamp === 0 ? "0 dB" : `${clamp > 0 ? "+" : ""}${clamp.toFixed(1)} dB`}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={-FADER_BAND}
+        max={FADER_BAND}
+        step={0.5}
+        value={shown}
+        disabled={disabled}
+        aria-label={`${label} (dB)`}
+        onChange={(e) => setDraft(Number(e.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        className="mt-1 w-full"
+      />
+      <p className="mt-0.5 text-[9px]" style={{ color: "var(--text-muted)" }}>
+        Rango ±6 dB
+      </p>
+    </div>
+  );
+}
+
 export default function MixPanel({
   sessionId,
   sessionMixPath,
@@ -205,6 +312,12 @@ export default function MixPanel({
   // Paso 03 (el backend omite dimension_report y la etapa "dimension" no
   // aparece). Se deshabilita mientras corre el POST /mix.
   const [dimensionEnabled, setDimensionEnabled] = useState(true);
+  // T6 — Balance: auto-balance opcional (default OFF = neutral) + faders
+  // manuales por stem (±6 dB, contrato T1/T5). Elección POR MEZCLA, no
+  // persistida. Se deshabilitan mientras corre el POST /mix.
+  const [autoBalance, setAutoBalance] = useState(false);
+  const [faderValues, setFaderValues] =
+    useState<Record<string, number>>(FADER_DEFAULTS);
 
   const objectUrlRef = useRef<string | null>(null);
   const stageRef = useRef(0);
@@ -285,9 +398,14 @@ export default function MixPanel({
     }, stageMs);
 
     try {
+      const stemTrims = Object.fromEntries(
+        Object.entries(faderValues).filter(([, db]) => db !== 0),
+      );
       const { audioUrl, result } = await mixTracks(sessionId, {
         signal: controller.signal,
         dimensionEnabled,
+        autoBalance,
+        stemTrims,
       });
       clearProgressTimer();
       objectUrlRef.current = audioUrl;
@@ -309,7 +427,7 @@ export default function MixPanel({
       if (abortRef.current === controller) abortRef.current = null;
       setMixing(false);
     }
-  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled]);
+  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled, autoBalance, faderValues]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -553,6 +671,78 @@ export default function MixPanel({
           >
             Apagada: mezcla seca, sin delay ni reverb
           </p>
+        </div>
+      </div>
+
+      {/* ── Balance: auto-balance opcional + faders manuales por stem (T6).
+          Elección por mezcla (no persistida); apagado = neutral (payload
+          previo exacto). El fader del usuario queda SIEMPRE visible y
+          relativo al resultado del motor (spec: el motor propone, el humano
+          decide). Se deshabilita mientras corre el POST /mix. */}
+      <div
+        className="mt-3 border-t px-4 pt-3"
+        style={{ borderColor: "var(--border-subtle)" }}
+      >
+        <p
+          className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em]"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Balance
+        </p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoBalance}
+            aria-label="Auto-balance"
+            onClick={() => setAutoBalance((v) => !v)}
+            disabled={mixing}
+            className="relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: autoBalance
+                ? "var(--accent-primary)"
+                : "var(--surface-active)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          >
+            <span
+              className="absolute left-0.5 top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200"
+              style={{
+                transform: autoBalance ? "translateX(1rem)" : "translateX(0)",
+              }}
+            />
+          </button>
+          <div className="min-w-0">
+            <p
+              className="text-xs font-medium"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Auto-balance
+            </p>
+            <p
+              className="text-[10px] leading-relaxed"
+              style={{ color: "var(--text-muted)" }}
+              title="Corrige la voz hacia el nivel objetivo del género detectado (proceso automático)."
+            >
+              Ajusta la voz hacia el nivel objetivo del género. Apagado por
+              defecto.
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+          {STEM_FADERS.map(({ key, label }) => (
+            <FaderControl
+              key={key}
+              label={label}
+              value={faderValues[key] ?? 0}
+              disabled={mixing}
+              onCommit={(db) =>
+                setFaderValues((prev) =>
+                  prev[key] === db ? prev : { ...prev, [key]: db },
+                )
+              }
+            />
+          ))}
         </div>
       </div>
 

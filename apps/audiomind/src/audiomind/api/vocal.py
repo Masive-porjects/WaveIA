@@ -5,14 +5,16 @@ GET  /api/session/{id}/vocal/audio — serve processed vocal audio
 """
 
 from pathlib import Path
+from typing import Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 
 from audiomind.config import settings
-from audiomind.api.upload import sessions, save_sessions
+from audiomind.api.upload import sessions
 from audiomind.api.license import require_license
 from audiomind.models.audio import ProcessingStatus
+from audiomind.session_store import save_sessions
 
 router = APIRouter()
 
@@ -29,8 +31,8 @@ class VocalParamsModel(BaseModel):
 def process_vocal_endpoint(
     session_id: str,
     params: VocalParamsModel,
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> dict[str, Any]:
     """Run the VoiceChain Pro on a session's audio.
 
     Applies De-Esser → Pitch Shift → Optical Compressor in series.
@@ -86,7 +88,7 @@ def process_vocal_endpoint(
 
 
 @router.get("/session/{session_id}/vocal/audio")
-async def get_vocal_audio(session_id: str):
+async def get_vocal_audio(session_id: str) -> FileResponse:
     """Serve the processed vocal WAV file."""
     session = sessions.get(session_id)
     if not session:

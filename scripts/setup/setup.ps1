@@ -6,7 +6,10 @@
 
 $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$venvPython = Join-Path $root '.venv\Scripts\python.exe'
+# El venv vive en apps\audiomind\.venv (convención de start-one.ps1 y del
+# entorno real): los start scripts lanzan uvicorn desde apps/audiomind.
+$venvDir = Join-Path $root 'apps\audiomind\.venv'
+$venvPython = Join-Path $venvDir 'Scripts\python.exe'
 $fail = $false
 
 function Step-Ok   { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
@@ -19,10 +22,10 @@ if (Test-Path $venvPython) {
 } else {
     if (Get-Command py -ErrorAction SilentlyContinue) {
         Step-Info "creando .venv con 'py -3.12'"
-        & py -3.12 -m venv (Join-Path $root '.venv')
+        & py -3.12 -m venv $venvDir
     } else {
         Step-Info "creando .venv con 'python'"
-        & python -m venv (Join-Path $root '.venv')
+        & python -m venv $venvDir
     }
     if (Test-Path $venvPython) { Step-Ok ".venv creado" }
     else { Step-Fail "no se pudo crear .venv - instala Python 3.12 (python.org)" }
@@ -30,15 +33,17 @@ if (Test-Path $venvPython) {
 
 Write-Host "== 2/5 dependencias Python ==" -ForegroundColor White
 if (Test-Path $venvPython) {
-    & $venvPython -c "import rtmidi, websockets, mido, uvicorn, fastapi, audiomind" 2>$null
+    & $venvPython -c "import uvicorn, fastapi, audiomind" 2>$null
     if ($LASTEXITCODE -eq 0) {
         Step-Ok "deps Python ya instaladas"
     } else {
-        Step-Info "instalando requirements + audiomind editable (tarda varios min la primera vez)"
+        # AudioMind va editable (src-layout): -e apps/audiomind instala TODAS
+        # las deps del proyecto (fastapi, uvicorn, librosa, pedalboard...).
+        # apps\bridge y simulator fueron removidos del producto (2026-09-11):
+        # sus requirements.txt ya NO existen, no se instalan.
+        Step-Info "instalando audiomind editable (tarda varios min la primera vez)"
         & $venvPython -m pip install --retries 15 --timeout 90 `
-            -r (Join-Path $root 'apps\bridge\requirements.txt') `
-            -r (Join-Path $root 'simulator\requirements.txt')
-        & $venvPython -m pip install -e (Join-Path $root 'apps\audiomind')
+            -e (Join-Path $root 'apps\audiomind')
         & $venvPython -c "import uvicorn, fastapi, audiomind" 2>$null
         if ($LASTEXITCODE -eq 0) { Step-Ok "deps Python instaladas" }
         else { Step-Fail "fallo la instalacion de deps Python" }

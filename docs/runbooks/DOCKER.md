@@ -2,7 +2,7 @@
 
 > Alternativa dockerizada a `SETUP.md` para levantar el stack completo sin
 > instalar Python/bun en el host. Solo necesitas Docker Desktop.
-> Stack: Studio (Next.js :3000) · AudioMind (FastAPI :8000) · Simulator (WS :8765).
+> Stack: Studio (Next.js :3000) · AudioMind (FastAPI :8000).
 
 ---
 
@@ -25,24 +25,18 @@ docker compose down              # detiene todo (los volúmenes sobreviven)
 docker compose down -v           # detiene y BORRA uploads/outputs persistidos
 ```
 
-**Esperado:** `docker compose ps` muestra los 3 servicios `healthy`.
+**Esperado:** `docker compose ps` muestra los 2 servicios `healthy`.
 
 | Servicio | URL | Qué es |
 |---|---|---|
 | `studio` | http://localhost:3000 | UI de mastering + pestaña Live (build de producción, `next start` standalone) |
 | `audiomind` | http://localhost:8000/health | DSP de mastering (`{"status":"ok","service":"AudioMind"}`) |
-| `simulator` | ws://localhost:8765 | Mock del bridge: emite `LiveParams` sintéticos (scenario `sweep`, loop) |
 
 ---
 
 ## 2. Decisiones de diseño (por qué es así)
 
-- **El bridge NO está dockerizado.** `python-rtmidi` necesita el stack MIDI del
-  host (hardware/driver); dentro de un contenedor `MidiListener.open()` falla y
-  el proceso sale. El `simulator` ocupa su lugar en :8765 — es el mismo mock que
-  usa la suite e2e. Si tienes un controlador MIDI, corre el bridge en el host
-  (`scripts/start/start-bridge.bat`) y comenta el servicio `simulator` para no
-  pelear por el puerto.
+- **Bridge y simulator fueron removidos del producto.** `apps/bridge/` (MIDI → WS) y el módulo `simulator/` ya no existen — el Live Engine es standalone (knobs del navegador, sin WebSocket ni MIDI). El servicio `simulator` que quedaba en el compose (build desde el `simulator/Dockerfile` sobreviviente) apuntaba a un módulo Python inexistente → **se quitó de `docker-compose.yml`** (23-Sep, commit `093946c`). Ver `../ESTADO_PROYECTO.md` §5.
 - **`NEXT_PUBLIC_API_URL` es un build-arg.** Las `NEXT_PUBLIC_*` se inlinean en
   el bundle durante `next build` — cambiarla exige `docker compose build studio`.
   El default `http://localhost:8000/api` es correcto porque el browser corre en
@@ -75,11 +69,11 @@ docker compose down -v           # detiene y BORRA uploads/outputs persistidos
 ## 4. Verificación
 
 ```bash
-docker compose ps                                   # 3 servicios healthy
+docker compose ps                                   # 2 servicios healthy
 curl http://localhost:8000/health                   # {"status":"ok","service":"AudioMind"}
 curl -I http://localhost:3000                       # 200
-# Live Engine: pestaña "Live" del studio — con el simulator corriendo, los
-# knobs se mueven solos (sweep) y los metros reaccionan.
+# Live Engine: pestaña "Live" del studio — los knobs se operan desde la UI
+# (standalone, sin websocket ni simulator).
 ```
 
 ---
@@ -88,7 +82,7 @@ curl -I http://localhost:3000                       # 200
 
 | # | Pitfall | Detalle |
 |---|---|---|
-| 1 | Puerto 8765 ocupado | bridge local y simulator no pueden coexistir: comenta uno |
+| 1 | Servicio `simulator` | **removido del compose** (23-Sep, `093946c`) — el módulo Python no existe; `simulator/Dockerfile` es un huérfano que se puede borrar |
 | 2 | Cambiar `NEXT_PUBLIC_API_URL` | es build-arg: `docker compose build studio` (no basta `restart`) |
 | 3 | Primer build lento | demucs-onnx/onnxruntime pesan ~1 GB; los rebuilds usan cache |
 | 4 | `docker compose up` viejo | tras cambios de código: `docker compose up --build` |

@@ -239,6 +239,52 @@ class TestCreativeParamSpace:
         assert mean_abs_dev[0.2] < mean_abs_dev[0.6] < mean_abs_dev[1.0]
 
 
+class TestTrimParamSpace:
+    """T1 — faders por stem: cada stem (drums/bass/other/vocals) tiene un
+    trim ±6 dB en el espacio de parámetros, mapeado a su key. Neutral
+    sigue siendo 0.0 dB en los cuatro."""
+
+    FIVE = 5.0
+
+    def _trim_entries(self):
+        return [e for e in CREATIVE_PARAM_SPACE if e["stage"] == "trim"]
+
+    def test_all_four_stems_have_a_trim(self):
+        """Los 4 stems tienen entrada stage=trim (drums, bass, other, vocals)."""
+        stems = {e["stem"] for e in self._trim_entries()}
+        assert stems == {"drums", "bass", "other", "vocals"}
+
+    def test_trim_envelope_is_plusminus_6_db(self):
+        """Cada trim es ±6 dB con standard 0.0 (fader manual de balance)."""
+        for entry in self._trim_entries():
+            assert entry["min"] == -6.0, entry["key"]
+            assert entry["max"] == 6.0, entry["key"]
+            assert entry["standard"] == 0.0, entry["key"]
+            assert entry["min"] < entry["standard"] < entry["max"]
+
+    def test_trim_paths_resolve_on_the_trim_root(self):
+        """Aplicar un trim de un stem deja los demás en 0.0."""
+        variant = {"trim.drums_db": 2.5, "trim.vocals_db": -1.5}
+        _, _, _, _, _, trims = apply_variant_to_profiles(variant)
+        assert trims["drums_db"] == 2.5
+        assert trims["bass_db"] == 0.0
+        assert trims["other_db"] == 0.0
+        assert trims["vocals_db"] == -1.5
+
+    def test_trim_entries_are_wired_into_the_space(self):
+        """Las keys de trim existen en CREATIVE_PARAM_SPACE (no hay keys
+        huérfanas en el root que el reporte no documente)."""
+        space_keys = {e["key"] for e in CREATIVE_PARAM_SPACE}
+        trim_keys = {e["key"] for e in self._trim_entries()}
+        assert trim_keys <= space_keys
+        assert trim_keys == {
+            "trim.drums_db",
+            "trim.bass_db",
+            "trim.other_db",
+            "trim.vocals_db",
+        }
+
+
 class TestApplyVariantToProfiles:
     """Variant params → fresh routing roots; base constants never mutate."""
 

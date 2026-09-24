@@ -459,6 +459,13 @@ export interface MixResult {
   emphasis_report?: unknown;
   qc_report?: unknown;
   versions?: Record<string, unknown> | null;
+  /** T4 — stem auto-balance report (backend, only when auto_balance=true).
+   *  Shape: { genre, genre_confidence, status, stem_lufs,
+   *  groove_level_lufs, vocal_target_lufs, d, gains, applied }. */
+  balance_report?: unknown;
+  /** T5 — manual stem faders report (backend, only when a trim ≠ 0 is
+   *  sent). Shape: { gains: {*_db}, applied }. */
+  trim_report?: unknown;
 }
 
 /**
@@ -468,18 +475,34 @@ export interface MixResult {
  * spatial dimension stage (Paso 04: tempo delay + reverb per stem):
  * ``dimensionEnabled`` defaults to ``true`` (current behaviour);
  * ``false`` routes the stems exactly like Paso 03 — the backend omits
- * ``dimension_report`` from the payload.
+ * ``dimension_report`` from the payload. The same body accepts the stem
+ * balance options (T5/T6): ``autoBalance`` sends ``auto_balance: true``
+ * (the engine measures and corrects the voice toward the genre target,
+ * reporting ``balance_report``) and ``stemTrims`` sends the manual
+ * faders as ``stem_trims`` (only keys ≠ 0; all-zero/absent keeps the
+ * previous payload exactly — no ``trim_report``).
  */
 export async function mixTracks(
   sessionId: string,
-  options?: { signal?: AbortSignal; dimensionEnabled?: boolean },
+  options?: {
+    signal?: AbortSignal;
+    dimensionEnabled?: boolean;
+    autoBalance?: boolean;
+    stemTrims?: Record<string, number>;
+  },
 ): Promise<{ audioUrl: string; audioBlob: Blob; result: MixResult | null }> {
+  const body: Record<string, unknown> = {
+    dimension_enabled: options?.dimensionEnabled ?? true,
+  };
+  if (options?.autoBalance) body.auto_balance = true;
+  const stemTrims = Object.fromEntries(
+    Object.entries(options?.stemTrims ?? {}).filter(([, db]) => db !== 0),
+  );
+  if (Object.keys(stemTrims).length > 0) body.stem_trims = stemTrims;
   const res = await fetch(`${API_BASE}/session/${sessionId}/mix`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...licenseHeaders() },
-    body: JSON.stringify({
-      dimension_enabled: options?.dimensionEnabled ?? true,
-    }),
+    body: JSON.stringify(body),
     ...(options?.signal ? { signal: options.signal } : {}),
   });
   if (!res.ok) {

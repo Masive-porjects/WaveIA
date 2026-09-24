@@ -130,6 +130,7 @@ from audiomind.processing.render_versions import (
 )
 from audiomind.processing.resample import resample_audio
 from audiomind.processing.splitter import STEM_NAMES, split_audio
+from audiomind.processing.stem_balance import compute_stem_balance
 from audiomind.processing.vocal_adaptive import (
     apply_register_dimension,
     apply_vocal_treatment,
@@ -273,6 +274,27 @@ def _apply_scaled_bus_compression(
         "attack_ms": params.attack_ms,
         "release_ms": params.release_ms,
     }
+
+
+def _apply_stem_trims(
+    variant_processed: dict[str, np.ndarray],
+    variant_bus_audio: list[np.ndarray],
+    variant_trims: dict[str, float],
+) -> None:
+    """Stem balance faders (Mix Stem Balance, T2): every stem scales by
+    10**(db/20) at the bus input, AFTER the stem chain — the creative-mode
+    "mixer fader board". 0.0 dB trims are SKIPPED, so neutral stays
+    bit-exact (spec 08); a trim of a stem absent from ``variant_processed``
+    is a no-op. Mutates BOTH the processed dict and the bus audio list in
+    sync (same objects) — the caller re-reads ``variant_processed``.
+    """
+    for stem in STEM_NAMES:
+        gain_db = float(variant_trims.get(f"{stem}_db", 0.0))
+        if gain_db == 0.0 or stem not in variant_processed:
+            continue
+        gain = 10.0 ** (gain_db / 20.0)
+        variant_processed[stem] = variant_processed[stem] * gain
+        variant_bus_audio[STEM_NAMES.index(stem)] = variant_processed[stem]
 
 
 def _apply_bus_profile(
@@ -421,6 +443,8 @@ def build_mix(
     creative_variants: int = 0,
     creative_manual: bool = False,
     vocal_treatment: bool = False,
+    auto_balance: bool = False,
+    stem_trims: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Run the per-stem routing pipeline for a session.
 
@@ -527,6 +551,31 @@ def build_mix(
             (propuesta §2.3 — genre owns the direction, register fine-
             tunes only the vocal space); no credible voice → neutral
             ``no_voice`` plan reported, never an invented register.
+        auto_balance: Opt-in stem auto-balance (T3, ``stem_balance`` —
+            feature ``odd/tasks/mix-stem-balance.md``). Default ``False``:
+            the exact previous routing (bit-identical neutral, no
+            measurement, no mutation). When ``True`` the engine measures
+            integrated LUFS on the PROCESSED stems, resolves the genre
+            target from the SAME emphasis weights (explicit ``genre`` or
+            measured from the input) and corrects ONLY the voice toward
+            that target — bounded by the ±6 dB fader band of T1; a
+            no-op/neutral outcome leaves the audio untouched. When on, the
+            payload carries ``balance_report`` (T4): resolved genre +
+            status, measured stem LUFS, groove/target levels, the computed
+            ``d``, the final gains and the ``applied`` flag (honest about
+            a neutral no-op); when off, the key is ABSENT (exact previous
+            payload shape).
+        stem_trims: MANUAL stem faders (T5, ``odd/tasks/mix-stem-balance.md``
+            — the human decides): an optional dict of ``{stem}_db`` gains
+            in the ±6 dB band (T1) applied to the bus input AFTER the whole
+            chain (T2) and AFTER any auto-balance — the manual fader stays
+            visible/relative to the engine's result (the auto-balance
+            measured the stems WITHOUT the manual fader). ``None``
+            (default) or all-zero dicts keep the exact previous routing
+            (bit-identical neutral, spec 08) with no ``trim_report`` key;
+            with at least one non-zero gain the payload carries
+            ``trim_report`` = ``{"gains": {non-zero ``{stem}_db`` keys},
+            "applied": true}``.
 
     Returns:
         ``{
@@ -549,6 +598,8 @@ def build_mix(
             "qc_report": {...},        # Paso 07, always present (informational)
             "versions": {...},         # Paso 07, absent when with_versions=False
             "vocal_treatment_report": {...}  # Eje A, absent unless vocal_treatment=True
+            "balance_report": {...}    # T4, absent unless auto_balance=True
+            "trim_report": {...}       # T5, absent unless a manual trim ≠ 0 is set
         }``
         where each per-stem analysis dict carries ``integrated_lufs``,
         ``dynamic_range_db``, ``spectral_centroid`` and ``sample_rate``,
@@ -675,13 +726,13 @@ def build_mix(
     emphasis_resolved: dict[str, Any] | None = None
     emphasis_dim_scaling: dict[str, float] = {}
     scaled_bus_target: float | None = None
+    # T3 — the auto-balance reuses the SAME measured/explicit genre as the
+    # emphasis stage: one detection serves both when both are enabled.
+    detected_genre = genre
+    detected_confidence = genre_confidence
+    if (emphasis_enabled or auto_balance) and detected_genre is None:
+        detected_genre, detected_confidence = _measure_input_genre(input_path)
     if emphasis_enabled:
-        detected_genre = genre
-        detected_confidence = genre_confidence
-        if detected_genre is None:
-            detected_genre, detected_confidence = _measure_input_genre(
-                input_path
-            )
         emphasis_resolved = resolve_emphasis(
             detected_genre, detected_confidence, emphasis_profiles
         )
@@ -845,6 +896,57 @@ def build_mix(
         bus_audio.append(shaped)
         processed_stems[name] = shaped
 
+    # T3/T4 — auto-balance: measure the processed stems and correct ONLY the
+    # voice toward the genre target (emphasis weights), bounded by the
+    # ±6 dB fader band. OFF (default) = no measurement, no mutation: the
+    # routing stays bit-identical to the manual-fader-only path. The gains
+    # reuse the EXACT T2 application point (``_apply_stem_trims`` after
+    # the chain, before the pad/sum) so neutral and manual behavior are
+    # unchanged. A neutral/no-op outcome (``applied=False``) also leaves
+    # the audio untouched. When ON, the measured ``compute_stem_balance``
+    # envelope (stem LUFS, gains, target) plus the resolved genre is
+    # exposed as ``balance_report`` in the payload (T4); when OFF the key
+    # is absent (master-safe neutral payload shape).
+    balance_report: dict[str, Any] | None = None
+    if auto_balance:
+        auto_balance_weights: dict[str, Any] = resolve_emphasis(
+            detected_genre, detected_confidence
+        )
+        stem_balance_result = compute_stem_balance(
+            processed_stems, target_sr, auto_balance_weights
+        )
+        if stem_balance_result["applied"]:
+            _apply_stem_trims(
+                processed_stems, bus_audio, stem_balance_result["gains"]
+            )
+        balance_report = {
+            "genre": auto_balance_weights["genre"],
+            "genre_confidence": auto_balance_weights["genre_confidence"],
+            "status": auto_balance_weights["status"],
+            "stem_lufs": stem_balance_result["stem_lufs"],
+            "groove_level_lufs": stem_balance_result["groove_level_lufs"],
+            "vocal_target_lufs": stem_balance_result["vocal_target_lufs"],
+            "d": stem_balance_result["d"],
+            "gains": stem_balance_result["gains"],
+            "applied": stem_balance_result["applied"],
+        }
+
+    # T5 — MANUAL stem faders (the human decides): the user's trims land ON
+    # TOP of the auto-balance result, AFTER it (the auto-balance measured
+    # the stems WITHOUT any manual fader, so the manual trim is a relative
+    # — always visible — adjustment). None or all-zero trims keep the exact
+    # previous routing (bit-identical, spec 08) and ``trim_report`` stays
+    # ABSENT (same payload shape); with at least one non-zero gain the
+    # report carries ONLY the applied keys (``gains``) + ``applied``.
+    trim_report: dict[str, Any] | None = None
+    if stem_trims:
+        manual_trims = {
+            key: value for key, value in stem_trims.items() if value != 0.0
+        }
+        if manual_trims:
+            _apply_stem_trims(processed_stems, bus_audio, manual_trims)
+            trim_report = {"gains": manual_trims, "applied": True}
+
     dimension_report: dict[str, Any] | None = None
     if dimension_enabled:
         dimension_report = {
@@ -955,8 +1057,8 @@ def build_mix(
             """Route one variant from the raw stems to a validated bus.
 
             Mirrors the principal chain (pan → EQ → compresor → sends →
-            sum → 2-bus) with the variant's SIX routing roots; the vocal
-            trim lands at the bus input (a fader AFTER the stem chain,
+            sum → 2-bus) with the variant's SIX routing roots; the stem
+            trims land at the bus input (faders AFTER the stem chain,
             versions-style). Variant roots are deep copies of the shared
             constants — the principal constants are never touched.
             """
@@ -1001,15 +1103,10 @@ def build_mix(
                 variant_processed[name] = shaped
                 variant_bus_audio.append(shaped)
 
-            # Creative fader: the vocals trim applied at the bus input,
-            # AFTER the chain (same semantic as render_versions).
-            vocals_db = float(variant_trims.get("vocals_db", 0.0))
-            if vocals_db != 0.0 and "vocals" in variant_processed:
-                gain = 10.0 ** (vocals_db / 20.0)
-                variant_processed["vocals"] = variant_processed["vocals"] * gain
-                variant_bus_audio[STEM_NAMES.index("vocals")] = (
-                    variant_processed["vocals"]
-                )
+            # Creative faders: the stem trims applied at the bus input,
+            # AFTER the chain — same semantic as render_versions, but for
+            # every stem (drums/bass/other/vocals, Mix Stem Balance T2).
+            _apply_stem_trims(variant_processed, variant_bus_audio, variant_trims)
 
             max_len = max(audio.shape[1] for audio in variant_bus_audio)
             variant_bus = np.zeros((2, max_len), dtype=np.float32)
@@ -1099,6 +1196,10 @@ def build_mix(
         }
     if creative_report is not None:
         build_result["creative_report"] = creative_report
+    if balance_report is not None:
+        build_result["balance_report"] = balance_report
+    if trim_report is not None:
+        build_result["trim_report"] = trim_report
 
     # Eje A (entregable 2): transparency report — QUÉ se aplicó, con qué
     # registro medido y POR QUÉ (Spanish-neutral ``why``, honest about the

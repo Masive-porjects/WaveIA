@@ -6,16 +6,19 @@ import time
 import uuid
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from typing import Any
 import numpy as np
 import soundfile as sf
 
 from audiomind.config import settings
 from audiomind.models.audio import (
+    AnalysisResult,
     MasteringParameters,
     MasteringReport,
     MasterResultMetrics,
@@ -28,7 +31,8 @@ from audiomind.models.audio import (
     ValidationReport,
 )
 from audiomind.services import demo_guard
-from audiomind.api.upload import sessions, save_sessions
+from audiomind.session_store import save_sessions
+from audiomind.api.upload import sessions
 # Heavy DSP modules (librosa/pedalboard) are imported lazily inside the
 # functions that use them so FastAPI startup stays light and fast on
 # low-memory deployments (Railway 1GB) — see OOM/timeout mitigation.
@@ -49,10 +53,10 @@ from audiomind.api.license import require_license
 #     call (importlib on an already-loaded module is a dict lookup).
 # Importing this module still never pulls in librosa/pedalboard/engine —
 # only an actual DSP call does (preserves the lazy-load OOM mitigation).
-def _lazy_dsp_call(module_name: str, attr: str):
+def _lazy_dsp_call(module_name: str, attr: str) -> Callable[..., Any]:
     """Return a wrapper that late-imports ``module_name.attr`` per call."""
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         import importlib
 
         impl = getattr(importlib.import_module(module_name), attr)
@@ -61,9 +65,13 @@ def _lazy_dsp_call(module_name: str, attr: str):
     return wrapper
 
 
-process_audio = _lazy_dsp_call("audiomind.processing.engine", "process_audio")
-analyze_audio = _lazy_dsp_call("audiomind.analysis.analyzer", "analyze_audio")
-compare_tracks = _lazy_dsp_call(
+process_audio: Callable[..., dict[str, Any]] = _lazy_dsp_call(
+    "audiomind.processing.engine", "process_audio"
+)
+analyze_audio: Callable[..., AnalysisResult | None] = _lazy_dsp_call(
+    "audiomind.analysis.analyzer", "analyze_audio"
+)
+compare_tracks: Callable[..., ReferenceComparison] = _lazy_dsp_call(
     "audiomind.analysis.reference_compare", "compare_tracks"
 )
 
@@ -87,7 +95,7 @@ _BASE_INTENSITY_MULTIPLIER = 1.8
 # Structure: {session_id: {preset_id: {"output_path", "master_result",
 # "validation", "status", "progress", "error"}}}
 # Status per preset: "pending" | "processing" | "completed" | "error"
-_prerender_cache: dict[str, dict[str, dict]] = {}
+_prerender_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def _build_preset_params(preset_id: str) -> MasteringParameters:
@@ -122,7 +130,7 @@ def _prerender_single_preset(
     session_id: str,
     preset_id: str,
     input_path: str,
-    analysis,
+    analysis: AnalysisResult | None,
 ) -> None:
     """Process a single preset and store the result in _prerender_cache.
 
@@ -177,7 +185,7 @@ def _prerender_single_preset(
 def _prerender_all_presets(
     session_id: str,
     input_path: str,
-    analysis,
+    analysis: AnalysisResult | None,
 ) -> None:
     """Launch pre-rendering of all presets in parallel (background task).
 
@@ -211,7 +219,7 @@ class StatelessMasterRequest(BaseModel):
     settings: MasteringParameters
 
 
-def _master_result_from_engine(result: dict) -> MasterResultMetrics:
+def _master_result_from_engine(result: dict[str, Any]) -> MasterResultMetrics:
     """Map the engine result dict onto the response model.
 
     Uses ``.get()`` so partial/stubbed engine results never raise —
@@ -230,7 +238,7 @@ def _master_result_from_engine(result: dict) -> MasterResultMetrics:
     )
 
 
-def _mastering_report_from_engine(result: dict) -> MasteringReport:
+def _mastering_report_from_engine(result: dict[str, Any]) -> MasteringReport:
     """Build the delivery compliance report from an engine result dict.
 
     Same ``.get()`` discipline as ``_master_result_from_engine``: stubbed
@@ -284,7 +292,7 @@ def _measure_master_file(path: Path) -> MasterResultMetrics:
         return MasterResultMetrics()
 
 
-def _resolve_preset_entry(preset_id: str | None) -> dict | None:
+def _resolve_preset_entry(preset_id: str | None) -> dict[str, Any] | None:
     """Active preset chain entry, or None when there is no preset target."""
     if preset_id and preset_id in PRESET_CHAINS:
         return PRESET_CHAINS[preset_id]
@@ -296,7 +304,7 @@ def _reference_output_path(session_id: str, preset_id: str) -> Path:
     return (settings.output_dir / f"{session_id}_reference_{preset_id}.wav").resolve()
 
 
-def _build_reference_params(preset_entry: dict) -> MasteringParameters:
+def _build_reference_params(preset_entry: dict[str, Any]) -> MasteringParameters:
     """Neutral-chain parameters for the Crudo reference render.
 
     Character comes from ``PRESET_CHAINS["natural"]`` — no EQ bands,
@@ -329,13 +337,13 @@ def _lufs_distance(lufs: float | None, target: float) -> float:
 
 
 def _retry_once_on_lufs_miss(
-    result: dict,
-    session,
+    result: dict[str, Any],
+    session: SessionData,
     params: MasteringParameters,
     output_path: Path,
-    preset_entry: dict,
-    progress_cb,
-) -> tuple[dict, bool]:
+    preset_entry: dict[str, Any],
+    progress_cb: Callable[[float], None],
+) -> tuple[dict[str, Any], bool]:
     """Single bounded auto-retry at reduced engine intensity.
 
     Trigger: a LUFS-miss issue on the first attempt. The retry writes to
@@ -573,8 +581,8 @@ async def process_session(
     session_id: str,
     params: MasteringParameters,
     preset_id: str | None = Query(default=None, description="Preset ID for pre-built lookup"),
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> SessionData:
     """Process a session with the given mastering parameters.
 
     If ``preset_id`` is provided and a pre-built master exists for the
@@ -727,7 +735,7 @@ async def process_session(
     def update_progress(pct: float) -> None:
         session.progress = max(0.0, min(1.0, pct))
 
-    def _run_processing():
+    def _run_processing() -> None:
         """CPU-bound work executed in a thread so the event loop stays free."""
         with demo_guard.gate():
             result = process_audio(
@@ -809,7 +817,7 @@ async def process_session(
 
 
 @router.post("/session/{session_id}/prerender")
-async def trigger_prerender(session_id: str, _=Depends(require_license)):
+async def trigger_prerender(session_id: str, _: object = Depends(require_license)) -> dict[str, Any]:
     """Trigger background pre-rendering of all presets for this session.
 
     Launches 8 parallel DSP jobs (one per preset). Each preset's result
@@ -864,7 +872,7 @@ async def trigger_prerender(session_id: str, _=Depends(require_license)):
 
 
 @router.get("/session/{session_id}/prerender/status")
-async def prerender_status(session_id: str):
+async def prerender_status(session_id: str) -> dict[str, Any]:
     """Check which presets have been pre-rendered for this session.
 
     Returns a dict mapping preset_id -> {status, progress, ...}.
@@ -900,7 +908,7 @@ async def prerender_status(session_id: str):
 
 
 @router.get("/session/{session_id}/prerender/{preset_id}")
-async def get_prerendered(session_id: str, preset_id: str):
+async def get_prerendered(session_id: str, preset_id: str) -> FileResponse:
     """Serve a pre-rendered master for instant playback.
 
     If the preset is cached, returns the mastered file immediately.
@@ -933,8 +941,8 @@ async def get_prerendered(session_id: str, preset_id: str):
 async def render_reference(
     session_id: str,
     preset_id: str,
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> ReferenceRenderResult:
     """Render the neutral Crudo reference for a fair loudness-matched A/B.
 
     Uses the "natural" chain character (no EQ bands, 1.1:1 compression,
@@ -977,7 +985,7 @@ async def render_reference(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-    def _run_reference():
+    def _run_reference() -> None:
         """CPU-bound work executed in a thread so the event loop stays free."""
         process_audio(
             input_path=session.original_path,
@@ -1028,7 +1036,7 @@ async def reset_session_master(session_id: str) -> SessionData:
 
 
 @router.get("/session/{session_id}/audio/reference/{preset_id}")
-async def get_reference_audio(session_id: str, preset_id: str):
+async def get_reference_audio(session_id: str, preset_id: str) -> FileResponse:
     """Serve the rendered Crudo reference WAV for playback."""
     session = sessions.get(session_id)
     if not session:
@@ -1089,8 +1097,8 @@ def _validate_reference_upload(filename: str, content: bytes) -> str:
 async def upload_reference_file(
     session_id: str,
     file: UploadFile = File(...),
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> ReferenceUploadResult:
     """Upload an external mastered reference file for this session.
 
     REPLACE semantics: a second upload overwrites the previous reference
@@ -1134,7 +1142,7 @@ async def upload_reference_file(
     "/session/{session_id}/compare-reference",
     response_model=ReferenceComparison,
 )
-async def compare_reference(session_id: str, _=Depends(require_license)):
+async def compare_reference(session_id: str, _: object = Depends(require_license)) -> ReferenceComparison:
     """Compare the mastered output against the uploaded external reference.
 
     Pure measurement (spectral diff + loudness/brightness profile); no
@@ -1186,7 +1194,7 @@ async def compare_reference(session_id: str, _=Depends(require_license)):
 
 
 @router.get("/session/{session_id}/audio/reference-file")
-async def get_reference_file_audio(session_id: str):
+async def get_reference_file_audio(session_id: str) -> FileResponse:
     """Serve the uploaded external reference file for playback."""
     session = sessions.get(session_id)
     if not session:
@@ -1215,7 +1223,7 @@ async def get_audio(
     session_id: str,
     audio_type: str,
     preset_id: str | None = Query(default=None),
-):
+) -> FileResponse:
     """Serve audio file for playback.
 
     ``audio_type == "mastered"`` accepts an optional ``?preset_id=X`` to
@@ -1251,7 +1259,7 @@ async def get_audio(
 
 
 @router.get("/session/{session_id}/raw")
-async def get_raw_audio(session_id: str):
+async def get_raw_audio(session_id: str) -> dict[str, Any]:
     """Return raw PCM audio data as JSON for Web Audio API.
 
     Returns:
@@ -1287,7 +1295,7 @@ async def get_raw_audio(session_id: str):
 async def get_raw_mastered_audio(
     session_id: str,
     preset_id: str | None = Query(default=None),
-):
+) -> dict[str, Any]:
     """Return raw PCM audio data of the mastered version.
 
     ``?preset_id=X`` serves that preset's mastered file (404 when unknown
@@ -1327,8 +1335,8 @@ async def download_audio(
     session_id: str,
     format: str,
     preset_id: str | None = Query(default=None),
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> FileResponse:
     """Download mastered audio in specified format.
 
     ``?preset_id=X`` downloads THAT preset's mastered file (same
@@ -1401,7 +1409,7 @@ async def download_audio(
 
 
 @router.get("/session/{session_id}")
-async def get_session(session_id: str):
+async def get_session(session_id: str) -> SessionData:
     """Get session status and data (for polling progress)."""
     session = sessions.get(session_id)
     if not session:
@@ -1410,7 +1418,7 @@ async def get_session(session_id: str):
 
 
 @router.post("/session/new", response_model=SessionData)
-async def create_session():
+async def create_session() -> SessionData:
     """Create a new empty session (without uploading audio yet).
 
     Useful for pre-initializing a session before upload, or for
@@ -1426,8 +1434,8 @@ async def create_session():
 @router.post("/master")
 async def master_stateless(
     req: StatelessMasterRequest,
-    _=Depends(require_license),
-):
+    _: object = Depends(require_license),
+) -> dict[str, Any]:
     """Stateless one-shot mastering from a signed audio URL.
 
     Downloads ``audio_url`` (no session, no upload), analyzes it and runs
@@ -1484,7 +1492,7 @@ async def master_stateless(
         settings.output_dir / f"stateless_{uuid.uuid4().hex}_mastered.wav"
     ).resolve()
 
-    def _run_pipeline():
+    def _run_pipeline() -> dict[str, Any]:
         """Analyze + process on the DSP executor; the event loop stays free."""
         with demo_guard.gate():
             analysis = analyze_audio(input_path)
