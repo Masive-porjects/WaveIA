@@ -14,9 +14,18 @@
     "apply": "Apply",
     "language": "Language",
     "theme": "Theme",
-    "success": "Operation successful"
+    "success": "Operation successful",
+    "pro": "Pro",
+    "reset": "Reset",
+    "backToMainFlow": "← Back to main workflow"
   },
   "nav": {
+    "home": "Home",
+    "masteringModeAria": "Choose how you want to master",
+    "manualMode": "Manual",
+    "manualDesc": "Full control",
+    "aiMode": "AI Assistant",
+    "aiDesc": "Recommendations",
     "mezcla": "Audio Mix",
     "modules": "Master Audio",
     "splitter": "Stem Splitter",
@@ -47,6 +56,11 @@
   },
   "mastering": {
     "title": "Professional Mastering",
+    "loadAudioPrompt": "Upload an audio file to get started.",
+    "selectOrTweak": "Select a profile or fine-tune below",
+    "processButton": "Process with these parameters",
+    "processWithPreset": "Process with this preset",
+    "downloadMaster": "Download master",
     "selectPreset": "Select a Character Preset",
     "deliveryTarget": "Delivery Target",
     "transparentMode": "Transparent Mode",
@@ -96,6 +110,12 @@
     }
   },
   "upload": {
+    "heroPrefix": "Master Your",
+    "heroAccent": "Music",
+    "lufsStandard": "-14 LUFS Standard",
+    "dspModules": "4 DSP Modules",
+    "proQuality": "Professional Quality",
+    "uploadAnother": "Upload another track",
     "dropzoneTitle": "Load your track to master",
     "dropzoneSubtitle": "Drag and drop your file or click to get started.",
     "supportedFormats": "Supports WAV and MP3 — max 50MB",
@@ -107,8 +127,25 @@
     "changeTrack": "Drag a different track",
     "or": "or"
   },
+  "splitter": {
+    "loadAudioPrompt": "Upload an audio file to use the Stem Splitter."
+  },
+  "mezcla": {
+    "loadAudioPrompt": "Upload an audio file to use Audio Mix."
+  },
+  "vocal": {
+    "loadAudioPrompt": "Upload an audio file to use Vocal Chain."
+  },
+  "analysis": {
+    "openAnalysis": "Open Analysis →",
+    "openAnalysisShort": "Open Analysis",
+    "dockHintPrefix": "Open the module"
+  },
   "report": {
     "title": "Compliance Report",
+    "panelTitle": "Analysis Panel",
+    "genre": "Genre",
+    "alreadyMasteredNotice": "Audio already mastered — risk of over-mastering",
     "integratedLufs": "Integrated Loudness",
     "truePeak": "True Peak",
     "sampleRate": "Sample Rate",
@@ -116,6 +153,13 @@
     "crestFactor": "Crest Factor",
     "statusOk": "Meets delivery compliance standards",
     "warnings": "Detected warnings"
+  },
+  "errors": {
+    "serverRestartTitle": "Server restarted",
+    "serverRestartMessage": "The session was lost during processing. Reload the page: if the session is not restored, upload your audio again.",
+    "sessionExpiredTitle": "Your previous session expired",
+    "sessionExpiredMessage": "The server was restarted and could not recover it. Upload your audio again to continue.",
+    "uploadFailed": "Failed to upload audio file"
   },
   "auth": {
     "login": "Sign In",

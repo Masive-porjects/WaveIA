@@ -14,9 +14,18 @@
     "apply": "Aplicar",
     "language": "Idioma",
     "theme": "Tema",
-    "success": "Operación exitosa"
+    "success": "Operación exitosa",
+    "pro": "Pro",
+    "reset": "Restablecer",
+    "backToMainFlow": "← Volver al flujo principal"
   },
   "nav": {
+    "home": "Inicio",
+    "masteringModeAria": "Elige cómo quieres masterizar",
+    "manualMode": "Manual",
+    "manualDesc": "Control total",
+    "aiMode": "Asistente IA",
+    "aiDesc": "Recomendaciones",
     "mezcla": "Mezcla de Audio",
     "modules": "Masterizar Audio",
     "splitter": "Splitter",
@@ -47,6 +56,11 @@
   },
   "mastering": {
     "title": "Masterización Profesional",
+    "loadAudioPrompt": "Carga un audio para empezar.",
+    "selectOrTweak": "Selecciona un perfil o ajusta fino abajo",
+    "processButton": "Procesar con estos parámetros",
+    "processWithPreset": "Procesar con este preset",
+    "downloadMaster": "Descargar master",
     "selectPreset": "Selecciona un preset de carácter",
     "deliveryTarget": "Plataforma de Entrega",
     "transparentMode": "Modo Transparente",
@@ -96,6 +110,12 @@
     }
   },
   "upload": {
+    "heroPrefix": "Masteriza Tu",
+    "heroAccent": "Música",
+    "lufsStandard": "-14 LUFS Standard",
+    "dspModules": "4 Módulos DSP",
+    "proQuality": "Calidad Profesional",
+    "uploadAnother": "Subir otro track",
     "dropzoneTitle": "Carga tu track para masterizar",
     "dropzoneSubtitle": "Arrastra tu archivo o haz clic para comenzar.",
     "supportedFormats": "Soporta WAV y MP3 — máximo 50MB",
@@ -107,8 +127,25 @@
     "changeTrack": "Arrastra un track diferente",
     "or": "o"
   },
+  "splitter": {
+    "loadAudioPrompt": "Carga un audio para usar el Splitter."
+  },
+  "mezcla": {
+    "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio."
+  },
+  "vocal": {
+    "loadAudioPrompt": "Carga un audio para usar VoiceChain Pro."
+  },
+  "analysis": {
+    "openAnalysis": "Abrir Análisis →",
+    "openAnalysisShort": "Abrir Análisis",
+    "dockHintPrefix": "Abre el módulo"
+  },
   "report": {
     "title": "Reporte de Cumplimiento",
+    "panelTitle": "Panel de Análisis",
+    "genre": "Género",
+    "alreadyMasteredNotice": "Audio ya masterizado — riesgo de sobremasterización",
     "integratedLufs": "Loudness Integrado",
     "truePeak": "Pico Verdadero (True Peak)",
     "sampleRate": "Sample Rate",
@@ -116,6 +153,13 @@
     "crestFactor": "Factor de Cresta",
     "statusOk": "Cumple los estándares de entrega",
     "warnings": "Advertencias detectadas"
+  },
+  "errors": {
+    "serverRestartTitle": "El servidor se reinició",
+    "serverRestartMessage": "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
+    "sessionExpiredTitle": "Tu sesión anterior expiró",
+    "sessionExpiredMessage": "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar.",
+    "uploadFailed": "Error al subir el archivo"
   },
   "auth": {
     "login": "Iniciar Sesión",
