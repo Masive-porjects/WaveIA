@@ -55,3 +55,6 @@ La estética de WaveAI evoca un estudio de producción musical profesional de al
    - Cada fase se trabaja en una rama nueva basada en `dev` (`feat/fase-...`).
    - Prohibido hacer push directo a `dev`; toda integración se hace exclusivamente vía Pull Requests (PRs).
    - La rama `main` **nunca se toca** a menos que se indique explícitamente lo contrario.
+6. **Reporte Formal por Fase**:
+   - Al culminar cada fase se debe generar y entregar un informe estructurado que detalle los cambios, archivos afectados, resultados de pruebas (`lint`/`build`/`tests`) y el estado del roadmap.
+   - El historial de reportes se guardará en `antigravity/reports/report-fase-X.md`.
