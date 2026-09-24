@@ -27,13 +27,21 @@ La estética de WaveAI evoca un estudio de producción musical profesional de al
 
 ---
 
-## 3. Principios de Interfaz y Audio (No Negociables)
+## 3. Principios de Interfaz, Multiidioma y Estética (No Negociables)
+- **Multiidioma Obligatorio (i18n)**:
+  - **Toda nueva integración, vista o componente DEBE conectarse al sistema i18n** mediante el hook `useTranslation()`.
+  - Los textos se deben registrar simultáneamente en `apps/studio/src/i18n/locales/es.json` y `en.json`.
+  - **Prohibido el texto "hardcodeado"** en código TSX/JSX y **prohibido el spanglish** (consistencia absoluta: 100% español latino neutro en `es.json` y 100% inglés natural de industria en `en.json`).
+  - Microcopy en español sin voseo ("Sube tu audio", "Ajusta los parámetros", "Compara A/B", "Elige", "Toca").
+- **Estética Visual y Design System WaveIA**:
+  - **Tokens de Color Obligatorios**: Emplear siempre las variables CSS del sistema (`var(--bg-base)`, `var(--surface-elevated)`, `var(--bg-glass-elevated)`, `var(--accent-primary)`, `var(--border-subtle)`). Prohibido usar estilos arbitrarios o colores planos genéricos que desentonen con la estética de hardware analógico de alta gama.
+  - **Glassmorphism y Acabados de Estudio**: Fondos traslúcidos con `backdrop-blur-2xl`, sombras profundas con iluminación de borde superior (`inset 0 1px 0 rgba(255,255,255,0.08)`).
+  - **Identidad de Marca WaveIA**: Integrar los elementos visuales distintivos (mascota fantasma interactiva `BigGhostWithNotes`, `FloatingGhosts`, notas musicales flotantes `FloatingNotes` y orbes de gradiente místico) en pantallas de acceso, landing y estados clave.
+  - **Ergonomía y Cero Scroll Innecesario**: Pantallas de formulario y autenticación (`/login`, `/register`), modales y diálogos compactos deben diseñarse para ajustarse exactamente al viewport (`100vh`) sin generar barras de desplazamiento vertical en pantallas de laptop y escritorio.
+  - **Micro-interacciones y Animaciones**: Uso de `framer-motion` para transiciones fluidas de estados, retroalimentación táctil/visual en tiempo real (indicadores de fortaleza de contraseña, hovers reactivos y loaders).
 - **Regla "Neutral = Bypass"**: Si un control o parámetro está en neutral, el resultado de audio es bit-exacto respecto al original.
 - **Sin Saltos de Ganancia (Anti-zipper)**: En Web Audio API, nunca asignar valores de ganancia o filtros directamente; usar siempre rampas suaves con `setTargetAtTime`.
 - **Reproductor A/B Sincronizado**: El cambio entre audio original y masterizado debe ser instantáneo, sin desfasar la posición de reproducción (transporte sincronizado al milisegundo).
-- **Microcopy**:
-  - Español: Neutro latinoamericano (colombiano/latino sin voseo). Tono técnico, directo y amigable ("Sube tu audio", "Ajusta los parámetros", "Compara A/B").
-  - Inglés: Profesional de industria ("Upload your track", "Adjust parameters", "Compare A/B").
 
 ---
 
