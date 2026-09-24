@@ -6,6 +6,7 @@ import { X, Upload, Music } from "lucide-react";
 import IconButton from "@/components/ui/IconButton";
 import type { SessionData } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
 
 interface MobileDrawerProps {
@@ -142,6 +143,10 @@ export default function MobileDrawer({
               <div className="flex items-center justify-between pb-1">
                 <span className="text-xs text-[var(--text-secondary)]">{t("common.language")}</span>
                 <LanguageSwitcher />
+              </div>
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs text-[var(--text-secondary)]">{t("common.theme", "Tema")}</span>
+                <ThemeToggle />
               </div>
               <button
                 onClick={() => {

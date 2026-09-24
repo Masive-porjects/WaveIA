@@ -8,6 +8,8 @@ import {
 } from "@/shared/config/features.config";
 import type { DockModuleDef } from "@/presentation/components/dock/types";
 
+const FEATURES_STORAGE_KEY = "waveai-feature-flags";
+
 function getInitialFeatures(): Record<FeatureKey, FeatureDefinition> {
   if (typeof window === "undefined") return DEFAULT_FEATURES;
   try {

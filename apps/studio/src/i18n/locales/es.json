@@ -13,6 +13,7 @@
     "next": "Siguiente",
     "apply": "Aplicar",
     "language": "Idioma",
+    "theme": "Tema",
     "success": "Operación exitosa"
   },
   "nav": {
@@ -123,5 +124,11 @@
     "email": "Correo Electrónico",
     "password": "Contraseña",
     "welcome": "Bienvenido a WaveAI"
+  },
+  "theme": {
+    "toggleDark": "Cambiar a tema oscuro",
+    "toggleLight": "Cambiar a tema claro",
+    "studioMode": "Modo estudio (Oscuro)",
+    "devMode": "Modo dev (Claro)"
   }
 }
