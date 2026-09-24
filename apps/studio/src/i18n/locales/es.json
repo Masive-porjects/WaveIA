@@ -65,7 +65,9 @@
     "signInLink": "Inicia sesión",
     "passwordTooShort": "La contraseña debe tener al menos 6 caracteres.",
     "verificationEmailSent": "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada.",
-    "errorGeneric": "Ocurrió un error inesperado. Por favor intenta de nuevo."
+    "errorGeneric": "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+    "roleAdmin": "Admin",
+    "roleUser": "Usuario"
   },
   "player": {
     "play": "Reproducir",

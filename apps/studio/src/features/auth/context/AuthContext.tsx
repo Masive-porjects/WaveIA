@@ -23,7 +23,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (!error && data) {
-        setProfile(data as UserProfile);
+        setProfile({
+          id: data.id,
+          email: data.email,
+          display_name: data.display_name,
+          avatar_url: data.avatar_url,
+          role: (data.role as UserProfile["role"]) || "user",
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        });
       } else {
         // Fallback to user metadata if profile row isn't ready
         setProfile({
@@ -35,6 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             currentUser?.email?.split("@")[0] ||
             "Producer",
           avatar_url: currentUser?.user_metadata?.avatar_url || null,
+          role:
+            (currentUser?.app_metadata?.role as UserProfile["role"]) ||
+            (currentUser?.user_metadata?.role as UserProfile["role"]) ||
+            "user",
         });
       }
     } catch {
@@ -45,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: currentUser.email || null,
           display_name: currentUser.email?.split("@")[0] || "Producer",
           avatar_url: null,
+          role: "user",
         });
       }
     }
@@ -115,11 +128,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase]);
 
+  const role: UserProfile["role"] =
+    profile?.role ||
+    (user?.app_metadata?.role as UserProfile["role"]) ||
+    (user?.user_metadata?.role as UserProfile["role"]) ||
+    "user";
+  const isAdmin = role === "admin";
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
+        role,
+        isAdmin,
         isLoading,
         signOut,
         refreshProfile,

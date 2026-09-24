@@ -65,7 +65,9 @@
     "signInLink": "Sign in",
     "passwordTooShort": "Password must be at least 6 characters.",
     "verificationEmailSent": "We have sent you a confirmation email. Please check your inbox.",
-    "errorGeneric": "An unexpected error occurred. Please try again."
+    "errorGeneric": "An unexpected error occurred. Please try again.",
+    "roleAdmin": "Admin",
+    "roleUser": "User"
   },
   "player": {
     "play": "Play",
