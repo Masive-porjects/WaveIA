@@ -54,6 +54,13 @@ export default function SocialAuthButtons({
 
   const handleOAuthSignIn = useCallback(
     async (provider: SocialProvider) => {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("waveia_last_auth_provider", provider);
+        } catch {
+          // Ignore storage errors
+        }
+      }
       setLoadingProvider(provider);
       setModalState({
         isOpen: true,

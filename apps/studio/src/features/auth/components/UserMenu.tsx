@@ -50,6 +50,15 @@ function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: strin
 }
 
 function getActiveProvider(user: any): string {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("waveia_last_auth_provider");
+      if (stored) return stored;
+    } catch {
+      // Ignore
+    }
+  }
+
   if (user?.identities && Array.isArray(user.identities) && user.identities.length > 0) {
     const sorted = [...user.identities].sort((a: any, b: any) => {
       const timeA = new Date(a.last_sign_in_at || a.created_at || 0).getTime();
@@ -98,7 +107,19 @@ export default function UserMenu() {
     );
   }
 
-  const displayName = profile?.display_name || user.email?.split("@")[0] || "Producer";
+  const userEmail =
+    user.email ||
+    profile?.email ||
+    user.user_metadata?.email ||
+    user.identities?.find((i: any) => i.identity_data?.email)?.identity_data?.email ||
+    "";
+
+  const displayName =
+    profile?.display_name ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    userEmail.split("@")[0] ||
+    "Producer";
   const userInitial = displayName.charAt(0).toUpperCase();
 
   const rawProvider = getActiveProvider(user);
@@ -185,7 +206,7 @@ export default function UserMenu() {
                 </span>
               </div>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</p>
+            <p className="text-[11px] text-[var(--text-muted)] truncate">{userEmail || user.email}</p>
           </div>
 
           <div className="space-y-0.5">
@@ -204,6 +225,11 @@ export default function UserMenu() {
               type="button"
               onClick={async () => {
                 setIsOpen(false);
+                if (typeof window !== "undefined") {
+                  try {
+                    localStorage.removeItem("waveia_last_auth_provider");
+                  } catch {}
+                }
                 await signOut();
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-left"
