@@ -5,7 +5,7 @@ import { Mail, Loader2, AlertCircle } from "lucide-react";
 import type { Provider } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
-import { GoogleIcon, GitHubIcon, FacebookIcon, InstagramIcon } from "./SocialIcons";
+import { GoogleIcon, SpotifyIcon, LinkedInIcon, InstagramIcon } from "./SocialIcons";
 
 interface SocialAuthButtonsProps {
   mode: "login" | "register";
@@ -24,7 +24,7 @@ export default function SocialAuthButtons({
 
   const supabase = createClient();
 
-  const handleOAuthSignIn = async (provider: Provider | "instagram") => {
+  const handleOAuthSignIn = async (provider: Provider | "instagram" | "linkedin") => {
     setLoadingProvider(provider);
     setOauthError(null);
 
@@ -33,8 +33,15 @@ export default function SocialAuthButtons({
         redirectTo
       )}`;
 
-      // Instagram uses Facebook (Meta) OAuth provider in Supabase
-      const actualProvider: Provider = provider === "instagram" ? "facebook" : provider;
+      // Map special providers:
+      // - Instagram uses Meta/Facebook OAuth in Supabase
+      // - LinkedIn uses linkedin_oidc in modern Supabase Auth
+      let actualProvider: Provider = provider as Provider;
+      if (provider === "instagram") {
+        actualProvider = "facebook";
+      } else if (provider === "linkedin") {
+        actualProvider = "linkedin_oidc";
+      }
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: actualProvider,
@@ -67,6 +74,7 @@ export default function SocialAuthButtons({
 
       {/* Primary Social Options Grid */}
       <div className="grid grid-cols-2 gap-2">
+        {/* Google */}
         <button
           type="button"
           disabled={!!loadingProvider}
@@ -81,34 +89,37 @@ export default function SocialAuthButtons({
           <span>Google</span>
         </button>
 
+        {/* Spotify */}
         <button
           type="button"
           disabled={!!loadingProvider}
-          onClick={() => handleOAuthSignIn("github")}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+          onClick={() => handleOAuthSignIn("spotify")}
+          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#1DB954] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
         >
-          {loadingProvider === "github" ? (
+          {loadingProvider === "spotify" ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
-            <GitHubIcon className="size-4 shrink-0" />
+            <SpotifyIcon className="size-4 shrink-0" />
           )}
-          <span>GitHub</span>
+          <span>Spotify</span>
         </button>
 
+        {/* LinkedIn */}
         <button
           type="button"
           disabled={!!loadingProvider}
-          onClick={() => handleOAuthSignIn("facebook")}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+          onClick={() => handleOAuthSignIn("linkedin")}
+          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#0A66C2] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
         >
-          {loadingProvider === "facebook" ? (
+          {loadingProvider === "linkedin" ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
-            <FacebookIcon className="size-4 shrink-0" />
+            <LinkedInIcon className="size-4 shrink-0" />
           )}
-          <span>Facebook</span>
+          <span>LinkedIn</span>
         </button>
 
+        {/* Instagram */}
         <button
           type="button"
           disabled={!!loadingProvider}
