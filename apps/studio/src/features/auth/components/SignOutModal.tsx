@@ -11,7 +11,7 @@ interface SignOutModalProps {
 }
 
 export default function SignOutModal({ isOpen, displayName }: SignOutModalProps) {
-  const { t, isEn } = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <AnimatePresence>
@@ -70,21 +70,12 @@ export default function SignOutModal({ isOpen, displayName }: SignOutModalProps)
 
             {/* Title & Greeting */}
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1.5 tracking-tight">
-              {t(
-                "auth.signingOutTitle",
-                { name: displayName },
-                isEn ? `See you soon, ${displayName}!` : `¡Hasta pronto, ${displayName}!`
-              )}
+              {t("auth.signingOutTitle", { name: displayName })}
             </h3>
 
             {/* Subtitle */}
             <p className="text-xs text-[var(--text-secondary)] mb-5 max-w-[270px] mx-auto leading-relaxed">
-              {t(
-                "auth.signingOutSubtitle",
-                isEn
-                  ? "Closing your audio session and securing your workspace..."
-                  : "Cerrando tu sesión de audio y guardando tu espacio de trabajo..."
-              )}
+              {t("auth.signingOutSubtitle")}
             </p>
 
             {/* Undulating Audio Waveform Visualizer */}
@@ -113,12 +104,7 @@ export default function SignOutModal({ isOpen, displayName }: SignOutModalProps)
             {/* Status Indicator Pill */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-base)]/80 text-[11px] font-medium text-[var(--text-muted)]">
               <Loader2 size={12} className="animate-spin text-[var(--accent-primary)]" />
-              <span>
-                {t(
-                  "auth.signingOutStatus",
-                  isEn ? "Signing out securely..." : "Cerrando sesión de forma segura..."
-                )}
-              </span>
+              <span>{t("auth.signingOutStatus")}</span>
             </div>
           </motion.div>
         </div>

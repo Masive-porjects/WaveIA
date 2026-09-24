@@ -28,7 +28,7 @@ export default function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
-  const { t, isEn } = useTranslation();
+  const { t } = useTranslation();
 
   const [authMethod, setAuthMethod] = useState<"social" | "email">("social");
   const [showPassword, setShowPassword] = useState(false);
@@ -107,14 +107,7 @@ export default function RegisterForm() {
         router.refresh();
       } else {
         // Email confirmation required by project settings
-        setSuccessMessage(
-          t(
-            "auth.verificationEmailSent",
-            isEn
-              ? "We have sent you a confirmation email. Please check your inbox."
-              : "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada."
-          )
-        );
+        setSuccessMessage(t("auth.verificationEmailSent"));
       }
     } catch {
       setServerErrorKey("auth.errorGeneric");
@@ -138,32 +131,19 @@ export default function RegisterForm() {
           WaveIA Studio
         </div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {t("auth.registerTitle", isEn ? "Create Account" : "Crear Cuenta")}
+          {t("auth.registerTitle")}
         </h1>
         <p className="text-xs text-[var(--text-secondary)] mt-0.5">
           {authMethod === "social"
-            ? t("auth.registerSocialSubtitle", isEn ? "Create your account with social providers or email" : "Crea tu cuenta con tus redes o con correo")
-            : t("auth.registerSubtitle", isEn ? "Start mastering with professional quality" : "Comienza a masterizar con calidad profesional")}
+            ? t("auth.registerSocialSubtitle")
+            : t("auth.registerSubtitle")}
         </p>
       </div>
 
       {(serverErrorKey || serverErrorMessage) && (
         <div className="mb-2.5 p-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-[11px] flex items-center gap-2">
           <AlertCircle size={14} className="shrink-0" />
-          <span>
-            {serverErrorKey
-              ? t(
-                  serverErrorKey,
-                  serverErrorKey === "auth.emailAlreadyRegistered"
-                    ? isEn
-                      ? "An account is already registered with this email address. Please sign in with your password or connected social account."
-                      : "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
-                    : isEn
-                    ? "An unexpected error occurred while registering."
-                    : "Ocurrió un error inesperado al registrar la cuenta."
-                )
-              : serverErrorMessage}
-          </span>
+          <span>{serverErrorKey ? t(serverErrorKey) : serverErrorMessage}</span>
         </div>
       )}
 
