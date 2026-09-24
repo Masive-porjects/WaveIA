@@ -22,6 +22,11 @@ export async function GET(request: Request) {
       // Auto-provision user profile into public.profiles automatically
       const user = sessionData?.user;
       if (user) {
+        console.log("[AUTH CALLBACK] User ID:", user.id);
+        console.log("[AUTH CALLBACK] Email directly on user:", user.email);
+        console.log("[AUTH CALLBACK] User metadata:", JSON.stringify(user.user_metadata));
+        console.log("[AUTH CALLBACK] Identities:", JSON.stringify(user.identities));
+
         const displayName =
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||

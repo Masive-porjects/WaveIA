@@ -6,6 +6,7 @@ import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail } from "lucide
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
+import SignOutModal from "./SignOutModal";
 
 function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: string) => string) {
   const provider = (providerRaw || "email").toLowerCase();
@@ -77,6 +78,7 @@ export default function UserMenu() {
   const { user, profile, isAdmin, isLoading, signOut } = useAuth();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -225,14 +227,19 @@ export default function UserMenu() {
               type="button"
               onClick={async () => {
                 setIsOpen(false);
+                setIsSigningOut(true);
                 if (typeof window !== "undefined") {
                   try {
                     localStorage.removeItem("waveia_last_auth_provider");
                   } catch {}
                 }
-                await signOut();
+                // Minimum 1000ms delay to give a smooth and delightful farewell transition
+                await Promise.all([
+                  signOut(),
+                  new Promise((resolve) => setTimeout(resolve, 1000)),
+                ]);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-left"
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer"
             >
               <LogOut size={14} />
               <span>{t("auth.signOut", "Cerrar sesión")}</span>
@@ -240,6 +247,9 @@ export default function UserMenu() {
           </div>
         </div>
       )}
+
+      {/* Farewell Sign-Out Modal */}
+      <SignOutModal isOpen={isSigningOut} displayName={displayName} />
     </div>
   );
 }
