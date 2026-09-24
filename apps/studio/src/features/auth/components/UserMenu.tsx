@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User as UserIcon, LogOut, Sparkles, ChevronDown } from "lucide-react";
+import { User as UserIcon, LogOut, Sparkles, ChevronDown, ShieldCheck } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -111,6 +111,17 @@ export default function UserMenu() {
           </div>
 
           <div className="space-y-0.5">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 transition-colors font-medium"
+              >
+                <ShieldCheck size={14} className="text-amber-400" />
+                <span>{t("admin.menuLink", "Panel de Administración")}</span>
+              </Link>
+            )}
+
             <Link
               href="/"
               onClick={() => setIsOpen(false)}
