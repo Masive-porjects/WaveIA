@@ -152,11 +152,22 @@ export default function SocialStatusModal({
           ) : (
             /* Error State */
             <div className="py-2 flex flex-col items-center">
-              {/* Error Badge */}
+              {/* Error Badge with Provider Icon */}
               <div className="relative mb-3 flex items-center justify-center">
-                <div className="size-14 rounded-2xl border border-red-500/30 bg-red-500/10 flex items-center justify-center text-red-400 shadow-lg">
-                  <AlertCircle size={28} />
-                </div>
+                {provider ? (
+                  <div className="relative">
+                    <div className="size-16 rounded-2xl border border-red-500/40 bg-[var(--surface-elevated)] flex items-center justify-center shadow-lg">
+                      {renderIcon()}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 size-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md">
+                      <AlertCircle size={14} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="size-14 rounded-2xl border border-red-500/30 bg-red-500/10 flex items-center justify-center text-red-400 shadow-lg">
+                    <AlertCircle size={28} />
+                  </div>
+                )}
               </div>
 
               <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
@@ -169,7 +180,11 @@ export default function SocialStatusModal({
                     return t("auth.oauthErrorGeneric");
                   }
                   const lower = errorMessage.toLowerCase();
-                  if (lower.includes("multiple accounts") || lower.includes("linking domain")) {
+                  if (
+                    lower.includes("multiple accounts") ||
+                    lower.includes("linking domain") ||
+                    lower.includes("account_exists")
+                  ) {
                     return t("auth.oauthMultipleAccounts");
                   }
                   if (lower.includes("unverified") || lower.includes("verification")) {

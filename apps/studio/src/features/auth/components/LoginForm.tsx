@@ -36,27 +36,35 @@ export default function LoginForm() {
     const errorParam = searchParams.get("error");
     if (!errorParam) return;
 
+    const providerParam = searchParams.get("provider");
     let detectedProvider: SocialProvider | null = null;
-    const lower = errorParam.toLowerCase();
-    if (lower.includes("spotify")) detectedProvider = "spotify";
-    else if (lower.includes("discord")) detectedProvider = "discord";
-    else if (lower.includes("google")) detectedProvider = "google";
-    else if (lower.includes("github")) detectedProvider = "github";
+    if (
+      providerParam &&
+      ["google", "spotify", "discord", "github"].includes(providerParam.toLowerCase())
+    ) {
+      detectedProvider = providerParam.toLowerCase() as SocialProvider;
+    } else {
+      const lower = errorParam.toLowerCase();
+      if (lower.includes("spotify")) detectedProvider = "spotify";
+      else if (lower.includes("discord")) detectedProvider = "discord";
+      else if (lower.includes("google")) detectedProvider = "google";
+      else if (lower.includes("github")) detectedProvider = "github";
+    }
 
     let message = decodeURIComponent(errorParam);
     if (
-      errorParam.includes("provider_email_needs_verification") ||
-      lower.includes("unverified email")
+      errorParam === "account_exists_with_different_provider" ||
+      errorParam.includes("multiple accounts") ||
+      errorParam.includes("linking domain")
     ) {
-      message = t(
-        "auth.oauthEmailVerificationRequired",
-        "Tu cuenta requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase."
-      );
+      message = t("auth.oauthMultipleAccounts");
+    } else if (
+      errorParam.includes("provider_email_needs_verification") ||
+      errorParam.toLowerCase().includes("unverified email")
+    ) {
+      message = t("auth.oauthEmailVerificationRequired");
     } else if (errorParam === "auth_callback_failed") {
-      message = t(
-        "auth.oauthErrorGeneric",
-        "Error al iniciar sesión con el proveedor seleccionado."
-      );
+      message = t("auth.oauthErrorGeneric");
     }
 
     setServerError(message);

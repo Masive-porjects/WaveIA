@@ -23,15 +23,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (!error && data) {
+        const resolvedEmail =
+          data.email ||
+          currentUser?.email ||
+          (currentUser?.user_metadata?.email as string | undefined) ||
+          (currentUser?.identities?.find((id) => id.identity_data?.email)?.identity_data?.email as string | undefined) ||
+          null;
+
         setProfile({
           id: data.id,
-          email: data.email,
+          email: resolvedEmail,
           display_name: data.display_name,
           avatar_url: data.avatar_url,
           role: (data.role?.toLowerCase() as UserProfile["role"]) || "user",
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
+
+        // Self-heal: If profile in db had email null but we have resolvedEmail, update it!
+        if (!data.email && resolvedEmail) {
+          supabase
+            .from("profiles")
+            .update({ email: resolvedEmail })
+            .eq("id", userId)
+            .then(() => {});
+        }
       } else {
         // Fallback to user metadata & self-heal by writing to public.profiles
         const fallbackDisplayName =

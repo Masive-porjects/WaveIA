@@ -43,6 +43,45 @@ export async function GET(request: Request) {
           (user.identities?.find((id) => id.identity_data?.email)?.identity_data?.email as string | undefined) ||
           null;
 
+        const provider =
+          (user.app_metadata?.provider as string | undefined) ||
+          user.identities?.[0]?.provider ||
+          "spotify";
+
+        // Validate account duplication:
+        // If an email exists and is already assigned to a different user, reject the login immediately
+        if (resolvedEmail) {
+          const { data: existingProfiles } = await supabase
+            .from("profiles")
+            .select("id, email")
+            .eq("email", resolvedEmail)
+            .neq("id", user.id);
+
+          const hasCollision = Boolean(existingProfiles && existingProfiles.length > 0);
+
+          if (hasCollision) {
+            console.warn(
+              `[AUTH CALLBACK] Account collision detected for ${resolvedEmail} via ${provider}. Rejecting.`
+            );
+
+            // Clean up orphan profile row if any exists
+            try {
+              await supabase.from("profiles").delete().eq("id", user.id);
+            } catch {
+              // Ignore delete error
+            }
+
+            // Invalidate the session
+            await supabase.auth.signOut();
+
+            return NextResponse.redirect(
+              `${origin}/login?error=account_exists_with_different_provider&provider=${encodeURIComponent(
+                provider
+              )}`
+            );
+          }
+        }
+
         try {
           await supabase.from("profiles").upsert(
             {
