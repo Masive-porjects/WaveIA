@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +21,29 @@ export default function LoginForm() {
   const [authMethod, setAuthMethod] = useState<"social" | "email">("social");
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (!errorParam) return;
+
+    if (
+      errorParam.includes("provider_email_needs_verification") ||
+      errorParam.toLowerCase().includes("unverified email")
+    ) {
+      setServerError(
+        t(
+          "auth.oauthEmailVerificationRequired",
+          "Tu cuenta de Spotify requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase."
+        )
+      );
+    } else if (errorParam === "auth_callback_failed") {
+      setServerError(
+        t("auth.oauthErrorGeneric", "Error al iniciar sesión con el proveedor seleccionado.")
+      );
+    } else {
+      setServerError(decodeURIComponent(errorParam));
+    }
+  }, [searchParams, t]);
 
   const schema = useMemo(() => getLoginSchema(t), [t]);
 

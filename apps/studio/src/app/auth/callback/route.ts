@@ -4,8 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // if "next" is in param, use it as the redirect URL
   const next = searchParams.get("next") ?? "/";
+  const oauthError = searchParams.get("error");
+  const errorDescription = searchParams.get("error_description");
+  const errorCode = searchParams.get("error_code");
+
+  // If OAuth provider returned an explicit error (e.g. unverified email, access denied)
+  if (oauthError || errorCode) {
+    const msg = errorDescription || errorCode || oauthError || "auth_callback_failed";
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(msg)}`);
+  }
 
   if (code) {
     const supabase = await createClient();
@@ -20,9 +28,13 @@ export async function GET(request: Request) {
       } else {
         return NextResponse.redirect(`${origin}${next}`);
       }
+    } else {
+      return NextResponse.redirect(
+        `${origin}/login?error=${encodeURIComponent(error.message)}`
+      );
     }
   }
 
-  // return the user to an error page or back to home with instructions
+  // Fallback if no code and no specific error
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }

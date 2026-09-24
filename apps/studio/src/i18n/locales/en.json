@@ -75,6 +75,7 @@
     "registerWithEmail": "Sign up with Email",
     "backToSocialOptions": "View other sign-in options",
     "oauthErrorGeneric": "Error signing in with selected provider.",
+    "oauthEmailVerificationRequired": "Your Spotify account requires email verification. Please check your inbox or enable 'Skip email verification' in the Supabase Dashboard.",
     "valEmailRequired": "Email address is required",
     "valEmailInvalid": "Enter a valid email address",
     "valEmailDomain": "Enter an email with a valid domain (e.g. user@domain.com)",
