@@ -5,7 +5,7 @@ import { Mail, Loader2, AlertCircle } from "lucide-react";
 import type { Provider } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
-import { GoogleIcon, SpotifyIcon, GitHubIcon, InstagramIcon } from "./SocialIcons";
+import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
 
 interface SocialAuthButtonsProps {
   mode: "login" | "register";
@@ -24,7 +24,7 @@ export default function SocialAuthButtons({
 
   const supabase = createClient();
 
-  const handleOAuthSignIn = async (provider: Provider | "instagram") => {
+  const handleOAuthSignIn = async (provider: Provider) => {
     setLoadingProvider(provider);
     setOauthError(null);
 
@@ -33,14 +33,10 @@ export default function SocialAuthButtons({
         redirectTo
       )}`;
 
-      // Instagram uses Meta/Facebook OAuth in Supabase
-      const actualProvider: Provider = provider === "instagram" ? "facebook" : provider;
-
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: actualProvider,
+        provider,
         options: {
           redirectTo: redirectUrl,
-          queryParams: provider === "instagram" ? { auth_type: "reauthenticate" } : undefined,
         },
       });
 
@@ -97,6 +93,21 @@ export default function SocialAuthButtons({
           <span>Spotify</span>
         </button>
 
+        {/* Discord */}
+        <button
+          type="button"
+          disabled={!!loadingProvider}
+          onClick={() => handleOAuthSignIn("discord")}
+          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#5865F2] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+        >
+          {loadingProvider === "discord" ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <DiscordIcon className="size-4 shrink-0" />
+          )}
+          <span>Discord</span>
+        </button>
+
         {/* GitHub */}
         <button
           type="button"
@@ -110,21 +121,6 @@ export default function SocialAuthButtons({
             <GitHubIcon className="size-4 shrink-0" />
           )}
           <span>GitHub</span>
-        </button>
-
-        {/* Instagram */}
-        <button
-          type="button"
-          disabled={!!loadingProvider}
-          onClick={() => handleOAuthSignIn("instagram")}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
-        >
-          {loadingProvider === "instagram" ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <InstagramIcon className="size-4 shrink-0 rounded-sm" />
-          )}
-          <span>Instagram</span>
         </button>
       </div>
 
