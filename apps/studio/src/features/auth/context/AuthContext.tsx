@@ -167,7 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error signing out:", err);
     } finally {
       if (typeof window !== "undefined") {
-        window.location.href = "/login";
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 900);
       }
     }
   }, [supabase]);

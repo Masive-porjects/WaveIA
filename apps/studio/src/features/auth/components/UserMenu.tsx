@@ -79,6 +79,7 @@ export default function UserMenu() {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [lastDisplayName, setLastDisplayName] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,6 +99,9 @@ export default function UserMenu() {
   }
 
   if (!user) {
+    if (isSigningOut) {
+      return <SignOutModal isOpen={true} displayName={lastDisplayName} />;
+    }
     return (
       <Link
         href="/login"
@@ -227,17 +231,14 @@ export default function UserMenu() {
               type="button"
               onClick={async () => {
                 setIsOpen(false);
+                setLastDisplayName(displayName);
                 setIsSigningOut(true);
                 if (typeof window !== "undefined") {
                   try {
                     localStorage.removeItem("waveia_last_auth_provider");
                   } catch {}
                 }
-                // Minimum 1000ms delay to give a smooth and delightful farewell transition
-                await Promise.all([
-                  signOut(),
-                  new Promise((resolve) => setTimeout(resolve, 1000)),
-                ]);
+                await signOut();
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer"
             >
