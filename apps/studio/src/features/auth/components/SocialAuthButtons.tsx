@@ -5,7 +5,7 @@ import { Mail, Loader2, AlertCircle } from "lucide-react";
 import type { Provider } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
-import { GoogleIcon, SpotifyIcon, LinkedInIcon, InstagramIcon } from "./SocialIcons";
+import { GoogleIcon, SpotifyIcon, GitHubIcon, InstagramIcon } from "./SocialIcons";
 
 interface SocialAuthButtonsProps {
   mode: "login" | "register";
@@ -24,7 +24,7 @@ export default function SocialAuthButtons({
 
   const supabase = createClient();
 
-  const handleOAuthSignIn = async (provider: Provider | "instagram" | "linkedin") => {
+  const handleOAuthSignIn = async (provider: Provider | "instagram") => {
     setLoadingProvider(provider);
     setOauthError(null);
 
@@ -33,15 +33,8 @@ export default function SocialAuthButtons({
         redirectTo
       )}`;
 
-      // Map special providers:
-      // - Instagram uses Meta/Facebook OAuth in Supabase
-      // - LinkedIn uses linkedin_oidc in modern Supabase Auth
-      let actualProvider: Provider = provider as Provider;
-      if (provider === "instagram") {
-        actualProvider = "facebook";
-      } else if (provider === "linkedin") {
-        actualProvider = "linkedin_oidc";
-      }
+      // Instagram uses Meta/Facebook OAuth in Supabase
+      const actualProvider: Provider = provider === "instagram" ? "facebook" : provider;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: actualProvider,
@@ -104,19 +97,19 @@ export default function SocialAuthButtons({
           <span>Spotify</span>
         </button>
 
-        {/* LinkedIn */}
+        {/* GitHub */}
         <button
           type="button"
           disabled={!!loadingProvider}
-          onClick={() => handleOAuthSignIn("linkedin")}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#0A66C2] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+          onClick={() => handleOAuthSignIn("github")}
+          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
         >
-          {loadingProvider === "linkedin" ? (
+          {loadingProvider === "github" ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
-            <LinkedInIcon className="size-4 shrink-0" />
+            <GitHubIcon className="size-4 shrink-0" />
           )}
-          <span>LinkedIn</span>
+          <span>GitHub</span>
         </button>
 
         {/* Instagram */}
