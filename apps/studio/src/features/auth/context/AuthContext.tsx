@@ -125,14 +125,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
     } catch (err) {
       console.error("Error signing out:", err);
+    } finally {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
   }, [supabase]);
 
-  const role: UserProfile["role"] =
+  const rawRole =
     profile?.role ||
-    (user?.app_metadata?.role as UserProfile["role"]) ||
-    (user?.user_metadata?.role as UserProfile["role"]) ||
+    (user?.app_metadata?.role as string) ||
+    (user?.user_metadata?.role as string) ||
     "user";
+  const role: UserProfile["role"] =
+    typeof rawRole === "string" && rawRole.trim().toLowerCase() === "admin"
+      ? "admin"
+      : "user";
   const isAdmin = role === "admin";
 
   return (

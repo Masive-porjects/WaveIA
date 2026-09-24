@@ -2,9 +2,52 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User as UserIcon, LogOut, Sparkles, ChevronDown, ShieldCheck } from "lucide-react";
+import { User as UserIcon, LogOut, Sparkles, ChevronDown, ShieldCheck, Mail } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
+import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
+
+function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: string) => string) {
+  const provider = (providerRaw || "email").toLowerCase();
+  if (provider.includes("google")) {
+    return {
+      id: "google",
+      name: t ? t("auth.providerGoogle", "Google") : "Google",
+      icon: <GoogleIcon className="size-3.5 shrink-0" />,
+      badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    };
+  }
+  if (provider.includes("spotify")) {
+    return {
+      id: "spotify",
+      name: t ? t("auth.providerSpotify", "Spotify") : "Spotify",
+      icon: <SpotifyIcon className="size-3.5 shrink-0" />,
+      badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    };
+  }
+  if (provider.includes("discord")) {
+    return {
+      id: "discord",
+      name: t ? t("auth.providerDiscord", "Discord") : "Discord",
+      icon: <DiscordIcon className="size-3.5 shrink-0" />,
+      badgeColor: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    };
+  }
+  if (provider.includes("github")) {
+    return {
+      id: "github",
+      name: t ? t("auth.providerGithub", "GitHub") : "GitHub",
+      icon: <GitHubIcon className="size-3.5 shrink-0" />,
+      badgeColor: "bg-neutral-500/10 text-neutral-300 border-neutral-500/20",
+    };
+  }
+  return {
+    id: "email",
+    name: t ? t("auth.providerEmail", "Correo electrónico") : "Email",
+    icon: <Mail size={13} className="shrink-0 text-[var(--accent-primary)]" />,
+    badgeColor: "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20",
+  };
+}
 
 export default function UserMenu() {
   const { user, profile, isAdmin, isLoading, signOut } = useAuth();
@@ -43,6 +86,12 @@ export default function UserMenu() {
   const displayName = profile?.display_name || user.email?.split("@")[0] || "Producer";
   const userInitial = displayName.charAt(0).toUpperCase();
 
+  const rawProvider =
+    user.app_metadata?.provider ||
+    user.identities?.[0]?.provider ||
+    "email";
+  const providerMeta = getProviderMeta(rawProvider, t);
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -56,14 +105,22 @@ export default function UserMenu() {
             : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
         }`}
       >
-        <div
-          className={`size-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-            isAdmin
-              ? "bg-amber-500/20 border border-amber-500/40 text-amber-400"
-              : "bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/40 text-[var(--accent-primary)]"
-          }`}
-        >
-          {userInitial}
+        <div className="relative shrink-0">
+          <div
+            className={`size-7 rounded-full flex items-center justify-center text-xs font-bold ${
+              isAdmin
+                ? "bg-amber-500/20 border border-amber-500/40 text-amber-400"
+                : "bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/40 text-[var(--accent-primary)]"
+            }`}
+          >
+            {userInitial}
+          </div>
+          <span
+            title={`${t("auth.accessMethod", "Método de acceso")}: ${providerMeta.name}`}
+            className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center shadow-xs overflow-hidden p-0.5"
+          >
+            {providerMeta.icon}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="hidden sm:inline-block text-xs font-medium max-w-[100px] truncate">
@@ -85,7 +142,7 @@ export default function UserMenu() {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-60 rounded-2xl border p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
           style={{
             background: "var(--bg-glass-elevated)",
             borderColor: "var(--border-strong)",
@@ -104,10 +161,23 @@ export default function UserMenu() {
                     : "bg-[var(--accent-primary)]/15 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]"
                 }`}
               >
-                {isAdmin ? t("auth.roleAdmin", "Admin") : t("auth.roleUser", "User")}
+                {isAdmin ? t("auth.roleAdmin", "Admin") : t("auth.roleUser", "Usuario")}
               </span>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</p>
+            <p className="text-[11px] text-[var(--text-muted)] truncate mb-2">{user.email}</p>
+
+            {/* Provider Flag / Bandera de acceso */}
+            <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border-subtle)] text-[10px]">
+              <span className="text-[var(--text-muted)] font-medium">
+                {t("auth.accessMethod", "Método de acceso")}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-medium shadow-xs ${providerMeta.badgeColor}`}
+              >
+                {providerMeta.icon}
+                <span>{providerMeta.name}</span>
+              </span>
+            </div>
           </div>
 
           <div className="space-y-0.5">
