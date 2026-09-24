@@ -28,26 +28,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: data.email,
           display_name: data.display_name,
           avatar_url: data.avatar_url,
-          role: (data.role as UserProfile["role"]) || "user",
+          role: (data.role?.toLowerCase() as UserProfile["role"]) || "user",
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
       } else {
-        // Fallback to user metadata if profile row isn't ready
-        setProfile({
+        // Fallback to user metadata & self-heal by writing to public.profiles
+        const fallbackDisplayName =
+          currentUser?.user_metadata?.full_name ||
+          currentUser?.user_metadata?.name ||
+          currentUser?.email?.split("@")[0] ||
+          "Producer";
+        const fallbackAvatar =
+          currentUser?.user_metadata?.avatar_url ||
+          currentUser?.user_metadata?.picture ||
+          null;
+        const fallbackRole =
+          (currentUser?.app_metadata?.role as UserProfile["role"]) ||
+          (currentUser?.user_metadata?.role as UserProfile["role"]) ||
+          "user";
+
+        const newProfileData: UserProfile = {
           id: userId,
           email: currentUser?.email || null,
-          display_name:
-            currentUser?.user_metadata?.full_name ||
-            currentUser?.user_metadata?.name ||
-            currentUser?.email?.split("@")[0] ||
-            "Producer",
-          avatar_url: currentUser?.user_metadata?.avatar_url || null,
-          role:
-            (currentUser?.app_metadata?.role as UserProfile["role"]) ||
-            (currentUser?.user_metadata?.role as UserProfile["role"]) ||
-            "user",
-        });
+          display_name: fallbackDisplayName,
+          avatar_url: fallbackAvatar,
+          role: fallbackRole,
+        };
+
+        setProfile(newProfileData);
+
+        // Auto-provision in database in the background without needing manual scripts
+        supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: userId,
+              email: currentUser?.email || null,
+              display_name: fallbackDisplayName,
+              avatar_url: fallbackAvatar,
+              role: fallbackRole,
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          )
+          .then((res: { error?: { message?: string } | null }) => {
+            if (res?.error) {
+              console.warn("Auto-provision profile:", res.error.message);
+            }
+          });
       }
     } catch {
       // Graceful fallback

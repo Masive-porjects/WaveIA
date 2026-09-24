@@ -17,8 +17,37 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Auto-provision user profile into public.profiles automatically
+      const user = sessionData?.user;
+      if (user) {
+        const displayName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split("@")[0] ||
+          "Producer";
+        const avatarUrl =
+          user.user_metadata?.avatar_url ||
+          user.user_metadata?.picture ||
+          null;
+
+        try {
+          await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              email: user.email,
+              display_name: displayName,
+              avatar_url: avatarUrl,
+              role: "user",
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          );
+        } catch {
+          // Non-blocking if table is being created
+        }
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
       if (isLocalEnv) {
