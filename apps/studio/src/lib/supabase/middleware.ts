@@ -37,14 +37,32 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users if trying to access protected paths (optional extension)
+  // Public routes: auth routes, APIs, voice stream
+  const pathname = request.nextUrl.pathname;
   const isAuthRoute =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/auth/callback");
 
-  if (user && isAuthRoute) {
+  const isPublicRoute =
+    isAuthRoute ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/voz");
+
+  // 1. If user is logged in and visits login or register -> redirect to studio ("/")
+  if (user && (pathname === "/login" || pathname === "/register")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  // 2. If user is NOT logged in and tries to access studio/upload/app -> redirect to "/login"
+  if (!user && !isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    if (pathname !== "/") {
+      url.searchParams.set("redirect", pathname);
+    }
     return NextResponse.redirect(url);
   }
 
