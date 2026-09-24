@@ -67,7 +67,14 @@
     "verificationEmailSent": "We have sent you a confirmation email. Please check your inbox.",
     "errorGeneric": "An unexpected error occurred. Please try again.",
     "roleAdmin": "Admin",
-    "roleUser": "User"
+    "roleUser": "User",
+    "loginSocialSubtitle": "Choose your preferred sign-in method",
+    "registerSocialSubtitle": "Create your account with social providers or email",
+    "orContinueWith": "or continue with",
+    "continueWithEmail": "Sign in with Email and Password",
+    "registerWithEmail": "Sign up with Email",
+    "backToSocialOptions": "View other sign-in options",
+    "oauthErrorGeneric": "Error signing in with selected provider."
   },
   "admin": {
     "menuLink": "Admin Panel",

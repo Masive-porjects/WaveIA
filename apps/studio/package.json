@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@hookform/resolvers": "^5.9.1",
     "@midimastering/agent": "*",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.1",
@@ -30,8 +31,10 @@
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-hook-form": "^7.88.0",
     "tone": "^15.1.22",
-    "wavesurfer.js": "^7.12.11"
+    "wavesurfer.js": "^7.12.11",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

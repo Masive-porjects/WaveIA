@@ -67,7 +67,14 @@
     "verificationEmailSent": "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada.",
     "errorGeneric": "Ocurrió un error inesperado. Por favor intenta de nuevo.",
     "roleAdmin": "Admin",
-    "roleUser": "Usuario"
+    "roleUser": "Usuario",
+    "loginSocialSubtitle": "Elige tu método preferido para ingresar",
+    "registerSocialSubtitle": "Crea tu cuenta con tus redes o con correo",
+    "orContinueWith": "o continúa con",
+    "continueWithEmail": "Ingresar con Correo y Contraseña",
+    "registerWithEmail": "Registrarse con Correo Electrónico",
+    "backToSocialOptions": "Ver otras formas de acceso",
+    "oauthErrorGeneric": "Error al iniciar sesión con el proveedor seleccionado."
   },
   "admin": {
     "menuLink": "Panel de Administración",

@@ -3,10 +3,25 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Mail, Lock, User as UserIcon, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Mail,
+  Lock,
+  User as UserIcon,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ArrowLeft,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/i18n/useTranslation";
+import { registerSchema, type RegisterFormData } from "../schemas/authSchemas";
+import SocialAuthButtons from "./SocialAuthButtons";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -14,46 +29,47 @@ export default function RegisterForm() {
   const redirectTo = searchParams.get("redirect") || "/";
   const { t } = useTranslation();
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [authMethod, setAuthMethod] = useState<"social" | "email">("social");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+    },
+  });
 
   const supabase = createClient();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-
-    if (password.length < 6) {
-      setError(t("auth.passwordTooShort", "La contraseña debe tener al menos 6 caracteres."));
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
+  const onSubmit = async (data: RegisterFormData) => {
+    setServerError(null);
     setSuccessMessage(null);
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
         options: {
           data: {
-            full_name: fullName.trim() || undefined,
+            full_name: data.fullName.trim() || undefined,
           },
         },
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        setServerError(signUpError.message);
         return;
       }
 
-      if (data.session) {
+      if (authData.session) {
         // Immediate login if email confirmation is disabled
         router.push(redirectTo);
         router.refresh();
@@ -67,9 +83,9 @@ export default function RegisterForm() {
         );
       }
     } catch {
-      setError(t("auth.errorGeneric", "Ocurrió un error inesperado al registrar la cuenta."));
-    } finally {
-      setIsLoading(false);
+      setServerError(
+        t("auth.errorGeneric", "Ocurrió un error inesperado al registrar la cuenta.")
+      );
     }
   };
 
@@ -93,114 +109,163 @@ export default function RegisterForm() {
           {t("auth.registerTitle", "Crear Cuenta")}
         </h1>
         <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-          {t("auth.registerSubtitle", "Comienza a masterizar con calidad profesional")}
+          {authMethod === "social"
+            ? t("auth.registerSocialSubtitle", "Crea tu cuenta con tus redes o con correo")
+            : t("auth.registerSubtitle", "Comienza a masterizar con calidad profesional")}
         </p>
       </div>
 
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="mb-2.5 p-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-[11px] flex items-center gap-2"
-        >
+      {serverError && (
+        <div className="mb-2.5 p-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-[11px] flex items-center gap-2">
           <AlertCircle size={14} className="shrink-0" />
-          <span>{error}</span>
-        </motion.div>
+          <span>{serverError}</span>
+        </div>
       )}
 
       {successMessage && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="mb-2.5 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] flex items-center gap-2"
-        >
+        <div className="mb-2.5 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] flex items-center gap-2">
           <CheckCircle2 size={14} className="shrink-0" />
           <span>{successMessage}</span>
-        </motion.div>
+        </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-2.5">
-        <div>
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-            {t("auth.nameLabel", "Nombre o Alias")}
-          </label>
-          <div className="relative">
-            <UserIcon
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+      <AnimatePresence mode="wait">
+        {authMethod === "social" ? (
+          <motion.div
+            key="social"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <SocialAuthButtons
+              mode="register"
+              redirectTo={redirectTo}
+              onContinueWithEmail={() => setAuthMethod("email")}
             />
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Sound Producer"
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
-            />
-          </div>
-        </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="email"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  {t("auth.nameLabel", "Nombre o Alias")}
+                </label>
+                <div className="relative">
+                  <UserIcon
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                  />
+                  <input
+                    type="text"
+                    {...register("fullName")}
+                    placeholder="Sound Producer"
+                    className={`w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none transition-all ${
+                      errors.fullName
+                        ? "border-red-500/50 focus:border-red-500"
+                        : "border-[var(--border-subtle)] focus:border-[var(--accent-primary)]"
+                    }`}
+                  />
+                </div>
+                {errors.fullName && (
+                  <p className="text-[10px] text-red-400 mt-1 pl-1">
+                    {errors.fullName.message}
+                  </p>
+                )}
+              </div>
 
-        <div>
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-            {t("auth.emailLabel", "Correo Electrónico")}
-          </label>
-          <div className="relative">
-            <Mail
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-            />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="producer@waveia.com"
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
-            />
-          </div>
-        </div>
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  {t("auth.emailLabel", "Correo Electrónico")}
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                  />
+                  <input
+                    type="email"
+                    {...register("email")}
+                    placeholder="producer@waveia.com"
+                    className={`w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none transition-all ${
+                      errors.email
+                        ? "border-red-500/50 focus:border-red-500"
+                        : "border-[var(--border-subtle)] focus:border-[var(--accent-primary)]"
+                    }`}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-[10px] text-red-400 mt-1 pl-1">{errors.email.message}</p>
+                )}
+              </div>
 
-        <div>
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-            {t("auth.passwordLabel", "Contraseña")}
-          </label>
-          <div className="relative">
-            <Lock
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-            />
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full pl-9 pr-9 py-1.5 text-xs rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
-            >
-              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-          </div>
-        </div>
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  {t("auth.passwordLabel", "Contraseña")}
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                  />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    {...register("password")}
+                    placeholder="••••••••"
+                    className={`w-full pl-9 pr-9 py-1.5 text-xs rounded-xl border bg-[var(--surface-elevated)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none transition-all ${
+                      errors.password
+                        ? "border-red-500/50 focus:border-red-500"
+                        : "border-[var(--border-subtle)] focus:border-[var(--accent-primary)]"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-[10px] text-red-400 mt-1 pl-1">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full mt-1.5 py-2.5 px-4 rounded-xl font-semibold text-xs text-[var(--bg-base)] bg-[var(--accent-primary)] hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[var(--accent-primary)]/20 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-        >
-          {isLoading ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <>
-              <span>{t("auth.registerButton", "Crear Cuenta")}</span>
-              <ArrowRight size={14} />
-            </>
-          )}
-        </button>
-      </form>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full mt-1 py-2.5 px-4 rounded-xl font-semibold text-xs text-[var(--bg-base)] bg-[var(--accent-primary)] hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[var(--accent-primary)]/20 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <>
+                    <span>{t("auth.registerButton", "Crear Cuenta")}</span>
+                    <ArrowRight size={14} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAuthMethod("social")}
+                className="w-full text-center text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors pt-1 flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft size={12} />
+                <span>{t("auth.backToSocialOptions", "Ver otras formas de registro")}</span>
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] text-center">
         <p className="text-[11px] text-[var(--text-secondary)]">
