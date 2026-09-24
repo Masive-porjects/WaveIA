@@ -1,0 +1,134 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "loading": "Cargando...",
+    "processing": "Procesando audio...",
+    "error": "Ha ocurrido un error",
+    "retry": "Reintentar",
+    "download": "Descargar",
+    "delete": "Eliminar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "apply": "Aplicar",
+    "language": "Idioma",
+    "theme": "Tema",
+    "success": "Operación exitosa"
+  },
+  "nav": {
+    "mezcla": "Mezcla de Audio",
+    "modules": "Masterizar Audio",
+    "splitter": "Splitter",
+    "vocal": "Vocal",
+    "songstarter": "Beats",
+    "genres": "Guía de Géneros",
+    "pipeline": "Cadena de Master",
+    "analysis": "Análisis",
+    "stereo": "Estéreo",
+    "live": "Live Engine",
+    "album": "Álbum",
+    "history": "Historial",
+    "chat": "Asistente IA",
+    "delivery": "Entrega",
+    "report": "Reporte de Cumplimiento"
+  },
+  "player": {
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "compareAB": "Comparar A/B",
+    "original": "Original",
+    "mastered": "Masterizado",
+    "mixed": "Mezclado",
+    "volume": "Volumen",
+    "loop": "Bucle",
+    "time": "Tiempo",
+    "mute": "Silenciar"
+  },
+  "mastering": {
+    "title": "Masterización Profesional",
+    "selectPreset": "Selecciona un preset de carácter",
+    "deliveryTarget": "Plataforma de Entrega",
+    "transparentMode": "Modo Transparente",
+    "bitExact": "Salida bit-exacta",
+    "strictQC": "Control de Calidad Estricto",
+    "reMaster": "Remasterizar",
+    "presets": {
+      "pulido": {
+        "name": "Pulido",
+        "description": "Equilibrio tonal moderno, brillo suave y graves controlados"
+      },
+      "brutal": {
+        "name": "Brutal",
+        "description": "Máxima pegada, loudness comercial extremo y presencia frontal"
+      },
+      "cristalino": {
+        "name": "Cristalino",
+        "description": "Agudos aireados, imagen estéreo amplia y transparencia acústica"
+      },
+      "vintage": {
+        "name": "Vintage",
+        "description": "Calidez analógica sutil, saturación armónica tipo cinta y medios ricos"
+      },
+      "crudo": {
+        "name": "Crudo",
+        "description": "Dinámica orgánica preservada, sin sobre-compresión, carácter directo"
+      },
+      "envolvente": {
+        "name": "Envolvente",
+        "description": "Espacialidad profunda, imagen estéreo cinematográfica y graves densos"
+      },
+      "epico": {
+        "name": "Épico",
+        "description": "Subgraves profundos, impacto masivo para trailers o pistas electrónicas"
+      },
+      "muro": {
+        "name": "Muro",
+        "description": "Loudness ultra-competitivo sin distorsión audible para club"
+      }
+    },
+    "platforms": {
+      "spotify": "Spotify (-14 LUFS / -1.0 dBTP)",
+      "appleMusic": "Apple Music (-16 LUFS / -1.0 dBTP)",
+      "youtube": "YouTube (-14 LUFS / -1.0 dBTP)",
+      "tidal": "Tidal (-14 LUFS / -1.0 dBTP)",
+      "custom": "Personalizado"
+    }
+  },
+  "upload": {
+    "dropzoneTitle": "Carga tu track para masterizar",
+    "dropzoneSubtitle": "Arrastra tu archivo o haz clic para comenzar.",
+    "supportedFormats": "Soporta WAV y MP3 — máximo 50MB",
+    "uploading": "Subiendo audio...",
+    "invalidFormat": "Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!",
+    "fileTooLarge": "El archivo es demasiado grande (máximo 50MB).",
+    "selectFile": "Seleccionar archivo",
+    "dropHere": "Suelta tu track aquí",
+    "changeTrack": "Arrastra un track diferente",
+    "or": "o"
+  },
+  "report": {
+    "title": "Reporte de Cumplimiento",
+    "integratedLufs": "Loudness Integrado",
+    "truePeak": "Pico Verdadero (True Peak)",
+    "sampleRate": "Sample Rate",
+    "bitDepth": "Profundidad de Bits",
+    "crestFactor": "Factor de Cresta",
+    "statusOk": "Cumple los estándares de entrega",
+    "warnings": "Advertencias detectadas"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "register": "Crear Cuenta",
+    "logout": "Cerrar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "welcome": "Bienvenido a WaveAI"
+  },
+  "theme": {
+    "toggleDark": "Cambiar a tema oscuro",
+    "toggleLight": "Cambiar a tema claro",
+    "studioMode": "Modo estudio (Oscuro)",
+    "devMode": "Modo dev (Claro)"
+  }
+}

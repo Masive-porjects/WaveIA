@@ -2,26 +2,35 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "@/i18n/useTranslation";
 
 const THEME_KEY = "waveai-theme";
 
 export type Theme = "dark" | "light";
 
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  try {
+    const current = document.documentElement.dataset.theme as Theme | undefined;
+    if (current === "light" || current === "dark") return current;
+    const saved = localStorage.getItem(THEME_KEY) as Theme | null;
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    // Modo incógnito o storage bloqueado
+  }
+  return "dark";
+}
+
 /* ── useThemeMode ────────────────────────────────────────
    Shared theme state (dark/light). Reads the html[data-theme]
    attribute that the anti-FOUC script already wrote pre-hydration
-   and persists every change to localStorage. Used by ThemeToggle
-   (badge button) and the Cuenta menu item so both stay in sync. */
+   and persists every change to localStorage. */
 export function useThemeMode() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    const syncTimer = setTimeout(() => {
-      const current = document.documentElement.dataset.theme;
-      setTheme(current === "light" ? "light" : "dark");
-    }, 0);
-    return () => clearTimeout(syncTimer);
-  }, []);
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
@@ -98,17 +107,26 @@ function AISpark({ size = 12 }: { size?: number }) {
 
 export default function ThemeToggle() {
   const { theme, toggle, isDark } = useThemeMode();
+  const { t } = useTranslation();
 
   return (
     <button
       onClick={toggle}
-      className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0
+      className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0
         bg-[var(--bg-glass)] backdrop-blur-xl
         border border-[var(--border-subtle)] hover:border-[var(--border-strong)]
         text-[var(--accent-primary)]
         transition-all duration-200 hover:brightness-110 active:scale-95"
-      aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-      title={isDark ? "Modo estudio" : "Modo dev"}
+      aria-label={
+        isDark
+          ? t("theme.toggleLight", "Cambiar a tema claro")
+          : t("theme.toggleDark", "Cambiar a tema oscuro")
+      }
+      title={
+        isDark
+          ? t("theme.studioMode", "Modo estudio")
+          : t("theme.devMode", "Modo dev")
+      }
     >
       {/* Ambient float + playful pop on theme change */}
       <motion.span

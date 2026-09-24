@@ -1,0 +1,134 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading...",
+    "processing": "Processing audio...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "download": "Download",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "apply": "Apply",
+    "language": "Language",
+    "theme": "Theme",
+    "success": "Operation successful"
+  },
+  "nav": {
+    "mezcla": "Audio Mix",
+    "modules": "Master Audio",
+    "splitter": "Stem Splitter",
+    "vocal": "Vocal Chain",
+    "songstarter": "Beats",
+    "genres": "Genre Guide",
+    "pipeline": "Mastering Chain",
+    "analysis": "Analysis",
+    "stereo": "Stereo Field",
+    "live": "Live Engine",
+    "album": "Album",
+    "history": "History",
+    "chat": "AI Assistant",
+    "delivery": "Delivery",
+    "report": "Compliance Report"
+  },
+  "player": {
+    "play": "Play",
+    "pause": "Pause",
+    "compareAB": "Compare A/B",
+    "original": "Original",
+    "mastered": "Mastered",
+    "mixed": "Mixed",
+    "volume": "Volume",
+    "loop": "Loop",
+    "time": "Time",
+    "mute": "Mute"
+  },
+  "mastering": {
+    "title": "Professional Mastering",
+    "selectPreset": "Select a Character Preset",
+    "deliveryTarget": "Delivery Target",
+    "transparentMode": "Transparent Mode",
+    "bitExact": "Bit-exact output",
+    "strictQC": "Strict Quality Control",
+    "reMaster": "Remaster",
+    "presets": {
+      "pulido": {
+        "name": "Polished",
+        "description": "Modern tonal balance, smooth top-end and controlled low-end"
+      },
+      "brutal": {
+        "name": "Brutal",
+        "description": "Maximum punch, extreme commercial loudness and upfront presence"
+      },
+      "cristalino": {
+        "name": "Crystalline",
+        "description": "Airy highs, wide stereo image and acoustic transparency"
+      },
+      "vintage": {
+        "name": "Vintage",
+        "description": "Subtle analog warmth, tape-style harmonic saturation and rich mids"
+      },
+      "crudo": {
+        "name": "Raw",
+        "description": "Preserved organic dynamics, zero over-compression, direct character"
+      },
+      "envolvente": {
+        "name": "Immersive",
+        "description": "Deep spatial dimension, cinematic stereo imaging and dense bass"
+      },
+      "epico": {
+        "name": "Epic",
+        "description": "Deep sub-bass impact, massive weight for trailers and electronic tracks"
+      },
+      "muro": {
+        "name": "Wall",
+        "description": "Ultra-competitive loudness with no audible distortion for clubs"
+      }
+    },
+    "platforms": {
+      "spotify": "Spotify (-14 LUFS / -1.0 dBTP)",
+      "appleMusic": "Apple Music (-16 LUFS / -1.0 dBTP)",
+      "youtube": "YouTube (-14 LUFS / -1.0 dBTP)",
+      "tidal": "Tidal (-14 LUFS / -1.0 dBTP)",
+      "custom": "Custom"
+    }
+  },
+  "upload": {
+    "dropzoneTitle": "Load your track to master",
+    "dropzoneSubtitle": "Drag and drop your file or click to get started.",
+    "supportedFormats": "Supports WAV and MP3 — max 50MB",
+    "uploading": "Uploading audio...",
+    "invalidFormat": "We only accept WAV or MP3 files. Let's keep compatibility!",
+    "fileTooLarge": "File is too large (maximum 50MB).",
+    "selectFile": "Select file",
+    "dropHere": "Drop your track here",
+    "changeTrack": "Drag a different track",
+    "or": "or"
+  },
+  "report": {
+    "title": "Compliance Report",
+    "integratedLufs": "Integrated Loudness",
+    "truePeak": "True Peak",
+    "sampleRate": "Sample Rate",
+    "bitDepth": "Bit Depth",
+    "crestFactor": "Crest Factor",
+    "statusOk": "Meets delivery compliance standards",
+    "warnings": "Detected warnings"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "logout": "Sign Out",
+    "email": "Email Address",
+    "password": "Password",
+    "welcome": "Welcome to WaveAI"
+  },
+  "theme": {
+    "toggleDark": "Switch to dark theme",
+    "toggleLight": "Switch to light theme",
+    "studioMode": "Studio mode (Dark)",
+    "devMode": "Dev mode (Light)"
+  }
+}
