@@ -8,6 +8,13 @@ import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
 import SocialStatusModal, { type SocialProvider } from "./SocialStatusModal";
 
+const PROVIDER_SCOPES: Record<SocialProvider, string> = {
+  spotify: "user-read-email user-read-private",
+  google: "email profile openid",
+  discord: "identify email",
+  github: "read:user user:email",
+};
+
 interface SocialAuthButtonsProps {
   mode: "login" | "register";
   redirectTo?: string;
@@ -64,6 +71,7 @@ export default function SocialAuthButtons({
           provider: provider as Provider,
           options: {
             redirectTo: redirectUrl,
+            scopes: PROVIDER_SCOPES[provider],
           },
         });
 

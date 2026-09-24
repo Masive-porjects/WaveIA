@@ -49,6 +49,21 @@ function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: strin
   };
 }
 
+function getActiveProvider(user: any): string {
+  if (user?.identities && Array.isArray(user.identities) && user.identities.length > 0) {
+    const sorted = [...user.identities].sort((a: any, b: any) => {
+      const timeA = new Date(a.last_sign_in_at || a.created_at || 0).getTime();
+      const timeB = new Date(b.last_sign_in_at || b.created_at || 0).getTime();
+      return timeB - timeA;
+    });
+    if (sorted[0]?.provider) {
+      return sorted[0].provider;
+    }
+  }
+
+  return user?.app_metadata?.provider || "email";
+}
+
 export default function UserMenu() {
   const { user, profile, isAdmin, isLoading, signOut } = useAuth();
   const { t } = useTranslation();
@@ -86,10 +101,7 @@ export default function UserMenu() {
   const displayName = profile?.display_name || user.email?.split("@")[0] || "Producer";
   const userInitial = displayName.charAt(0).toUpperCase();
 
-  const rawProvider =
-    user.app_metadata?.provider ||
-    user.identities?.[0]?.provider ||
-    "email";
+  const rawProvider = getActiveProvider(user);
   const providerMeta = getProviderMeta(rawProvider, t);
 
   return (
