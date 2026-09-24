@@ -149,35 +149,31 @@ export default function UserMenu() {
             boxShadow: "0 16px 40px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
           }}
         >
-          <div className="px-3 py-2 border-b border-[var(--border-subtle)] mb-1">
-            <div className="flex items-center justify-between gap-1 mb-0.5">
+          <div className="px-3 py-2.5 border-b border-[var(--border-subtle)] mb-1">
+            <div className="flex items-center justify-between gap-2 mb-1">
               <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
                 {displayName}
               </p>
-              <span
-                className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full border ${
-                  isAdmin
-                    ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-                    : "bg-[var(--accent-primary)]/15 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]"
-                }`}
-              >
-                {isAdmin ? t("auth.roleAdmin", "Admin") : t("auth.roleUser", "Usuario")}
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                <span
+                  title={providerMeta.name}
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${providerMeta.badgeColor}`}
+                >
+                  {providerMeta.icon}
+                  <span>{providerMeta.name}</span>
+                </span>
+                <span
+                  className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full border ${
+                    isAdmin
+                      ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                      : "bg-[var(--accent-primary)]/15 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]"
+                  }`}
+                >
+                  {isAdmin ? t("auth.roleAdmin", "Admin") : t("auth.roleUser", "Usuario")}
+                </span>
+              </div>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] truncate mb-2">{user.email}</p>
-
-            {/* Provider Flag / Bandera de acceso */}
-            <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border-subtle)] text-[10px]">
-              <span className="text-[var(--text-muted)] font-medium">
-                {t("auth.accessMethod", "Método de acceso")}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-medium shadow-xs ${providerMeta.badgeColor}`}
-              >
-                {providerMeta.icon}
-                <span>{providerMeta.name}</span>
-              </span>
-            </div>
+            <p className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</p>
           </div>
 
           <div className="space-y-0.5">

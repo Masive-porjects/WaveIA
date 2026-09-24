@@ -80,7 +80,32 @@ export default function RegisterForm() {
       });
 
       if (signUpError) {
-        setServerError(signUpError.message);
+        const errorMsg = signUpError.message.toLowerCase();
+        if (errorMsg.includes("already registered") || errorMsg.includes("already exists")) {
+          setServerError(
+            t(
+              "auth.emailAlreadyRegistered",
+              "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
+            )
+          );
+        } else {
+          setServerError(signUpError.message);
+        }
+        return;
+      }
+
+      // Supabase returns empty identities array when user already exists (preventing email enumeration)
+      if (
+        authData.user &&
+        Array.isArray(authData.user.identities) &&
+        authData.user.identities.length === 0
+      ) {
+        setServerError(
+          t(
+            "auth.emailAlreadyRegistered",
+            "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
+          )
+        );
         return;
       }
 

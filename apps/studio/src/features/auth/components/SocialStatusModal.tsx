@@ -164,11 +164,25 @@ export default function SocialStatusModal({
               </h3>
 
               <p className="text-xs text-[var(--text-secondary)] mb-4 max-w-[310px] leading-relaxed">
-                {errorMessage ||
-                  t(
-                    "auth.oauthErrorGeneric",
-                    "Ocurrió un error al conectar con el proveedor seleccionado."
-                  )}
+                {(() => {
+                  if (!errorMessage) {
+                    return t("auth.oauthErrorGeneric", "Ocurrió un error al conectar con el proveedor seleccionado.");
+                  }
+                  const lower = errorMessage.toLowerCase();
+                  if (lower.includes("multiple accounts") || lower.includes("linking domain")) {
+                    return t(
+                      "auth.oauthMultipleAccounts",
+                      "Ya existe una cuenta registrada con este correo mediante otra red social o contraseña. Por favor ingresa con el método que usaste originalmente."
+                    );
+                  }
+                  if (lower.includes("unverified") || lower.includes("verification")) {
+                    return t(
+                      "auth.oauthEmailVerificationRequired",
+                      "Tu cuenta requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase."
+                    );
+                  }
+                  return errorMessage;
+                })()}
               </p>
 
               {/* Action Buttons */}
