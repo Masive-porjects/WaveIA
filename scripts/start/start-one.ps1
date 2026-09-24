@@ -12,11 +12,12 @@ param(
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $scriptsDir = Split-Path -Parent $PSScriptRoot
 $pidsFile = Join-Path $scriptsDir '.pids'
+$pythonExe = Join-Path $root '.venv\Scripts\python.exe'
 
 $services = @{
     audiomind = @{
         WorkDir = "apps/audiomind"
-        Command = '$env:PYTHONPATH = (Join-Path $pwd ''src''); .venv\Scripts\python.exe -m uvicorn audiomind.main:app --reload --port 8000'
+        Command = "`$env:PYTHONPATH = (Join-Path `$pwd 'src'); & '$pythonExe' -m uvicorn audiomind.main:app --reload --port 8000"
     }
     studio = @{
         WorkDir = "apps/studio"
