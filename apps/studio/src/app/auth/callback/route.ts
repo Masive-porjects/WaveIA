@@ -52,7 +52,7 @@ export async function GET(request: Request) {
               avatar_url: avatarUrl,
               role: "user",
             },
-            { onConflict: "id", ignoreDuplicates: true }
+            { onConflict: "id" }
           );
         } catch {
           // Non-blocking if table is being created

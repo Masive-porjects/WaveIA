@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               avatar_url: fallbackAvatar,
               role: fallbackRole,
             },
-            { onConflict: "id", ignoreDuplicates: true }
+            { onConflict: "id" }
           )
           .then((res: { error?: { message?: string } | null }) => {
             if (res?.error) {
