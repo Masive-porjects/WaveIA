@@ -22,8 +22,6 @@ COPY apps/studio ./apps/studio
 # backend es un build-arg, no una env de runtime.
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_CONVEX_URL=
-ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
 
 # @midimastering/agent apunta a dist/: hay que compilarlo antes de next build
 # (mismo paso que el script "build" de apps/studio/package.json).
