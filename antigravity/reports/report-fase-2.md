@@ -57,16 +57,41 @@ Todos los componentes extraídos se organizaron bajo la estructura por caracter�
     - Renderizado declarativo condicional entre `<UploadView />` y la vista de estudio.
     - Sincronización de panel lateral colapsable y pestañas de `ModuleDock` y `ModuleSheet`.
 
-### E. Cobertura de Internacionalización Profunda (i18n)
-- Se extendió la internacionalización con `useTranslation()` y diccionarios completos (`es.json` y `en.json`) a todos los componentes nucleares de presentación del Studio:
-  - [`Player.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/Player.tsx): Conmutadores A/B, badges de Raw/Original/Master, mensajes de referencia equitativa, tooltips de instant switch, errores y transportes.
-  - [`StemSplitter.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/StemSplitter.tsx): Título, subtítulo, 4 stems (`vocals`, `drums`, `bass`, `other`), avisos de primera descarga, guías, faders, mute, solo y descarga WAV.
-  - [`DeliveryPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/DeliveryPanel.tsx): Modos Creativo y Transparente con descripciones en tooltips, opciones de plataforma automática/personalizada, selectores de sample rate y bit depth, switches de QC estricto.
-  - [`AnalysisPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/AnalysisPanel.tsx): Empty state ("Carga un audio..."), banner de audio ya masterizado con nivel de confianza, tarjeta de preset objetivo (target LUFS, ceiling, ratio), banner de validación Layer 2, y cuadrícula de métricas (rango dinámico, tempo, género con fallback a "No identificado", duración y sample rate).
+### E. Cobertura de Internacionalización Profunda (i18n al 100% en todas las vistas de Studio)
+- Se extendió la internacionalización con `useTranslation()` y diccionarios completos (`es.json` y `en.json`) a **todos** los componentes nucleares y vistas de presentación del Studio, eliminando cualquier texto hardcodeado restante:
+  - [`ModulePanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/ModulePanel.tsx):
+    - Título del módulo "Masterizar Audio Pro" y subtítulo.
+    - Cuadrícula de presets (MacroCards) con mapeo dinámico por ID backend (`universal`, `fuego`, `claridad`, `cinta`, `natural`, `espacial`, `cinematico`, `empuje`) con traducción de `name`, `genre`, `description` y `tooltip`.
+    - Selector "Ajuste Fino", banner informativo de modo transparente, y perillas DSP avanzadas (`knobs.*`).
+  - [`VocalChain.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/VocalChain.tsx):
+    - Título, subtítulo, botón de procesamiento de voz ("Procesar Voz" / "Process Voice").
+    - Channel Strip banner ("VOICECHAIN PRO — CHANNEL STRIP").
+    - Controles rotativos de De-Esser, Auto-Tune Pitch (indicadores direccionales de agudo/grave/neutral), Cohesión/Compresor óptico analógico y sus descripciones técnicas.
+    - Reproductor de voz procesada y notas guía al pie.
+  - [`GrooveSequencerImpl.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/audio/GrooveSequencerImpl.tsx):
+    - Título "Prueba el groove" / "Try the groove", subtítulo educativo.
+    - Botones de transporte (Reproducir/Pausar), estado de reproducción (Listo / Reproduciendo).
+    - Nombres de pistas del secuenciador de pasos (`Kick`, `Snare` / `Caja`, `Hi-Hat`, `Bass` / `Bajo`).
+  - [`SongStarter.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/SongStarter.tsx):
+    - Cabecera y descripción de Stems, botón de guardado con estados dinámicos (Guardando... / Guardado / Guardar Beat).
+    - Botón de transporte maestro de mezcla ("Escuchar todo" / "Listen All", "Pausar" / "Pause").
+    - Librería "Beats Guardados" / "Saved Beats", botón de actualizar/loading, estado vacío ("No hay beats guardados..."), botones de carga ("Cargar" / "Load") y eliminación.
+  - [`GenreGuide.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/GenreGuide.tsx):
+    - Título principal ("Géneros Musicales" / "Musical Genres"), subtítulo de guía educativa.
+    - Tarjetas de géneros dinámicas (`urban`, `rock`, `pop`, `jazz`, `latin`) traduciendo nombre, descripción técnica de espectro/loudness y los 4 puntos clave de mastering comercial por género.
+    - Nota al pie basada en estándares de la industria.
+  - [`FloatingDeliveryPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/FloatingDeliveryPanel.tsx):
+    - Botón flotante ("Entrega" / "Delivery"), modal emergente, encabezados y atributos aria traducidos.
+  - [`Player.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/Player.tsx):
+    - Conmutadores A/B, badges de Raw/Original/Master, mensajes de referencia equitativa, tooltips de instant switch, errores y transportes.
+  - [`StemSplitter.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/StemSplitter.tsx):
+    - Título, subtítulo, 4 stems (`vocals`, `drums`, `bass`, `other`), avisos de primera descarga, guías, faders, mute, solo y descarga WAV.
+  - [`DeliveryPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/DeliveryPanel.tsx):
+    - Modos Creativo y Transparente con descripciones en tooltips, opciones de plataforma automática/personalizada, selectores de sample rate y bit depth, switches de QC estricto.
+  - [`AnalysisPanel.tsx`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/presentation/components/AnalysisPanel.tsx):
+    - Empty state ("Carga un audio..."), banner de audio ya masterizado con nivel de confianza, tarjeta de preset objetivo (target LUFS, ceiling, ratio), banner de validación Layer 2, y cuadrícula de métricas (rango dinámico, tempo, género con fallback a "No identificado", duración y sample rate).
 - [`es.json`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/es.json) y [`en.json`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/en.json):
-  - Añadidas secciones completas: `player`, `splitter`, `delivery`, `analysis`, y claves globales en `common` (`duration`, `notIdentified`).
-- [`index.ts`](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/index.ts):
-  - Barrel export para `@/i18n`.
+  - Añadidas secciones completas: `mastering.presets.*`, `mastering.fineTune`, `mastering.transparentWarning`, `mastering.knobs.*`, `vocal.*`, `songstarter.*`, `genreGuide.*`, `player.*`, `splitter.*`, `delivery.*`, `analysis.*`, y claves globales en `common`.
 
 ---
 
@@ -77,7 +102,7 @@ Todos los componentes extraídos se organizaron bajo la estructura por caracter�
 | **Next.js & Turbopack Build** | `bun --filter studio build` | ✅ **Exit 0** | Rutas estáticas y dinámicas compiladas en Turbopack, 0 errores de tipado TypeScript. |
 | **ESLint & React 19 Linter** | `bun --filter studio lint` | ✅ **Exit 0** | 0 errores. Todos los hooks cumplen dependencias y reglas de render de React 19. |
 | **Reducción de Líneas Monolito** | `page.tsx` | ✅ **-76.7%** | Reducción de 1,867 líneas a 447 líneas. |
-| **Soporte Multiidioma (i18n)** | Pruebas de claves ES/EN | ✅ **100% Cubierto** | Componentes de navegación, upload, mastering, player, stems, delivery y análisis consumen `t()`. |
+| **Soporte Multiidioma (i18n)** | Pruebas de claves ES/EN | ✅ **100% Cubierto** | Cobertura total en ModulePanel (presets y knobs), VocalChain Pro, SongStarter / Groove Sequencer, GenreGuide, Floating Delivery, Player, StemSplitter y Analysis. |
 
 ---
 

@@ -19,7 +19,9 @@
     "reset": "Reset",
     "backToMainFlow": "← Back to main workflow",
     "duration": "Duration",
-    "notIdentified": "Unidentified"
+    "notIdentified": "Unidentified",
+    "refresh": "Refresh",
+    "saving": "Saving..."
   },
   "nav": {
     "home": "Home",
@@ -77,8 +79,69 @@
     "transparentMode": "Transparent Mode",
     "bitExact": "Bit-exact output",
     "strictQC": "Strict Quality Control",
-    "reMaster": "Remaster",
+    "fineTune": "Fine Tune",
+    "transparentWarning": "Transparent mode: creative knobs do not apply — delivery only (loudness / SRC / bit depth).",
+    "knobs": {
+      "reverb": "Reverb",
+      "brightness": "Brightness",
+      "compression": "Compression",
+      "transients": "Transients",
+      "saturation": "Saturation",
+      "warmth": "Warmth",
+      "ceiling": "Ceiling",
+      "stereoWidth": "Stereo Width",
+      "haasDelay": "Haas Delay",
+      "targetLufs": "Target LUFS"
+    },
     "presets": {
+      "universal": {
+        "name": "Polished",
+        "genre": "All Genres",
+        "description": "Professional balance for any musical genre",
+        "tooltip": "Balanced chain: transparent EQ, gentle compression (1.5:1), and limiting at -14 LUFS. Ideal when unsure which preset to pick — preserves original mix intent."
+      },
+      "fuego": {
+        "name": "Brutal",
+        "genre": "Trap / Drill",
+        "description": "Aggressive compression and maximum punch for modern beats",
+        "tooltip": "Heavy compression (5:1) with +3dB transient boost and subtle saturation. Masters at -12 LUFS with -1dB ceiling, streaming-safe maximum: hot in trap and drill without distortion."
+      },
+      "claridad": {
+        "name": "Crystal",
+        "genre": "Pop / Latin Pop",
+        "description": "Extreme brightness and stereo width for pop vocals and mixes",
+        "tooltip": "EQ with +4dB top-end brightness, 6ms Haas delay for stereo width, and gentle compression (2:1). Perfect for pop vocals that need to shine above the mix."
+      },
+      "cinta": {
+        "name": "Vintage",
+        "genre": "Lo-Fi / Hip Hop",
+        "description": "Analog tape-style harmonic saturation with vintage warmth",
+        "tooltip": "Second-order harmonic saturation (+3dB drive, +4dB warmth) simulating analog tape. Gentle compression (2:1) with -1.5dB ceiling for rich warmth."
+      },
+      "natural": {
+        "name": "Raw",
+        "genre": "Acoustic / Folk",
+        "description": "Minimal processing, organic dynamics and pristine transparency",
+        "tooltip": "Near-transparent compression (1.5:1) with conservative -2dB ceiling. Minimal saturation, zero Haas delay. Preserves natural dynamics for acoustic and live tracks."
+      },
+      "espacial": {
+        "name": "Immersive",
+        "genre": "Ambient / Electronic",
+        "description": "Ultra-wide stereo image with Haas delay for lush soundscapes",
+        "tooltip": "Maximum stereo width (1.8x) with 15ms Haas delay creating an immersive soundstage. +2dB brightness and gentle compression (2:1) for synths and ambient pads."
+      },
+      "cinematico": {
+        "name": "Epic",
+        "genre": "Rock / Alternative",
+        "description": "Deep sub-bass impact, massive weight for live guitars and acoustic drums",
+        "tooltip": "Heavy punchy compression (5:1) with low-end boost and rich mid presence. Masters at -12 LUFS with cinematic impact and analog warmth."
+      },
+      "empuje": {
+        "name": "Wall",
+        "genre": "Reggaeton / Dembow",
+        "description": "Maximum loudness with heavy bass impact for urban tracks",
+        "tooltip": "Ultra-competitive loudness (-12 LUFS / -1dBTP) with tight low-end and relentless compression (6:1) for clubs and urban hits."
+      },
       "pulido": {
         "name": "Polished",
         "description": "Modern tonal balance, smooth top-end and controlled low-end"
@@ -173,13 +236,129 @@
     "strictQc": "Strict Input Quality Control",
     "strictQcDesc": "Fails early if the mix is clipped or has excessive DC offset.",
     "loudnessTarget": "Loudness Target",
-    "ceilingTarget": "Limiter Ceiling"
+    "ceilingTarget": "Limiter Ceiling",
+    "delivery": "Delivery",
+    "closePanel": "Close delivery panel",
+    "configTitle": "Delivery Configuration"
   },
   "mezcla": {
     "loadAudioPrompt": "Upload an audio file to use Audio Mix."
   },
   "vocal": {
-    "loadAudioPrompt": "Upload an audio file to use Vocal Chain."
+    "title": "VoiceChain",
+    "subtitle": "Professional vocal effect chain",
+    "processVoice": "Process Voice",
+    "loadAudioPrompt": "Upload an audio file to use Vocal Chain Pro.",
+    "channelStrip": "VOICECHAIN PRO — CHANNEL STRIP",
+    "deesser": "De-Esser",
+    "deesserDesc": "Reduces harsh sibilance in high frequencies (5-8 kHz)",
+    "pitch": "Auto-Tune Pitch",
+    "pitchDesc": "Pitch correction with formant preservation.",
+    "pitchHigh": "↑ High",
+    "pitchLow": "↓ Low",
+    "pitchNeutral": "Neutral",
+    "cohesion": "Cohesion",
+    "cohesionDesc": "Analog optical compressor. Controls dynamic peaks and brings vocal presence forward.",
+    "compressor": "Compressor",
+    "processedVoice": "Processed Vocal",
+    "playingPrompt": "Playing...",
+    "playPrompt": "Press Play to listen to the result",
+    "adjustPrompt": "Adjust the 3 controls and press \"Process Voice\" to apply the vocal chain.",
+    "applyingChain": "Applying vocal chain..."
+  },
+  "songstarter": {
+    "title": "Beats",
+    "subtitle": "AI-powered musical idea generator",
+    "grooveTitle": "Try the groove",
+    "grooveSubtitle": "Choose a genre and edit steps while it plays",
+    "play": "Play",
+    "stop": "Stop",
+    "ready": "Ready",
+    "playing": "Playing",
+    "savedBeats": "Saved Beats",
+    "noSavedBeats": "No saved beats yet. Generate and save one above.",
+    "generateBeat": "Generate Beat",
+    "regenerate": "Regenerate Beat",
+    "generating": "Generating...",
+    "saveBeat": "Save Beat",
+    "saved": "Saved",
+    "listenAll": "Listen All",
+    "paramsTitle": "Beat Parameters",
+    "stemsTitle": "Separated Stems",
+    "bpm": "BPM",
+    "scale": "Scale",
+    "rootNote": "Root Note",
+    "swing": "Swing",
+    "tracks": {
+      "kick": "Kick",
+      "snare": "Snare",
+      "hihat": "Hi-Hat",
+      "bass": "Bass",
+      "chords": "Chords",
+      "clap": "Clap",
+      "mix": "Mix"
+    },
+    "load": "Load",
+    "generatingBeat": "Generating beat...",
+    "startPrompt": "Adjust the parameters and press \"Generate Beat\" to get started."
+  },
+  "genreGuide": {
+    "title": "Musical",
+    "titleAccent": "Genres",
+    "subtitle": "How each genre sounds in commercial mastering — educational guide",
+    "genres": {
+      "urban": {
+        "name": "Urban / Hip-Hop / Reggaetón",
+        "description": "Modern urban sound is characterized by sub-bass DOMINANCE between 50–80 Hz. In commercial streaming mastering, density is controlled with fine-tuned transients to sustain energy without breaching safe loudness ceilings (-12 LUFS integrated and -1 dBTP true peak). Masters sound hot and punchy without distortion or penalty on Spotify/Apple/YouTube. Stereo imaging stays narrow in the subs and wide in the highs.",
+        "details": [
+          "Deep, controlled sub-bass (60 Hz with high spectral density)",
+          "Clipped transients maximizing LUFS without audible distortion",
+          "Rhythmic sidechain on bass to carve room for the kick",
+          "Upfront vocals cutting through at 2–4 kHz"
+        ]
+      },
+      "rock": {
+        "name": "Rock / Indie",
+        "description": "Rock mastering focuses on preserving natural AGGRESSIVENESS in drums and guitars, emphasizing low-mids (200–500 Hz) for weight and analog warmth. Compression is moderate compared to urban genres — favoring organic punch over wall-like density. The stereo field is wide, leveraging hard-panned guitars and overhead mics for an immersive wall of sound.",
+        "details": [
+          "Drums with natural acoustic attack and preserved resonance tails",
+          "Guitars with forward mid-high presence (2–4 kHz) free of harshness",
+          "Gentle compression (2:1 to 3:1) preserving performer dynamics",
+          "Wide dynamic range (8–12 dB) compared to electronic genres"
+        ]
+      },
+      "pop": {
+        "name": "Pop / Electronic",
+        "description": "Commercial pop demands crystal-clear BRIGHTNESS in high frequencies (8–12 kHz) combined with balanced multi-band compression maintaining steady energy without sacrificing clarity. The stereo image is wide and extended, featuring lush synths and pads on the sides while kick and sub remain rock-solid in mono center. Target sits around -13 to -14 LUFS integrated.",
+        "details": [
+          "Extensive air sheen in the 8–12 kHz band",
+          "Gentle multi-band compression controlling peaks without pumping",
+          "Wide stereo imaging with side-fill textures",
+          "Controlled yet punchy transients preserving groove energy"
+        ]
+      },
+      "jazz": {
+        "name": "Jazz / Classical",
+        "description": "Acoustic and orchestral music requires absolute PURITY along the mastering chain. The primary goal is NOT loudness, but the pristine preservation of the original performance dynamic range. Compression is used with extreme restraint (1.1:1 to 1.5:1) solely to smooth accidental peaks, leaving the natural acoustic venue intact.",
+        "details": [
+          "Minimal compression — natural dynamic range preserved (15–25 dB)",
+          "Flat spectral curve without artificial low-end or high-end hype",
+          "No aggressive limiting — ceiling parked at -2 dBFS or lower",
+          "Natural reverberation of the recording venue untouched"
+        ]
+      },
+      "latin": {
+        "name": "Latin / Fusions",
+        "description": "Latin music and its fusions require dynamic BALANCE allowing live percussions to keep their organic transient attack while the lead vocal sits clear and front-and-center. Rhythmic cohesion is key — every element operates like a tightly clock-synced engine across congas, timbales, and electric bass.",
+        "details": [
+          "Preserved percussion transient punch — never squashed for loudness",
+          "Upfront vocal presence with 3–5 kHz cut-through and 200–400 Hz body",
+          "Rhythmic master bus glue holding syncopated patterns together",
+          "Controlled stereo width ensuring high mono dancefloor compatibility"
+        ]
+      }
+    },
+    "footnote": "Based on commercial mastering industry standards and spectral analysis of certified releases."
   },
   "analysis": {
     "openAnalysis": "Open Analysis →",

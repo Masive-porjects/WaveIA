@@ -114,7 +114,6 @@ export default function Home() {
           uploadProgress={workflow.uploadProgress}
           processing={workflow.processing}
           processingProgress={workflow.progress}
-          genre={workflow.session?.analysis?.detected_genre ?? null}
         />
 
         {/* Header Bar */}
