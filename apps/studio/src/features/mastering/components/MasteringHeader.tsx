@@ -11,6 +11,7 @@ import {
 import TrackChip from "@/presentation/components/TrackChip";
 import LanguageSwitcher from "@/presentation/components/LanguageSwitcher";
 import ThemeToggle from "@/presentation/components/ThemeToggle";
+import { UserMenu } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { SessionData } from "@/lib/api";
 
@@ -156,6 +157,7 @@ export default function MasteringHeader({
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <LanguageSwitcher />
+        <UserMenu />
 
         {currentView === "mastering" && (
           <button

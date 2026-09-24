@@ -44,7 +44,28 @@
     "history": "Historial",
     "chat": "Asistente IA",
     "delivery": "Entrega",
-    "report": "Reporte de Cumplimiento"
+    "report": "Reporte de Cumplimiento",
+    "studio": "Mastering Studio"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "loginTitle": "Iniciar Sesión",
+    "loginSubtitle": "Accede a tus proyectos y masters en la nube",
+    "registerTitle": "Crear Cuenta",
+    "registerSubtitle": "Comienza a masterizar con calidad profesional",
+    "emailLabel": "Correo Electrónico",
+    "passwordLabel": "Contraseña",
+    "nameLabel": "Nombre o Alias",
+    "loginButton": "Entrar",
+    "registerButton": "Crear Cuenta",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "createAccount": "Regístrate gratis",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "signInLink": "Inicia sesión",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres.",
+    "verificationEmailSent": "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada.",
+    "errorGeneric": "Ocurrió un error inesperado. Por favor intenta de nuevo."
   },
   "player": {
     "play": "Reproducir",

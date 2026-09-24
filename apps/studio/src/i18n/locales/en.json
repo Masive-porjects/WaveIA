@@ -44,7 +44,28 @@
     "history": "History",
     "chat": "AI Assistant",
     "delivery": "Delivery",
-    "report": "Compliance Report"
+    "report": "Compliance Report",
+    "studio": "Mastering Studio"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "loginTitle": "Sign In",
+    "loginSubtitle": "Access your cloud projects and masters",
+    "registerTitle": "Create Account",
+    "registerSubtitle": "Start mastering with professional quality",
+    "emailLabel": "Email Address",
+    "passwordLabel": "Password",
+    "nameLabel": "Name or Alias",
+    "loginButton": "Sign In",
+    "registerButton": "Create Account",
+    "dontHaveAccount": "Don't have an account?",
+    "createAccount": "Sign up for free",
+    "alreadyHaveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "passwordTooShort": "Password must be at least 6 characters.",
+    "verificationEmailSent": "We have sent you a confirmation email. Please check your inbox.",
+    "errorGeneric": "An unexpected error occurred. Please try again."
   },
   "player": {
     "play": "Play",
