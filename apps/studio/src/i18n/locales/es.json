@@ -14,9 +14,22 @@
     "apply": "Aplicar",
     "language": "Idioma",
     "theme": "Tema",
-    "success": "Operación exitosa"
+    "success": "Operación exitosa",
+    "pro": "Pro",
+    "reset": "Restablecer",
+    "backToMainFlow": "← Volver al flujo principal",
+    "duration": "Duración",
+    "notIdentified": "No identificado",
+    "refresh": "Actualizar",
+    "saving": "Guardando..."
   },
   "nav": {
+    "home": "Inicio",
+    "masteringModeAria": "Elige cómo quieres masterizar",
+    "manualMode": "Manual",
+    "manualDesc": "Control total",
+    "aiMode": "Asistente IA",
+    "aiDesc": "Recomendaciones",
     "mezcla": "Mezcla de Audio",
     "modules": "Masterizar Audio",
     "splitter": "Splitter",
@@ -38,22 +51,97 @@
     "pause": "Pausar",
     "compareAB": "Comparar A/B",
     "original": "Original",
+    "raw": "Raw",
+    "master": "Master",
     "mastered": "Masterizado",
     "mixed": "Mezclado",
     "volume": "Volumen",
     "loop": "Bucle",
     "time": "Tiempo",
-    "mute": "Silenciar"
+    "mute": "Silenciar",
+    "instantSwitch": "Cambio instantáneo",
+    "generatingReference": "Generando referencia…",
+    "fairReferenceHint": "Mismo volumen que tu master — compará el carácter, no la fuerza.",
+    "referenceError": "No se pudo generar la referencia. Prueba de nuevo.",
+    "restart": "Volver al inicio",
+    "expand": "Expandir",
+    "collapse": "Minimizar"
   },
   "mastering": {
     "title": "Masterización Profesional",
+    "loadAudioPrompt": "Carga un audio para empezar.",
+    "selectOrTweak": "Selecciona un perfil o ajusta fino abajo",
+    "processButton": "Procesar con estos parámetros",
+    "processWithPreset": "Procesar con este preset",
+    "downloadMaster": "Descargar master",
     "selectPreset": "Selecciona un preset de carácter",
     "deliveryTarget": "Plataforma de Entrega",
     "transparentMode": "Modo Transparente",
     "bitExact": "Salida bit-exacta",
     "strictQC": "Control de Calidad Estricto",
-    "reMaster": "Remasterizar",
+    "fineTune": "Ajuste Fino",
+    "transparentWarning": "Modo transparente: las perillas creativas no se aplican — solo entrega (loudness / SRC / bit depth).",
+    "knobs": {
+      "reverb": "Reverb",
+      "brightness": "Brillo",
+      "compression": "Compresión",
+      "transients": "Transientes",
+      "saturation": "Saturación",
+      "warmth": "Calidez",
+      "ceiling": "Techo",
+      "stereoWidth": "Ancho",
+      "haasDelay": "Delay Haas",
+      "targetLufs": "Target LUFS"
+    },
     "presets": {
+      "universal": {
+        "name": "Pulido",
+        "genre": "Multigénero",
+        "description": "Balance profesional para cualquier género",
+        "tooltip": "Cadena equilibrada: ecualización transparente, compresión suave (1.5:1) y limitación a -14 LUFS. Ideal cuando no sabes qué preset elegir — preserva la intención de la mezcla original."
+      },
+      "fuego": {
+        "name": "Brutal",
+        "genre": "Trap / Drill",
+        "description": "Compresión agresiva y pegada máxima para beats modernos",
+        "tooltip": "Compresión pesada (5:1) con boost de transientes +3dB y saturación leve. Masteriza a -12 LUFS con techo en -1dB, el máximo seguro para streaming: suena caliente en trap y drill sin que Spotify/Apple/YouTube lo atenúen ni le agreguen distorsión."
+      },
+      "claridad": {
+        "name": "Cristalino",
+        "genre": "Pop / Latin Pop",
+        "description": "Brillo extremo y apertura estéreo para voces y mezclas pop",
+        "tooltip": "Ecualización con +4dB de brillo en agudos, Haas delay de 6ms para amplitud estéreo y compresión suave (2:1). Perfecto para voces pop que necesitan brillar por encima de la mezcla."
+      },
+      "cinta": {
+        "name": "Vintage",
+        "genre": "Lo-Fi / Hip Hop",
+        "description": "Saturación armónica tipo cinta analógica con calidez vintage",
+        "tooltip": "Saturación armónica de segundo orden (+3dB drive, +4dB warmth) que simula cinta analógica. Compresión suave (2:1) con techo en -1.5dB. Los armónicos pegan calidez y la mezcla suena 'vivida'."
+      },
+      "natural": {
+        "name": "Crudo",
+        "genre": "Acústico / Folk",
+        "description": "Mínimo procesamiento, dinámica orgánica y transparencia",
+        "tooltip": "Compresión casi transparente (1.5:1) con techo conservador en -2dB. Saturación mínima, sin Haas delay. Respeta la dinámica natural — ideal para acústica, folk y grabaciones en vivo donde cada matiz importa."
+      },
+      "espacial": {
+        "name": "Envolvente",
+        "genre": "Ambient / Electronic",
+        "description": "Imagen stereo anchísima con Haas delay para paisajes sónicos",
+        "tooltip": "Stereo width al máximo (1.8x) con Haas delay de 15ms que crea una imagen sonora envolvente. Brillo +2dB y compresión suave (2:1). Pensado para pads, synths y paisajes que necesitan habitar el espacio."
+      },
+      "cinematico": {
+        "name": "Épico",
+        "genre": "Rock / Alternativo",
+        "description": "Subgraves profundos, impacto masivo para trailers o pistas electrónicas",
+        "tooltip": "Compresión pesada (5:1) con boost de graves y presencia en medios. Masteriza a -12 LUFS con pegada cinematográfica y calidez analógica."
+      },
+      "empuje": {
+        "name": "Muro",
+        "genre": "Reggaeton / Dembow",
+        "description": "Loudness máximo con graves contundentes para pistas urbanas",
+        "tooltip": "Loudness ultra-competitivo (-12 LUFS / -1dBTP) con graves recortados y compresión implacable (6:1) para clubes y pistas urbanas."
+      },
       "pulido": {
         "name": "Pulido",
         "description": "Equilibrio tonal moderno, brillo suave y graves controlados"
@@ -96,6 +184,12 @@
     }
   },
   "upload": {
+    "heroPrefix": "Masteriza Tu",
+    "heroAccent": "Música",
+    "lufsStandard": "-14 LUFS Standard",
+    "dspModules": "4 Módulos DSP",
+    "proQuality": "Calidad Profesional",
+    "uploadAnother": "Subir otro track",
     "dropzoneTitle": "Carga tu track para masterizar",
     "dropzoneSubtitle": "Arrastra tu archivo o haz clic para comenzar.",
     "supportedFormats": "Soporta WAV y MP3 — máximo 50MB",
@@ -107,8 +201,268 @@
     "changeTrack": "Arrastra un track diferente",
     "or": "o"
   },
+  "splitter": {
+    "title": "Stem",
+    "titleAccent": "Splitter",
+    "subtitle": "Separá tu mezcla en 4 pistas independientes",
+    "splitButton": "Separar Stems",
+    "splitting": "Separando...",
+    "splittingTracks": "Separando pistas...",
+    "splitDone": "Separado",
+    "splitDoneCount": "Separación completa — 4 stems generados",
+    "firstTimeNotice": "Presioná \"Separar Stems\" para empezar. La primera vez descarga el modelo (~1.9 GB) y puede demorar un minuto.",
+    "guideNotice": "Usa los botones de reproducción para escuchar cada stem, los faders para ajustar volumen, Mute/Solo para aislar, y Descargar para guardar.",
+    "loadAudioPrompt": "Carga un audio para usar el Splitter.",
+    "vocals": "Voz",
+    "drums": "Batería",
+    "bass": "Bajo",
+    "other": "Melodías",
+    "downloadWav": "Descargar WAV",
+    "mute": "Silenciar",
+    "solo": "Solo"
+  },
+  "delivery": {
+    "processingMode": "Modo de procesamiento",
+    "creative": "Creativo",
+    "creativeTooltip": "Cadena completa: ecualización, compresión, saturación, loudness.",
+    "transparent": "Transparente",
+    "transparentTooltip": "Solo entrega: loudness (si hay target/plataforma), limiter, SRC y bit depth. No moldea el timbre.",
+    "platformTitle": "Plataforma de entrega",
+    "automatic": "Automático",
+    "custom": "Personalizado",
+    "sameAsInput": "Misma que la entrada",
+    "sampleRate": "Sample Rate de salida",
+    "bitDepth": "Profundidad de bits",
+    "strictQc": "Control de calidad estricto de entrada",
+    "strictQcDesc": "Falla temprano si la mezcla viene saturada o con DC offset excesivo.",
+    "loudnessTarget": "Objetivo de Loudness",
+    "ceilingTarget": "Techo del Limitador",
+    "delivery": "Entrega",
+    "closePanel": "Cerrar panel de entrega",
+    "configTitle": "Configuración de entrega"
+  },
+  "mezcla": {
+    "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio."
+  },
+  "vocal": {
+    "title": "VoiceChain",
+    "subtitle": "Cadena de efectos vocales profesional",
+    "processVoice": "Procesar Voz",
+    "loadAudioPrompt": "Carga un audio para usar VoiceChain Pro.",
+    "channelStrip": "VOICECHAIN PRO — CHANNEL STRIP",
+    "deesser": "De-Esser",
+    "deesserDesc": "Reduce sibilancias en frecuencias agudas (5-8 kHz)",
+    "pitch": "Auto-Tune Pitch",
+    "pitchDesc": "Corrección tonal con preservación de formantes.",
+    "pitchHigh": "↑ Agudo",
+    "pitchLow": "↓ Grave",
+    "pitchNeutral": "Neutral",
+    "cohesion": "Cohesión",
+    "cohesionDesc": "Compresor óptico analógico. Controla picos dinámicos y adelanta la presencia vocal.",
+    "compressor": "Compresor",
+    "processedVoice": "Voz Procesada",
+    "playingPrompt": "Reproduciendo...",
+    "playPrompt": "Presioná Play para escuchar el resultado",
+    "adjustPrompt": "Ajusta los 3 controles y presiona \"Procesar Voz\" para aplicar la cadena vocal.",
+    "applyingChain": "Aplicando cadena vocal..."
+  },
+  "songstarter": {
+    "title": "Beats",
+    "subtitle": "Generador de ideas musicales con Inteligencia Artificial",
+    "grooveTitle": "Prueba el groove",
+    "grooveSubtitle": "Elige un género y edita los pasos mientras suena",
+    "play": "Reproducir",
+    "stop": "Detener",
+    "ready": "Listo",
+    "playing": "Reproduciendo",
+    "savedBeats": "Beats Guardados",
+    "noSavedBeats": "No hay beats guardados todavía. Genera y guarda uno arriba.",
+    "generateBeat": "Generar Beat",
+    "regenerate": "Regenerar Beat",
+    "generating": "Generando...",
+    "saveBeat": "Guardar Beat",
+    "saved": "Guardado",
+    "listenAll": "Escuchar todo",
+    "paramsTitle": "Parámetros del Beat",
+    "stemsTitle": "Stems Separados",
+    "bpm": "BPM",
+    "scale": "Escala",
+    "rootNote": "Tónica",
+    "swing": "Swing",
+    "tracks": {
+      "kick": "Kick",
+      "snare": "Caja",
+      "hihat": "Hi-Hat",
+      "bass": "Bajo",
+      "chords": "Acordes",
+      "clap": "Clap",
+      "mix": "Mezcla"
+    },
+    "load": "Cargar",
+    "generatingBeat": "Generando beat...",
+    "startPrompt": "Ajusta los parámetros y presiona \"Generar Beat\" para empezar."
+  },
+  "genreGuide": {
+    "title": "Géneros",
+    "titleAccent": "Musicales",
+    "subtitle": "Cómo suena cada género en el mastering comercial — guía educativa",
+    "genres": {
+      "urban": {
+        "name": "Urban / Hip-Hop / Reggaetón",
+        "description": "El sonido urbano moderno se caracteriza por la DOMINANCIA del sub-bass entre 50–80 Hz. En el mastering comercial para streaming, la densidad se controla con transitorios afinados para mantener la energía sin pasar del techo seguro de loudness (target -12 LUFS integrados y true-peak en -1 dBTP). Así el master suena caliente y consistente sin que Spotify/Apple/YouTube lo atenúen ni le sumen distorsión. La imagen estéreo tiende a ser angosta en las bajas frecuencias y abierta en los agudos, con una compresión del bus maestro que mantiene el ritmo constante y la energía sin picos disruptivos.",
+        "details": [
+          "Sub-bass profundo y controlado (60 Hz con alta densidad espectral)",
+          "Transitorios recortados para maximizar LUFS sin distorsión audible",
+          "Side chain rítmico en el bajo para dar espacio al kick",
+          "Vocales al frente con presencia en 2–4 kHz"
+        ]
+      },
+      "rock": {
+        "name": "Rock / Indie",
+        "description": "El mastering de rock busca preservar la AGRESIVIDAD natural de la batería y las guitarras, con un énfasis en los medios-graves (200–500 Hz) que dan peso y calidez. La compresión es moderada comparada con el urbano — se busca el 'punch' orgánico antes que la densidad absoluta. La imagen estéreo es ancha, aprovechando guitarras paneadas y overheads de batería para crear un muro de sonido envolvente.",
+        "details": [
+          "Batería con ataque natural y cola de resonancia preservada",
+          "Guitarras con presencia en medios-agudos (2–4 kHz) sin aspereza",
+          "Compresión suave (2:1 a 3:1) que mantiene la dinámica de la interpretación",
+          "Rango dinámico amplio (8–12 dB) comparado con otros géneros"
+        ]
+      },
+      "pop": {
+        "name": "Pop / Electrónica",
+        "description": "El pop comercial exige un BRILLO cristalino en las frecuencias altas (8–12 kHz) combinado con una compresión balanceada que mantenga la energía sin sacrificar claridad. La imagen estéreo es moderna y extendida, con pads y sintetizadores que llenan el espacio lateral mientras el kick y el bajo se mantienen sólidos en el centro. El target de loudness ronda los -13 a -14 LUFS integrados con true-peak en -1 dBTP, optimizado y seguro para streaming.",
+        "details": [
+          "Brightness extensivo en el rango de 8–12 kHz para brillo 'air'",
+          "Compresión multibanda suave para controlar picos sin bombear",
+          "Imagen estéreo amplia con elementos de relleno en los extremos",
+          "Transientes controlados pero presentes para mantener la energía rítmica"
+        ]
+      },
+      "jazz": {
+        "name": "Jazz / Clásica",
+        "description": "La música acústica y orquestal exige una PUREZA absoluta en la cadena de masterización. Aquí el objetivo NO es la loudness sino la preservación del rango dinámico original de la interpretación. La compresión se usa con extrema sutileza (1.1:1 a 1.5:1), solo para suavizar picos accidentales. El balance espectral busca ser plano y transparente, dejando que la acústica natural del espacio de grabación y la dinámica de los músicos sean protagonistas.",
+        "details": [
+          "Mínima compresión — se preserva la dinámica natural (rango de 15–25 dB)",
+          "Curva espectral plana sin realces artificiales en agudos ni graves",
+          "Sin limitación agresiva — el ceiling se coloca en -2 dBFS o más abajo",
+          "Reverberación natural del espacio de grabación se mantiene intacta"
+        ]
+      },
+      "latin": {
+        "name": "Latino / Fusiones",
+        "description": "El género latino y sus fusiones requieren un BALANCE dinámico que permita a las percusiones vivas mantener su ataque natural mientras la voz se posiciona al frente con claridad. La cohesión rítmica es la prioridad — todos los elementos deben funcionar como un motor sincronizado. El rango de frecuencia es amplio, desde tumbadoras y congas en los medios hasta el bajo eléctrico o synth en las frecuencias graves, con una presencia vocal prominente en 3–5 kHz.",
+        "details": [
+          "Percusiones con ataque preservado — no se sacrifican por loudness",
+          "Vocal al frente con claridad en 3–5 kHz y calidez en 200–400 Hz",
+          "Cohesión rítmica — compresión suave en el bus maestro que une la mezcla",
+          "Ancho estéreo moderado que mantiene la energía bailable en mono"
+        ]
+      }
+    },
+    "footnote": "Basado en estándares de la industria de mastering comercial y análisis espectral de lanzamientos certificados."
+  },
+  "pipeline": {
+    "title": "Cadena de",
+    "titleAccent": "Master",
+    "subtitle": "Cómo funciona WaveIA paso a paso — cadena DSP profesional",
+    "steps": {
+      "01": {
+        "title": "Gain Staging",
+        "description": "Normalizamos la señal de entrada a un headroom consistente de -6 dBFS. Esto asegura que todos los módulos DSP trabajen con el mismo margen dinámico, independientemente de qué tan fuerte o suave sea tu mezcla original."
+      },
+      "02": {
+        "title": "Match EQ (Corrección Espectral por Género)",
+        "description": "Analizamos el contenido espectral de tu audio y lo comparamos con perfiles objetivo de la industria comercial. Cada género tiene una 'firma espectral ideal' — el Match EQ empuja tu mezcla hacia ese target sin aplanar el carácter único de tu música."
+      },
+      "03": {
+        "title": "Compresión Proporcional",
+        "description": "El umbral de compresión se calcula dinámicamente a partir del RMS real de tu audio. La relación la controlas tú con el módulo 'Fuego / Empuje'. Más ratio = más control de picos; menos ratio = más dinámica natural."
+      },
+      "04": {
+        "title": "Procesamiento M/S (Mid/Side)",
+        "description": "Separamos la señal en canal Central (Mid, todo lo que suena en mono) y Lateral (Side, todo lo que suena en estéreo). Esto permite procesar la reverberación, el ancho estéreo y el delay Haas de forma independiente sin ensuciar el centro."
+      },
+      "05": {
+        "title": "Saturación Armónica (THD)",
+        "description": "Aplicamos distorsión armónica controlada simulando cinta analógica. El módulo 'Cinta / Saturación' te permite inyectar calidez y armónicos pares (al estilo cinta magnética) que el oído humano percibe como 'musicales' y 'cálidos'."
+      },
+      "06": {
+        "title": "True Peak Limiting (4x Oversampling)",
+        "description": "El limitador final trabaja con sobremuestreo 4x para atrapar picos entre muestras (inter-sample peaks) que los limitadores estándar no ven. Combinado con el Codec Pre-Matching, ajustamos el techo dinámicamente para evitar distorsión en streaming."
+      },
+      "07": {
+        "title": "Noise-Shaped Dithering (Lipshitz 2nd Order)",
+        "description": "Al exportar en 16 bits, aplicamos dither con modelado de ruido de 2do orden (Lipshitz) que empuja el piso de ruido de cuantización por encima de 15 kHz, donde el oído humano es menos sensible. El resultado: audio de 16 bits que suena como si fuera de 24."
+      }
+    },
+    "tipsTitle": "Tips para un Master Exitoso",
+    "tipsSubtitle": "Antes de subir tu audio, revisá estos puntos",
+    "tips": [
+      {
+        "title": "Deja headroom en tu mezcla",
+        "body": "Exporta tu mezcla con picos entre -6 dBFS y -3 dBFS. NO subas el master fader de tu DAW. El headroom le da espacio al motor DSP de WaveIA para trabajar sin recortar transitorios."
+      },
+      {
+        "title": "No apliques limitación en el bus maestro",
+        "body": "Si ya limitaste la mezcla en tu DAW, el motor no puede diferenciar entre tu intención creativa y la distorsión. Deja el bus maestro limpio — WaveIA se encarga de la limitación final profesional."
+      },
+      {
+        "title": "Exporta en WAV de 24 bits",
+        "body": "El formato WAV de 24-bit a 44.1 kHz o 48 kHz es el estándar de la industria. Evitá MP3, AAC u otros formatos con pérdida — el algoritmo necesita la información completa para procesar correctamente."
+      },
+      {
+        "title": "Verificá que el bajo no esté saturado en mono",
+        "body": "Las frecuencias bajo 120 Hz se convierten a mono automáticamente para evitar problemas de fase en vinilo y sistemas club. Si tu bajo ya tiene problemas de fase, escuchalo en mono ANTES de subir el archivo."
+      }
+    ],
+    "authorship": "Brikman Paul, el creador de WaveIA, se ha tomado el trabajo de pulir meticulosamente cada algoritmo y modelo matemático DSP para garantizar que cada canción que pase por la plataforma suene superbién, competitiva y lista para la industria musical internacional."
+  },
+  "signalChain": {
+    "title": "Cadena de Señal",
+    "flow": "Input → Procesamiento → Output",
+    "on": "ON",
+    "bypass": "BYPASS",
+    "blocks": {
+      "eq": "Claridad",
+      "comp": "Compresor",
+      "sat": "Saturación",
+      "lim": "Limiter"
+    }
+  },
+  "analysis": {
+    "openAnalysis": "Abrir Análisis →",
+    "openAnalysisShort": "Abrir Análisis",
+    "dockHintPrefix": "Abre el módulo",
+    "noAudio": "Carga un audio para ver el análisis",
+    "alreadyMasteredTitle": "Audio ya masterizado",
+    "alreadyMasteredDesc": "Procesarlo de nuevo puede causar sobremasterización. Se aplicará una cadena reducida al 80% para preservar la calidad.",
+    "targetPreset": "Preset Objetivo",
+    "targetLufs": "Target LUFS",
+    "ceiling": "Ceiling",
+    "ratio": "Ratio",
+    "integratedLufs": "Loudness Integrado",
+    "dynamicRange": "Rango Dinámico",
+    "spectralBalance": "Balance Espectral",
+    "truePeak": "True Peak",
+    "detectedGenre": "Género Detectado",
+    "confidence": "Confianza",
+    "subBass": "Subgraves",
+    "bass": "Graves",
+    "mids": "Medios",
+    "highs": "Agudos",
+    "masterResultTitle": "Resultado del Master",
+    "measuredVsTarget": "Medido vs objetivo de",
+    "masterValidated": "Master validado — dentro de tolerancia",
+    "retrySuffix": " (reintentado automáticamente con menor intensidad)",
+    "suggestPulido": "Sugerencia: prueba Pulido",
+    "dynamicRangeShort": "Rango Din.",
+    "tempo": "Tempo",
+    "genre": "Género"
+  },
   "report": {
     "title": "Reporte de Cumplimiento",
+    "panelTitle": "Panel de Análisis",
+    "genre": "Género",
+    "alreadyMasteredNotice": "Audio ya masterizado — riesgo de sobremasterización",
     "integratedLufs": "Loudness Integrado",
     "truePeak": "Pico Verdadero (True Peak)",
     "sampleRate": "Sample Rate",
@@ -116,6 +470,13 @@
     "crestFactor": "Factor de Cresta",
     "statusOk": "Cumple los estándares de entrega",
     "warnings": "Advertencias detectadas"
+  },
+  "errors": {
+    "serverRestartTitle": "El servidor se reinició",
+    "serverRestartMessage": "La sesión se perdió mientras se procesaba. Recarga la página: si la sesión no se recupera sola, sube el audio de nuevo.",
+    "sessionExpiredTitle": "Tu sesión anterior expiró",
+    "sessionExpiredMessage": "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar.",
+    "uploadFailed": "Error al subir el archivo"
   },
   "auth": {
     "login": "Iniciar Sesión",
