@@ -48,9 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (currentUser?.user_metadata?.role as UserProfile["role"]) ||
           "user";
 
+        const resolvedEmail =
+          currentUser?.email ||
+          (currentUser?.user_metadata?.email as string | undefined) ||
+          (currentUser?.identities?.find((id) => id.identity_data?.email)?.identity_data?.email as string | undefined) ||
+          null;
+
         const newProfileData: UserProfile = {
           id: userId,
-          email: currentUser?.email || null,
+          email: resolvedEmail,
           display_name: fallbackDisplayName,
           avatar_url: fallbackAvatar,
           role: fallbackRole,
@@ -64,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .upsert(
             {
               id: userId,
-              email: currentUser?.email || null,
+              email: resolvedEmail,
               display_name: fallbackDisplayName,
               avatar_url: fallbackAvatar,
               role: fallbackRole,
@@ -80,9 +86,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Graceful fallback
       if (currentUser) {
+        const resolvedEmail =
+          currentUser.email ||
+          (currentUser.user_metadata?.email as string | undefined) ||
+          (currentUser.identities?.find((id) => id.identity_data?.email)?.identity_data?.email as string | undefined) ||
+          null;
+
         setProfile({
           id: userId,
-          email: currentUser.email || null,
+          email: resolvedEmail,
           display_name: currentUser.email?.split("@")[0] || "Producer",
           avatar_url: null,
           role: "user",

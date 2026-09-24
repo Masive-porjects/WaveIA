@@ -28,11 +28,12 @@ export default function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
-  const { t } = useTranslation();
+  const { t, isEn } = useTranslation();
 
   const [authMethod, setAuthMethod] = useState<"social" | "email">("social");
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverErrorKey, setServerErrorKey] = useState<string | null>(null);
+  const [serverErrorMessage, setServerErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const schema = useMemo(() => getRegisterSchema(t), [t]);
@@ -65,7 +66,8 @@ export default function RegisterForm() {
   const supabase = createClient();
 
   const onSubmit = async (data: RegisterFormData) => {
-    setServerError(null);
+    setServerErrorKey(null);
+    setServerErrorMessage(null);
     setSuccessMessage(null);
 
     try {
@@ -82,14 +84,9 @@ export default function RegisterForm() {
       if (signUpError) {
         const errorMsg = signUpError.message.toLowerCase();
         if (errorMsg.includes("already registered") || errorMsg.includes("already exists")) {
-          setServerError(
-            t(
-              "auth.emailAlreadyRegistered",
-              "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
-            )
-          );
+          setServerErrorKey("auth.emailAlreadyRegistered");
         } else {
-          setServerError(signUpError.message);
+          setServerErrorMessage(signUpError.message);
         }
         return;
       }
@@ -100,12 +97,7 @@ export default function RegisterForm() {
         Array.isArray(authData.user.identities) &&
         authData.user.identities.length === 0
       ) {
-        setServerError(
-          t(
-            "auth.emailAlreadyRegistered",
-            "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
-          )
-        );
+        setServerErrorKey("auth.emailAlreadyRegistered");
         return;
       }
 
@@ -118,14 +110,14 @@ export default function RegisterForm() {
         setSuccessMessage(
           t(
             "auth.verificationEmailSent",
-            "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada."
+            isEn
+              ? "We have sent you a confirmation email. Please check your inbox."
+              : "Te hemos enviado un correo de confirmación. Por favor revisa tu bandeja de entrada."
           )
         );
       }
     } catch {
-      setServerError(
-        t("auth.errorGeneric", "Ocurrió un error inesperado al registrar la cuenta.")
-      );
+      setServerErrorKey("auth.errorGeneric");
     }
   };
 
@@ -146,19 +138,32 @@ export default function RegisterForm() {
           WaveIA Studio
         </div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {t("auth.registerTitle", "Crear Cuenta")}
+          {t("auth.registerTitle", isEn ? "Create Account" : "Crear Cuenta")}
         </h1>
         <p className="text-xs text-[var(--text-secondary)] mt-0.5">
           {authMethod === "social"
-            ? t("auth.registerSocialSubtitle", "Crea tu cuenta con tus redes o con correo")
-            : t("auth.registerSubtitle", "Comienza a masterizar con calidad profesional")}
+            ? t("auth.registerSocialSubtitle", isEn ? "Create your account with social providers or email" : "Crea tu cuenta con tus redes o con correo")
+            : t("auth.registerSubtitle", isEn ? "Start mastering with professional quality" : "Comienza a masterizar con calidad profesional")}
         </p>
       </div>
 
-      {serverError && (
+      {(serverErrorKey || serverErrorMessage) && (
         <div className="mb-2.5 p-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-[11px] flex items-center gap-2">
           <AlertCircle size={14} className="shrink-0" />
-          <span>{serverError}</span>
+          <span>
+            {serverErrorKey
+              ? t(
+                  serverErrorKey,
+                  serverErrorKey === "auth.emailAlreadyRegistered"
+                    ? isEn
+                      ? "An account is already registered with this email address. Please sign in with your password or connected social account."
+                      : "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu contraseña o red social asociada."
+                    : isEn
+                    ? "An unexpected error occurred while registering."
+                    : "Ocurrió un error inesperado al registrar la cuenta."
+                )
+              : serverErrorMessage}
+          </span>
         </div>
       )}
 

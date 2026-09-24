@@ -79,6 +79,7 @@ export default function SocialAuthButtons({
           options: {
             redirectTo: redirectUrl,
             scopes: PROVIDER_SCOPES[provider],
+            queryParams: provider === "spotify" ? { show_dialog: "true" } : undefined,
           },
         });
 

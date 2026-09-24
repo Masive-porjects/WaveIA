@@ -32,13 +32,13 @@ export default function SocialStatusModal({
   onClose,
   onRetry,
 }: SocialStatusModalProps) {
-  const { t } = useTranslation();
+  const { t, isEn } = useTranslation();
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   const waitingPhrases = [
-    t("auth.modalPhrase1", "Estableciendo conexión segura..."),
-    t("auth.modalPhrase2", "Sincronizando credenciales de audio..."),
-    t("auth.modalPhrase3", "Preparando tu espacio de mastering..."),
+    t("auth.modalPhrase1", isEn ? "Establishing secure connection..." : "Estableciendo conexión segura..."),
+    t("auth.modalPhrase2", isEn ? "Synchronizing audio credentials..." : "Sincronizando credenciales de audio..."),
+    t("auth.modalPhrase3", isEn ? "Preparing your mastering workspace..." : "Preparando tu espacio de mastering..."),
   ];
 
   // Cycle waiting phrases every 2.4s while connecting
@@ -160,25 +160,34 @@ export default function SocialStatusModal({
               </div>
 
               <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">
-                {t("auth.modalErrorTitle", "No pudimos completar el acceso")}
+                {t("auth.modalErrorTitle", isEn ? "We couldn't complete the sign-in" : "No pudimos completar el acceso")}
               </h3>
 
               <p className="text-xs text-[var(--text-secondary)] mb-4 max-w-[310px] leading-relaxed">
                 {(() => {
                   if (!errorMessage) {
-                    return t("auth.oauthErrorGeneric", "Ocurrió un error al conectar con el proveedor seleccionado.");
+                    return t(
+                      "auth.oauthErrorGeneric",
+                      isEn
+                        ? "An error occurred while connecting with the selected provider."
+                        : "Ocurrió un error al conectar con el proveedor seleccionado."
+                    );
                   }
                   const lower = errorMessage.toLowerCase();
                   if (lower.includes("multiple accounts") || lower.includes("linking domain")) {
                     return t(
                       "auth.oauthMultipleAccounts",
-                      "Ya existe una cuenta registrada con este correo mediante otra red social o contraseña. Por favor ingresa con el método que usaste originalmente."
+                      isEn
+                        ? "An account is already registered with this email address via another provider or password. Please sign in with your original method."
+                        : "Ya existe una cuenta registrada con este correo mediante otra red social o contraseña. Por favor ingresa con el método que usaste originalmente."
                     );
                   }
                   if (lower.includes("unverified") || lower.includes("verification")) {
                     return t(
                       "auth.oauthEmailVerificationRequired",
-                      "Tu cuenta requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase."
+                      isEn
+                        ? "Your account requires email verification. Please check your inbox or enable 'Skip email verification' in the Supabase Dashboard."
+                        : "Tu cuenta requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase."
                     );
                   }
                   return errorMessage;

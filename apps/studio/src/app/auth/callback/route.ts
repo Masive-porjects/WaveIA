@@ -32,11 +32,17 @@ export async function GET(request: Request) {
           user.user_metadata?.picture ||
           null;
 
+        const resolvedEmail =
+          user.email ||
+          (user.user_metadata?.email as string | undefined) ||
+          (user.identities?.find((id) => id.identity_data?.email)?.identity_data?.email as string | undefined) ||
+          null;
+
         try {
           await supabase.from("profiles").upsert(
             {
               id: user.id,
-              email: user.email,
+              email: resolvedEmail,
               display_name: displayName,
               avatar_url: avatarUrl,
               role: "user",
