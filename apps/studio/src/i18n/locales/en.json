@@ -17,7 +17,9 @@
     "success": "Operation successful",
     "pro": "Pro",
     "reset": "Reset",
-    "backToMainFlow": "← Back to main workflow"
+    "backToMainFlow": "← Back to main workflow",
+    "duration": "Duration",
+    "notIdentified": "Unidentified"
   },
   "nav": {
     "home": "Home",
@@ -47,12 +49,21 @@
     "pause": "Pause",
     "compareAB": "Compare A/B",
     "original": "Original",
+    "raw": "Raw",
+    "master": "Master",
     "mastered": "Mastered",
     "mixed": "Mixed",
     "volume": "Volume",
     "loop": "Loop",
     "time": "Time",
-    "mute": "Mute"
+    "mute": "Mute",
+    "instantSwitch": "Instant switch",
+    "generatingReference": "Generating reference…",
+    "fairReferenceHint": "Same volume as your master — compare character, not loudness.",
+    "referenceError": "Could not generate reference. Try again.",
+    "restart": "Back to start",
+    "expand": "Expand",
+    "collapse": "Minimize"
   },
   "mastering": {
     "title": "Professional Mastering",
@@ -128,7 +139,41 @@
     "or": "or"
   },
   "splitter": {
-    "loadAudioPrompt": "Upload an audio file to use the Stem Splitter."
+    "title": "Stem",
+    "titleAccent": "Splitter",
+    "subtitle": "Split your mix into 4 independent stems",
+    "splitButton": "Split Stems",
+    "splitting": "Splitting...",
+    "splittingTracks": "Splitting tracks...",
+    "splitDone": "Split complete",
+    "splitDoneCount": "Separation complete — 4 stems generated",
+    "firstTimeNotice": "Press \"Split Stems\" to start. First run downloads the AI model (~1.9 GB) and may take about a minute.",
+    "guideNotice": "Use Play buttons to preview each stem, faders to adjust level, Mute/Solo to isolate, and Download to save.",
+    "loadAudioPrompt": "Upload an audio file to use the Stem Splitter.",
+    "vocals": "Vocals",
+    "drums": "Drums",
+    "bass": "Bass",
+    "other": "Melodies",
+    "downloadWav": "Download WAV",
+    "mute": "Mute",
+    "solo": "Solo"
+  },
+  "delivery": {
+    "processingMode": "Processing Mode",
+    "creative": "Creative",
+    "creativeTooltip": "Full chain: EQ, compression, saturation, loudness.",
+    "transparent": "Transparent",
+    "transparentTooltip": "Delivery only: loudness target/limiter, SRC and bit depth. Does not alter tone.",
+    "platformTitle": "Delivery Platform",
+    "automatic": "Automatic",
+    "custom": "Custom",
+    "sameAsInput": "Same as input",
+    "sampleRate": "Output Sample Rate",
+    "bitDepth": "Bit Depth",
+    "strictQc": "Strict Input Quality Control",
+    "strictQcDesc": "Fails early if the mix is clipped or has excessive DC offset.",
+    "loudnessTarget": "Loudness Target",
+    "ceilingTarget": "Limiter Ceiling"
   },
   "mezcla": {
     "loadAudioPrompt": "Upload an audio file to use Audio Mix."
@@ -139,7 +184,32 @@
   "analysis": {
     "openAnalysis": "Open Analysis →",
     "openAnalysisShort": "Open Analysis",
-    "dockHintPrefix": "Open the module"
+    "dockHintPrefix": "Open the module",
+    "noAudio": "Upload audio to view analysis",
+    "alreadyMasteredTitle": "Audio Already Mastered",
+    "alreadyMasteredDesc": "Processing again may cause over-mastering. An 80% reduced mastering chain will be applied to preserve fidelity.",
+    "targetPreset": "Target Preset",
+    "targetLufs": "Target LUFS",
+    "ceiling": "Ceiling",
+    "ratio": "Ratio",
+    "integratedLufs": "Integrated Loudness",
+    "dynamicRange": "Dynamic Range",
+    "spectralBalance": "Spectral Balance",
+    "truePeak": "True Peak",
+    "detectedGenre": "Detected Genre",
+    "confidence": "Confidence",
+    "subBass": "Sub Bass",
+    "bass": "Bass",
+    "mids": "Mids",
+    "highs": "Highs",
+    "masterResultTitle": "Master Result",
+    "measuredVsTarget": "Measured vs target for",
+    "masterValidated": "Master validated — within tolerance",
+    "retrySuffix": " (automatically retried with reduced intensity)",
+    "suggestPulido": "Suggestion: try Pulido",
+    "dynamicRangeShort": "Dyn. Range",
+    "tempo": "Tempo",
+    "genre": "Genre"
   },
   "report": {
     "title": "Compliance Report",

@@ -17,7 +17,9 @@
     "success": "Operación exitosa",
     "pro": "Pro",
     "reset": "Restablecer",
-    "backToMainFlow": "← Volver al flujo principal"
+    "backToMainFlow": "← Volver al flujo principal",
+    "duration": "Duración",
+    "notIdentified": "No identificado"
   },
   "nav": {
     "home": "Inicio",
@@ -47,12 +49,21 @@
     "pause": "Pausar",
     "compareAB": "Comparar A/B",
     "original": "Original",
+    "raw": "Raw",
+    "master": "Master",
     "mastered": "Masterizado",
     "mixed": "Mezclado",
     "volume": "Volumen",
     "loop": "Bucle",
     "time": "Tiempo",
-    "mute": "Silenciar"
+    "mute": "Silenciar",
+    "instantSwitch": "Cambio instantáneo",
+    "generatingReference": "Generando referencia…",
+    "fairReferenceHint": "Mismo volumen que tu master — compará el carácter, no la fuerza.",
+    "referenceError": "No se pudo generar la referencia. Prueba de nuevo.",
+    "restart": "Volver al inicio",
+    "expand": "Expandir",
+    "collapse": "Minimizar"
   },
   "mastering": {
     "title": "Masterización Profesional",
@@ -128,7 +139,41 @@
     "or": "o"
   },
   "splitter": {
-    "loadAudioPrompt": "Carga un audio para usar el Splitter."
+    "title": "Stem",
+    "titleAccent": "Splitter",
+    "subtitle": "Separá tu mezcla en 4 pistas independientes",
+    "splitButton": "Separar Stems",
+    "splitting": "Separando...",
+    "splittingTracks": "Separando pistas...",
+    "splitDone": "Separado",
+    "splitDoneCount": "Separación completa — 4 stems generados",
+    "firstTimeNotice": "Presioná \"Separar Stems\" para empezar. La primera vez descarga el modelo (~1.9 GB) y puede demorar un minuto.",
+    "guideNotice": "Usa los botones de reproducción para escuchar cada stem, los faders para ajustar volumen, Mute/Solo para aislar, y Descargar para guardar.",
+    "loadAudioPrompt": "Carga un audio para usar el Splitter.",
+    "vocals": "Voz",
+    "drums": "Batería",
+    "bass": "Bajo",
+    "other": "Melodías",
+    "downloadWav": "Descargar WAV",
+    "mute": "Silenciar",
+    "solo": "Solo"
+  },
+  "delivery": {
+    "processingMode": "Modo de procesamiento",
+    "creative": "Creativo",
+    "creativeTooltip": "Cadena completa: ecualización, compresión, saturación, loudness.",
+    "transparent": "Transparente",
+    "transparentTooltip": "Solo entrega: loudness (si hay target/plataforma), limiter, SRC y bit depth. No moldea el timbre.",
+    "platformTitle": "Plataforma de entrega",
+    "automatic": "Automático",
+    "custom": "Personalizado",
+    "sameAsInput": "Misma que la entrada",
+    "sampleRate": "Sample Rate de salida",
+    "bitDepth": "Profundidad de bits",
+    "strictQc": "Control de calidad estricto de entrada",
+    "strictQcDesc": "Falla temprano si la mezcla viene saturada o con DC offset excesivo.",
+    "loudnessTarget": "Objetivo de Loudness",
+    "ceilingTarget": "Techo del Limitador"
   },
   "mezcla": {
     "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio."
@@ -139,7 +184,32 @@
   "analysis": {
     "openAnalysis": "Abrir Análisis →",
     "openAnalysisShort": "Abrir Análisis",
-    "dockHintPrefix": "Abre el módulo"
+    "dockHintPrefix": "Abre el módulo",
+    "noAudio": "Carga un audio para ver el análisis",
+    "alreadyMasteredTitle": "Audio ya masterizado",
+    "alreadyMasteredDesc": "Procesarlo de nuevo puede causar sobremasterización. Se aplicará una cadena reducida al 80% para preservar la calidad.",
+    "targetPreset": "Preset Objetivo",
+    "targetLufs": "Target LUFS",
+    "ceiling": "Ceiling",
+    "ratio": "Ratio",
+    "integratedLufs": "Loudness Integrado",
+    "dynamicRange": "Rango Dinámico",
+    "spectralBalance": "Balance Espectral",
+    "truePeak": "True Peak",
+    "detectedGenre": "Género Detectado",
+    "confidence": "Confianza",
+    "subBass": "Subgraves",
+    "bass": "Graves",
+    "mids": "Medios",
+    "highs": "Agudos",
+    "masterResultTitle": "Resultado del Master",
+    "measuredVsTarget": "Medido vs objetivo de",
+    "masterValidated": "Master validado — dentro de tolerancia",
+    "retrySuffix": " (reintentado automáticamente con menor intensidad)",
+    "suggestPulido": "Sugerencia: prueba Pulido",
+    "dynamicRangeShort": "Rango Din.",
+    "tempo": "Tempo",
+    "genre": "Género"
   },
   "report": {
     "title": "Reporte de Cumplimiento",

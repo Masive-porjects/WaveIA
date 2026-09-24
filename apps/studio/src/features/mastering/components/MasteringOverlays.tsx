@@ -27,7 +27,6 @@ interface MasteringOverlaysProps {
   uploadProgress: number;
   processing: boolean;
   processingProgress: number;
-  genre?: string | null;
 }
 
 export default function MasteringOverlays({
@@ -44,7 +43,6 @@ export default function MasteringOverlays({
   uploadProgress,
   processing,
   processingProgress,
-  _genre,
 }: MasteringOverlaysProps) {
   return (
     <>

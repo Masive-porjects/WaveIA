@@ -10,6 +10,7 @@ import AudioSpectrum from "@/presentation/components/AudioSpectrum";
 import { PRESET_COLORS, DEFAULT_PRESET_COLOR } from "@/core/presets";
 import { renderReference, getReferenceAudioUrl } from "@/lib/api";
 import { useCrossfade } from "@/shared/useCrossfade";
+import { useTranslation } from "@/i18n";
 
 /** Listening sources for the fair A/B (Original / Referencia / Master). */
 type SourceKind = "original" | "reference" | "mastered";
@@ -163,6 +164,7 @@ export default function Player({
   sessionId,
   burstSignal,
 }: PlayerProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayOrigRef = useRef<HTMLDivElement>(null);
   const overlayMastRef = useRef<HTMLDivElement>(null);
@@ -574,7 +576,7 @@ export default function Player({
   const handleToggleMastered = useCallback(() => setSource("mastered"), []);
 
   /* ── Crudo reference render (first selection triggers it) ── */
-  const handleToggleReference = useCallback(() => {
+  const _handleToggleReference = useCallback(() => {
     setSource("reference");
     if (!sessionId || !presetId || referenceUrl || renderingReference) return;
 
@@ -586,12 +588,12 @@ export default function Player({
       })
       .catch(() => {
         setSource((s) => (s === "reference" ? "original" : s));
-        setReferenceError("No se pudo generar la referencia. Prueba de nuevo.");
+        setReferenceError(t("player.referenceError", "No se pudo generar la referencia. Prueba de nuevo."));
       })
       .finally(() => {
         setRenderingReference(false);
       });
-  }, [sessionId, presetId, referenceUrl, renderingReference]);
+  }, [sessionId, presetId, referenceUrl, renderingReference, t]);
 
   /* ── Transport ───────────────────────────────────── */
   const togglePlay = useCallback(() => {
@@ -696,12 +698,12 @@ export default function Player({
                 : "text-[var(--text-muted)]"
             } disabled:opacity-30 disabled:cursor-not-allowed`}
             >
-            Original
+            {t("player.original", "Original")}
             {source === "original" && (
               <span className="inline-flex items-center gap-1 ml-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-success)] shadow-[0_0_5px_var(--accent-success)]" />
                 <span className="text-[9px] font-medium tracking-tight">
-                  Raw
+                  {t("player.raw", "Raw")}
                 </span>
               </span>
             )}
@@ -715,12 +717,12 @@ export default function Player({
                 : "text-[var(--text-muted)]"
             } disabled:opacity-30 disabled:cursor-not-allowed`}
           >
-            Master
+            {t("player.master", "Master")}
           </button>
         </div>
 
         {hasBoth && (
-          <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">Cambio instantáneo</span>
+          <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">{t("player.instantSwitch", "Cambio instantáneo")}</span>
         )}
       </div>
 
@@ -734,10 +736,10 @@ export default function Player({
           }`}
         >
           {renderingReference
-            ? "Generando referencia…"
+            ? t("player.generatingReference", "Generando referencia…")
             : referenceError
               ? referenceError
-              : "Mismo volumen que tu master — compará el carácter, no la fuerza."}
+              : t("player.fairReferenceHint", "Mismo volumen que tu master — compará el carácter, no la fuerza.")}
         </p>
       )}
 
@@ -906,8 +908,8 @@ export default function Player({
             text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]
             disabled:opacity-30 disabled:cursor-not-allowed
             transition-all duration-150"
-          title="Volver al inicio"
-          aria-label="Volver al inicio"
+          title={t("player.restart", "Volver al inicio")}
+          aria-label={t("player.restart", "Volver al inicio")}
         >
           <SkipBack size={14} fill="currentColor" />
         </button>
@@ -940,7 +942,7 @@ export default function Player({
         <button
           onClick={() => setMinimized((m) => !m)}
           className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all"
-          title={minimized ? "Expandir" : "Minimizar"}
+          title={minimized ? t("player.expand", "Expandir") : t("player.collapse", "Minimizar")}
         >
           {minimized ? (
             <ChevronUp size={14} />
