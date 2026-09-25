@@ -145,6 +145,7 @@
     "thCreated": "Registered Date",
     "thRole": "Current Role",
     "thAction": "Role Action",
+    "selectRoleTitle": "Assign Role",
     "noUsersFound": "No users found.",
     "badgeYou": "You",
     "lockedSelf": "Locked (You)",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Lock,
   ArrowLeft,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -25,6 +27,113 @@ import FloatingGhosts from "@/presentation/components/FloatingGhosts";
 import FloatingNotes from "@/presentation/components/FloatingNotes";
 import { fetchAdminUsers, updateUserRole, fetchRoleAuditLogs } from "../services/adminService";
 import type { AdminUser, RoleAuditLog } from "../types";
+
+interface RoleSelectDropdownProps {
+  user: AdminUser;
+  onSelectRole: (u: AdminUser, newRole: string) => void;
+  t: (key: string, fallback?: any) => string;
+}
+
+function RoleSelectDropdown({ user, onSelectRole, t }: RoleSelectDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const isUserAdmin = user.role === "admin";
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+          isUserAdmin
+            ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30 hover:border-amber-500/50"
+            : "bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/40"
+        }`}
+      >
+        {isUserAdmin ? (
+          <ShieldCheck size={13} className="text-amber-400 shrink-0" />
+        ) : (
+          <Users size={13} className="text-[var(--accent-primary)] shrink-0" />
+        )}
+        <span className="capitalize">{isUserAdmin ? t("auth.roleAdmin", "Admin") : t("auth.roleUser", "Usuario")}</span>
+        <ChevronDown
+          size={12}
+          className={`transition-transform duration-200 ${isOpen ? "rotate-180 text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 mt-1.5 w-48 rounded-2xl border p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-3xl"
+          style={{
+            backgroundColor: "var(--bg-elevated)",
+            borderColor: "var(--border-strong)",
+            boxShadow: "0 20px 45px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--border-strong), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-1">
+            {t("admin.selectRoleTitle", "Asignar Rol")}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              if (user.role !== "user") {
+                onSelectRole(user, "user");
+              }
+            }}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              user.role === "user"
+                ? "bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-semibold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users size={14} className={user.role === "user" ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"} />
+              <span>{t("auth.roleUser", "Usuario")}</span>
+            </div>
+            {user.role === "user" && <Check size={13} className="text-[var(--accent-primary)]" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              if (user.role !== "admin") {
+                onSelectRole(user, "admin");
+              }
+            }}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              user.role === "admin"
+                ? "bg-amber-500/15 text-amber-400 font-semibold"
+                : "text-[var(--text-secondary)] hover:text-amber-400 hover:bg-amber-500/10"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={14} className={user.role === "admin" ? "text-amber-400" : "text-[var(--text-muted)]"} />
+              <span>{t("auth.roleAdmin", "Admin")}</span>
+            </div>
+            {user.role === "admin" && <Check size={13} className="text-amber-400" />}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const { user: currentUser, isAdmin, isLoading: authLoading, isSigningOut } = useAuth();
@@ -512,13 +621,13 @@ export default function AdminDashboard() {
 
             {/* Users Table */}
             <div
-              className="rounded-3xl border overflow-hidden backdrop-blur-2xl shadow-xl"
+              className="rounded-3xl border backdrop-blur-2xl shadow-xl"
               style={{
                 background: "var(--bg-glass-elevated)",
                 borderColor: "var(--border-strong)",
               }}
             >
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-h-[260px] pb-8">
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-[var(--border-subtle)] bg-[var(--surface-elevated)]/50 text-[var(--text-muted)] uppercase tracking-wider text-[10px]">
                     <tr>
@@ -625,14 +734,11 @@ export default function AdminDashboard() {
                                   <span>{t("admin.lockedSelf", "Bloqueado (Tú)")}</span>
                                 </div>
                               ) : (
-                                <select
-                                  value={u.role}
-                                  onChange={(e) => handleOpenRoleModal(u, e.target.value)}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border-subtle)] bg-[var(--surface-elevated)] text-[var(--text-primary)] hover:border-[var(--accent-primary)] focus:outline-none transition-all cursor-pointer"
-                                >
-                                  <option value="user">user</option>
-                                  <option value="admin">admin</option>
-                                </select>
+                                <RoleSelectDropdown
+                                  user={u}
+                                  onSelectRole={handleOpenRoleModal}
+                                  t={t}
+                                />
                               )}
                             </td>
                           </tr>
@@ -742,8 +848,9 @@ export default function AdminDashboard() {
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                 className="w-full max-w-md p-6 rounded-3xl border shadow-2xl backdrop-blur-2xl"
                 style={{
-                  background: "var(--bg-glass-elevated)",
+                  backgroundColor: "var(--bg-elevated)",
                   borderColor: "var(--border-strong)",
+                  boxShadow: "0 24px 60px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-strong)",
                 }}
               >
                 <div className="flex items-center gap-3 mb-4">

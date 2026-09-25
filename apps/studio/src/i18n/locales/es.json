@@ -145,6 +145,7 @@
     "thCreated": "Fecha Registro",
     "thRole": "Rol Actual",
     "thAction": "Acción de Rol",
+    "selectRoleTitle": "Asignar Rol",
     "noUsersFound": "No se encontraron usuarios.",
     "badgeYou": "Tú",
     "lockedSelf": "Bloqueado (Tú)",
