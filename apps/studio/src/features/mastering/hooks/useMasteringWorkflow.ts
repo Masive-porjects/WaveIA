@@ -26,8 +26,15 @@ import {
   uploadOriginalAudio,
   createTrackRecord,
   updateTrackStatus,
+  uploadMasterAudio,
+  createMasterRecord,
+  clearTrackDraft,
+  getOriginalSignedUrl,
   type Track,
+  type MasterRecord,
 } from "@/features/tracks";
+import { useAutosaveDraft, type AutosaveStatus } from "./useAutosaveDraft";
+
 
 export const ANALYSIS_TIMEOUT_MS = 180_000;
 export const PROCESS_TIMEOUT_MS = 600_000;
@@ -87,7 +94,16 @@ export function useMasteringWorkflow(
   const [params, setParams] = useState<MasteringParameters>(DEFAULT_PARAMS);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
+  // Non-destructive realtime autosave for drafts
+  const { autosaveStatus, forceSave } = useAutosaveDraft({
+    trackId: currentTrack?.id ?? null,
+    params,
+    activePresetId,
+    enabled: !!user && !!currentTrack,
+  });
+
   // Stem splitter state
+
   const [stemState, setStemState] = useState<StemSplitterState>(createDefaultStemState());
 
   // Vocal chain state
@@ -542,11 +558,156 @@ export function useMasteringWorkflow(
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        // Background consolidation into Supabase Masters if authenticated
+        if (user && currentTrack) {
+          uploadMasterAudio(user.id, currentTrack.id, blob, format)
+            .then(({ storagePath }) =>
+              createMasterRecord(user.id, {
+                track_id: currentTrack.id,
+                storage_path: storagePath,
+                format,
+                file_size_bytes: blob.size,
+                preset_name: activePresetId ?? null,
+                parameters_applied: params,
+              }),
+            )
+            .then(() => {
+              updateTrackStatus(currentTrack.id, "completed").catch(() => {});
+            })
+            .catch((storageErr) => {
+              console.warn("Background master cloud save notice:", storageErr);
+            });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Download failed");
       }
     },
-    [session, activePresetId],
+    [session, activePresetId, user, currentTrack, params],
+  );
+
+  /* ── Master Consolidation (Explicit) ────────────────── */
+  const [isConsolidating, setIsConsolidating] = useState(false);
+
+  const handleConsolidateMaster = useCallback(
+    async (format: "wav" | "mp3" = "wav"): Promise<MasterRecord | null> => {
+      if (!session || !user || !currentTrack) return null;
+      setIsConsolidating(true);
+      setError(null);
+      try {
+        const blob = await downloadMastered(
+          session.session_id,
+          format,
+          activePresetId ?? undefined,
+        );
+
+        const { storagePath } = await uploadMasterAudio(
+          user.id,
+          currentTrack.id,
+          blob,
+          format,
+        );
+
+        const masterRecord = await createMasterRecord(user.id, {
+          track_id: currentTrack.id,
+          storage_path: storagePath,
+          format,
+          file_size_bytes: blob.size,
+          preset_name: activePresetId ?? null,
+          parameters_applied: params,
+        });
+
+        await updateTrackStatus(currentTrack.id, "completed");
+        await clearTrackDraft(currentTrack.id);
+
+        return masterRecord;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al consolidar master";
+        setError(msg);
+        return null;
+      } finally {
+        setIsConsolidating(false);
+      }
+    },
+    [session, user, currentTrack, activePresetId, params],
+  );
+
+  /* ── Load Track from Library / History ─────────────── */
+  const [isLoadingTrackProject, setIsLoadingTrackProject] = useState(false);
+
+  const handleLoadTrackProject = useCallback(
+    async (track: Track) => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setLoading(true);
+      setIsLoadingTrackProject(true);
+      setError(null);
+
+      try {
+        currentTrackIdRef.current = track.id;
+        setCurrentTrack(track);
+
+        // 1. Restore draft parameters or active preset
+        const restoredParams: MasteringParameters = track.draft_parameters
+          ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
+          : DEFAULT_PARAMS;
+        setParams(restoredParams);
+        setActivePresetId(track.active_preset ?? null);
+
+        // 2. Get signed URL for original audio from Supabase
+        const signedUrl = await getOriginalSignedUrl(track.storage_path);
+        const res = await fetch(signedUrl);
+        if (!res.ok) throw new Error("No se pudo descargar el audio original del proyecto.");
+        const blob = await res.blob();
+        const file = new File([blob], track.original_filename || `${track.title}.wav`, {
+          type: blob.type || "audio/wav",
+        });
+
+        // 3. Upload to AudioMind engine
+        const sessionResult = await uploadAudio(file, setUploadProgress);
+        setSession(sessionResult);
+        onSessionLoaded?.(sessionResult);
+
+        setLoading(false);
+        setProcessing(true);
+
+        const analyzed = await waitForAnalysis(sessionResult.session_id, ANALYSIS_TIMEOUT_MS);
+        if (!analyzed?.analysis) {
+          throw new Error("El análisis del audio tardó demasiado al restaurar el proyecto.");
+        }
+        setSession(analyzed);
+
+        // 4. If draft parameters exist, process immediately with them
+        const targetParams: MasteringParameters = track.draft_parameters
+          ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
+          : genreToParams(analyzed.analysis.detected_genre ?? null);
+        setParams(targetParams);
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const processed = await processAudio(
+          analyzed.session_id,
+          targetParams,
+          controller.signal,
+          track.active_preset ?? undefined,
+        );
+        completeProgress();
+        setSession(processed);
+        onSessionLoaded?.(processed);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al cargar proyecto";
+        setError(msg);
+        setErrorModal({
+          title: t("common.error", "Error"),
+          message: msg,
+        });
+      } finally {
+        setLoading(false);
+        setProcessing(false);
+        setIsLoadingTrackProject(false);
+      }
+    },
+    [completeProgress, onSessionLoaded, t],
   );
 
   /* ── Over-master confirmations ─────────────────────── */
@@ -613,10 +774,14 @@ export function useMasteringWorkflow(
     setParams,
     activePresetId,
     setActivePresetId,
+    autosaveStatus,
+    forceSave,
     stemState,
     setStemState,
     vocalProcessing,
     vocalProcessed,
+    isConsolidating,
+    isLoadingTrackProject,
     handleFileSelected,
     handleProcess,
     handlePresetSelect,
@@ -625,6 +790,8 @@ export function useMasteringWorkflow(
     handleStemSplit,
     handleVocalProcess,
     handleDownload,
+    handleConsolidateMaster,
+    handleLoadTrackProject,
     handleOverMasterConfirm,
     handleOverMasterCancel,
   };

@@ -18,8 +18,11 @@ export interface Track {
   channels: number | null;
   format: string | null;
   status: TrackStatus;
+  draft_parameters?: Record<string, any> | null;
+  active_preset?: string | null;
   created_at: string;
   updated_at: string;
+  masters?: MasterRecord[];
 }
 
 export interface CreateTrackInput {
@@ -33,6 +36,8 @@ export interface CreateTrackInput {
   channels?: number | null;
   format?: string | null;
   status?: TrackStatus;
+  draft_parameters?: Record<string, any> | null;
+  active_preset?: string | null;
 }
 
 export interface AudioMetadata {
@@ -42,3 +47,32 @@ export interface AudioMetadata {
   format: string;
   fileSizeBytes: number;
 }
+
+export interface MasterRecord {
+  id: string;
+  track_id: string;
+  user_id: string;
+  storage_path: string;
+  format: string;
+  file_size_bytes: number;
+  integrated_lufs: number | null;
+  true_peak_db: number | null;
+  parameters_applied: Record<string, any>;
+  preset_name: string | null;
+  created_at: string;
+}
+
+export interface CreateMasterInput {
+  id?: string;
+  track_id: string;
+  storage_path: string;
+  format: string;
+  file_size_bytes: number;
+  integrated_lufs?: number | null;
+  true_peak_db?: number | null;
+  parameters_applied?: Record<string, any>;
+  preset_name?: string | null;
+}
+
+export type TrackFilterStatus = "all" | "draft" | "completed";
+

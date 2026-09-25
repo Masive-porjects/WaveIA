@@ -28,10 +28,13 @@
     "paginationFirst": "First page",
     "paginationPrevious": "Previous page",
     "paginationNext": "Next page",
-    "paginationLast": "Last page"
+    "paginationLast": "Last page",
+    "deleting": "Deleting...",
+    "deleteConfirm": "Delete"
   },
   "nav": {
     "home": "Home",
+    "myTracks": "My Songs",
     "masteringModeAria": "Choose how you want to master",
     "manualMode": "Manual",
     "manualDesc": "Full control",
@@ -217,6 +220,9 @@
     "processButton": "Process with these parameters",
     "processWithPreset": "Process with this preset",
     "downloadMaster": "Download master",
+    "savingDraft": "Saving draft...",
+    "draftSaved": "Cloud draft saved",
+    "draftError": "Error saving draft",
     "selectPreset": "Select a Character Preset",
     "deliveryTarget": "Delivery Target",
     "transparentMode": "Transparent Mode",
@@ -633,5 +639,27 @@
     "toggleLight": "Switch to light theme",
     "studioMode": "Studio mode (Dark)",
     "devMode": "Dev mode (Light)"
+  },
+  "library": {
+    "title": "My Songs",
+    "subtitle": "Production history, active drafts, and downloads",
+    "newTrack": "Upload new",
+    "searchPlaceholder": "Search by title or filename...",
+    "tabAll": "All",
+    "tabDrafts": "Drafts",
+    "tabMastered": "Mastered",
+    "noSearchResults": "No songs found for this search",
+    "noDrafts": "No active drafts at the moment",
+    "noMastered": "You haven't mastered any songs yet",
+    "emptyTitle": "Your song library is empty",
+    "emptyDesc": "Upload an audio track to start processing with WaveIA presets and AI engines.",
+    "startMastering": "Upload my first track",
+    "draftBadge": "Draft",
+    "masteredBadge": "Mastered",
+    "downloadMaster": "Download Master",
+    "resumeMastering": "Continue mastering",
+    "openInStudio": "Open",
+    "deleteTitle": "Delete song?",
+    "deleteDesc": "This action will permanently delete the original audio file from the cloud, all its drafts, and any exported final masters."
   }
 }

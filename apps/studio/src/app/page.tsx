@@ -28,6 +28,7 @@ import {
   MobileMasteringView,
 } from "@/features/mastering";
 import { UploadView } from "@/features/upload";
+import { LibraryView } from "@/features/remastering-history";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "mezcla", label: "Mezcla de Audio" },
@@ -52,6 +53,7 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState<MasteringTab | null>(null);
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   // Workflow custom hook encapsulating all mastering state & mutations
   const workflow = useMasteringWorkflow({
@@ -128,6 +130,8 @@ export default function Home() {
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={setMobileMenuOpen}
           onClearSheet={() => setSheetTab(null)}
+          autosaveStatus={workflow.autosaveStatus}
+          onOpenLibrary={() => setLibraryOpen(true)}
         />
 
         {/* Mobile Navigation Drawer */}
@@ -440,6 +444,21 @@ export default function Home() {
             />
           </ModuleSheet>
         )}
+
+        {/* User Songs Library / History Modal */}
+        <LibraryView
+          isOpen={libraryOpen}
+          onClose={() => setLibraryOpen(false)}
+          onSelectTrack={async (track) => {
+            setLibraryOpen(false);
+            setCurrentView("mastering");
+            await workflow.handleLoadTrackProject(track);
+          }}
+          onNewUpload={() => {
+            setLibraryOpen(false);
+            handleHomeClick();
+          }}
+        />
       </main>
     </LicenseGuard>
   );

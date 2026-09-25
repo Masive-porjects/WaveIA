@@ -7,6 +7,10 @@ import {
   Home as HomeIcon,
   SlidersHorizontal,
   Sparkles,
+  Music2,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import TrackChip from "@/presentation/components/TrackChip";
 import LanguageSwitcher from "@/presentation/components/LanguageSwitcher";
@@ -14,6 +18,7 @@ import ThemeToggle from "@/presentation/components/ThemeToggle";
 import { UserMenu } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import type { SessionData } from "@/lib/api";
+import type { AutosaveStatus } from "../hooks/useAutosaveDraft";
 
 interface MasteringHeaderProps {
   currentView: "upload" | "mastering";
@@ -26,6 +31,8 @@ interface MasteringHeaderProps {
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
   onClearSheet?: () => void;
+  autosaveStatus?: AutosaveStatus;
+  onOpenLibrary?: () => void;
 }
 
 export default function MasteringHeader({
@@ -39,12 +46,14 @@ export default function MasteringHeader({
   mobileMenuOpen,
   setMobileMenuOpen,
   onClearSheet,
+  autosaveStatus,
+  onOpenLibrary,
 }: MasteringHeaderProps) {
   const { t } = useTranslation();
 
   return (
     <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5 flex-wrap">
         <div className="rounded-full px-4 py-2 glass">
           <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
             Wave<span className="text-[var(--accent-primary)]">IA</span>
@@ -58,6 +67,53 @@ export default function MasteringHeader({
             disabled={processing || loading}
             onChangeTrack={onBackToUpload}
           />
+        )}
+
+        {/* Real-time Draft Autosave Indicator */}
+        {currentView === "mastering" && autosaveStatus && autosaveStatus !== "idle" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium backdrop-blur-md transition-all select-none"
+            style={{
+              backgroundColor:
+                autosaveStatus === "saved"
+                  ? "rgba(16, 185, 129, 0.1)"
+                  : autosaveStatus === "saving"
+                    ? "rgba(98, 126, 132, 0.12)"
+                    : "rgba(245, 158, 11, 0.12)",
+              borderColor:
+                autosaveStatus === "saved"
+                  ? "rgba(16, 185, 129, 0.25)"
+                  : autosaveStatus === "saving"
+                    ? "rgba(98, 126, 132, 0.25)"
+                    : "rgba(245, 158, 11, 0.25)",
+              borderWidth: 1,
+            }}
+          >
+            {autosaveStatus === "saving" ? (
+              <>
+                <Loader2 size={11} className="animate-spin text-[var(--accent-primary)]" />
+                <span className="text-[var(--text-secondary)]">
+                  {t("mastering.savingDraft", "Guardando borrador...")}
+                </span>
+              </>
+            ) : autosaveStatus === "saved" ? (
+              <>
+                <CheckCircle2 size={11} className="text-emerald-400" />
+                <span className="text-emerald-400 font-medium">
+                  {t("mastering.draftSaved", "Borrador en nube")}
+                </span>
+              </>
+            ) : (
+              <>
+                <AlertCircle size={11} className="text-amber-400" />
+                <span className="text-amber-400">
+                  {t("mastering.draftError", "Error al guardar")}
+                </span>
+              </>
+            )}
+          </motion.div>
         )}
       </div>
 
@@ -155,9 +211,22 @@ export default function MasteringHeader({
       )}
 
       <div className="flex items-center gap-2">
+        {onOpenLibrary && (
+          <button
+            type="button"
+            onClick={onOpenLibrary}
+            title={t("nav.myTracks", "Mis Canciones")}
+            aria-label={t("nav.myTracks", "Mis Canciones")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] transition-all shadow-xs cursor-pointer"
+          >
+            <Music2 size={14} className="text-[var(--accent-primary)]" />
+            <span className="hidden sm:inline">{t("nav.myTracks", "Mis Canciones")}</span>
+          </button>
+        )}
+
         <ThemeToggle />
         <LanguageSwitcher />
-        <UserMenu />
+        <UserMenu onOpenLibrary={onOpenLibrary} />
 
         {currentView === "mastering" && (
           <button
