@@ -163,8 +163,13 @@ export function useMasteringWorkflow(
       setUploadProgress(0);
       setError(null);
 
-      // 1. Supabase Storage upload & track creation for authenticated users
-      if (user) {
+      // 1. Initiate Supabase Storage upload & track record in parallel (non-blocking for audio engine)
+      const cloudUploadPromise = (async () => {
+        if (!user) {
+          currentTrackIdRef.current = null;
+          setCurrentTrack(null);
+          return null;
+        }
         setIsUploadingToCloud(true);
         try {
           const trackId = crypto.randomUUID();
@@ -184,36 +189,42 @@ export function useMasteringWorkflow(
             status: "analyzing",
           });
           setCurrentTrack(savedTrack);
+          return savedTrack;
         } catch (storageErr) {
           console.error("Cloud storage upload error:", storageErr);
+          return null;
         } finally {
           setIsUploadingToCloud(false);
         }
-      } else {
-        currentTrackIdRef.current = null;
-        setCurrentTrack(null);
-      }
+      })();
 
       // 2. Upload to AudioMind engine & process
       try {
         const result = await uploadAudio(file, setUploadProgress);
         setUploadBurst((n) => n + 1);
         setSession(result);
+        onSessionLoaded?.(result);
         presetCacheRef.current.clear();
 
-        await new Promise((r) => setTimeout(r, 650));
+        // Await cloud storage completion in background
+        await cloudUploadPromise;
+
+        await new Promise((r) => setTimeout(r, 400));
 
         const analyzed = await waitForAnalysis(result.session_id, ANALYSIS_TIMEOUT_MS);
         if (!analyzed?.analysis) {
           if (currentTrackIdRef.current) {
             updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
           }
-          setError(
-            t(
-              "errors.analysisTimeout",
-              "El análisis del audio tardó demasiado. Reintentá subiendo el track de nuevo.",
-            ),
+          const timeoutMsg = t(
+            "errors.analysisTimeout",
+            "El análisis del audio tardó demasiado. Reintentá subiendo el track de nuevo.",
           );
+          setError(timeoutMsg);
+          setErrorModal({
+            title: t("common.error", "Error"),
+            message: timeoutMsg,
+          });
           return;
         }
         setSession(analyzed);
@@ -263,15 +274,23 @@ export function useMasteringWorkflow(
             updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
           }
           if (err instanceof DOMException && err.name === "AbortError") {
-            setError(
-              t(
-                "errors.processTimeoutRetry",
-                'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
-              ),
+            const timeoutRetryMsg = t(
+              "errors.processTimeoutRetry",
+              'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
             );
+            setError(timeoutRetryMsg);
+            setErrorModal({
+              title: t("common.error", "Error"),
+              message: timeoutRetryMsg,
+            });
             return;
           }
-          setError(err instanceof Error ? err.message : t("common.error", "Processing failed"));
+          const processErrorMsg = err instanceof Error ? err.message : t("common.error", "Processing failed");
+          setError(processErrorMsg);
+          setErrorModal({
+            title: t("common.error", "Error"),
+            message: processErrorMsg,
+          });
         } finally {
           clearTimeout(watchdog);
           setProcessing(false);
@@ -281,31 +300,34 @@ export function useMasteringWorkflow(
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
         }
+        let errMsg = t("errors.uploadFailed", "Upload failed");
         if (err instanceof ApiError && err.status === 413) {
           if (err.message.includes("AUDIO_TOO_LONG")) {
-            setError(
-              t(
-                "errors.audioTooLong",
-                "El audio es demasiado largo. El límite para masterizar es de 10 minutos por track.",
-              ),
+            errMsg = t(
+              "errors.audioTooLong",
+              "El audio es demasiado largo. El límite para masterizar es de 10 minutos por track.",
             );
           } else {
-            setError(
-              t(
-                "errors.fileTooLarge",
-                "El archivo es demasiado grande (máximo 50MB). Probá comprimirlo o exportar en WAV 16-bit / MP3 320kbps.",
-              ),
+            errMsg = t(
+              "errors.fileTooLarge",
+              "El archivo es demasiado grande (máximo 50MB). Probá comprimirlo o exportar en WAV 16-bit / MP3 320kbps.",
             );
           }
-        } else {
-          setError(err instanceof Error ? err.message : t("errors.uploadFailed", "Upload failed"));
+        } else if (err instanceof Error) {
+          errMsg = err.message;
         }
+        setError(errMsg);
+        setErrorModal({
+          title: t("common.error", "Error"),
+          message: errMsg,
+        });
       } finally {
         setLoading(false);
       }
     },
     [completeProgress, onSessionLoaded, t, user],
   );
+
 
 
   /* ── Reprocess ─────────────────────────────────────── */

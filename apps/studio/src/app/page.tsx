@@ -148,10 +148,10 @@ export default function Home() {
                     loading={workflow.loading}
                     uploadBurst={workflow.uploadBurst}
                     onError={(title, message) => workflow.setErrorModal({ title, message })}
-                    onFileSelected={async (file) => {
-                      await workflow.handleFileSelected(file);
-                      setCurrentView("mastering");
+                    onFileSelected={(file) => {
+                      workflow.handleFileSelected(file);
                     }}
+
                   />
                 ) : (
                   <>
