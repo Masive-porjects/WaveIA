@@ -20,6 +20,14 @@ import { type StemSplitterState, createDefaultStemState } from "@/components/Ste
 import { genreToParams } from "@/lib/audioUtils";
 import { useProcessingProgress } from "./useProcessingProgress";
 import { useTranslation } from "@/i18n/useTranslation";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import {
+  extractAudioMetadata,
+  uploadOriginalAudio,
+  createTrackRecord,
+  updateTrackStatus,
+  type Track,
+} from "@/features/tracks";
 
 export const ANALYSIS_TIMEOUT_MS = 90_000;
 export const PROCESS_TIMEOUT_MS = 600_000;
@@ -54,8 +62,13 @@ export function useMasteringWorkflow(
       : optionsOrCallback?.onSessionLoaded;
 
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [session, setSession] = useState<SessionData | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [isUploadingToCloud, setIsUploadingToCloud] = useState(false);
+  const currentTrackIdRef = useRef<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadBurst, setUploadBurst] = useState(0);
@@ -149,6 +162,39 @@ export function useMasteringWorkflow(
       setLoading(true);
       setUploadProgress(0);
       setError(null);
+
+      // 1. Supabase Storage upload & track creation for authenticated users
+      if (user) {
+        setIsUploadingToCloud(true);
+        try {
+          const trackId = crypto.randomUUID();
+          currentTrackIdRef.current = trackId;
+          const meta = await extractAudioMetadata(file);
+          const { storagePath } = await uploadOriginalAudio(user.id, file, trackId);
+          const savedTrack = await createTrackRecord(user.id, {
+            id: trackId,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            original_filename: file.name,
+            storage_path: storagePath,
+            file_size_bytes: file.size,
+            duration_seconds: meta.duration || null,
+            sample_rate: meta.sampleRate || null,
+            channels: meta.channels || null,
+            format: meta.format || null,
+            status: "analyzing",
+          });
+          setCurrentTrack(savedTrack);
+        } catch (storageErr) {
+          console.error("Cloud storage upload error:", storageErr);
+        } finally {
+          setIsUploadingToCloud(false);
+        }
+      } else {
+        currentTrackIdRef.current = null;
+        setCurrentTrack(null);
+      }
+
+      // 2. Upload to AudioMind engine & process
       try {
         const result = await uploadAudio(file, setUploadProgress);
         setUploadBurst((n) => n + 1);
@@ -159,6 +205,9 @@ export function useMasteringWorkflow(
 
         const analyzed = await waitForAnalysis(result.session_id, ANALYSIS_TIMEOUT_MS);
         if (!analyzed?.analysis) {
+          if (currentTrackIdRef.current) {
+            updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
+          }
           setError(
             t(
               "errors.analysisTimeout",
@@ -168,6 +217,10 @@ export function useMasteringWorkflow(
           return;
         }
         setSession(analyzed);
+
+        if (currentTrackIdRef.current) {
+          updateTrackStatus(currentTrackIdRef.current, "ready").catch(() => {});
+        }
 
         const genre = analyzed.analysis.detected_genre ?? null;
         const mapped = genreToParams(genre);
@@ -184,6 +237,10 @@ export function useMasteringWorkflow(
 
         setParams(mapped);
         setProcessing(true);
+        if (currentTrackIdRef.current) {
+          updateTrackStatus(currentTrackIdRef.current, "mastering").catch(() => {});
+        }
+
         const controller = new AbortController();
         abortRef.current = controller;
         const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
@@ -197,8 +254,14 @@ export function useMasteringWorkflow(
           completeProgress();
           await new Promise((r) => setTimeout(r, 300));
           setSession(processed);
+          if (currentTrackIdRef.current) {
+            updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
+          }
           onSessionLoaded?.(processed);
         } catch (err) {
+          if (currentTrackIdRef.current) {
+            updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
+          }
           if (err instanceof DOMException && err.name === "AbortError") {
             setError(
               t(
@@ -215,6 +278,9 @@ export function useMasteringWorkflow(
           if (abortRef.current === controller) abortRef.current = null;
         }
       } catch (err) {
+        if (currentTrackIdRef.current) {
+          updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
+        }
         if (err instanceof ApiError && err.status === 413) {
           if (err.message.includes("AUDIO_TOO_LONG")) {
             setError(
@@ -238,8 +304,9 @@ export function useMasteringWorkflow(
         setLoading(false);
       }
     },
-    [completeProgress, onSessionLoaded, t],
+    [completeProgress, onSessionLoaded, t, user],
   );
+
 
   /* ── Reprocess ─────────────────────────────────────── */
   const handleProcess = useCallback(async () => {
@@ -251,6 +318,9 @@ export function useMasteringWorkflow(
 
     setProcessing(true);
     setError(null);
+    if (currentTrackIdRef.current) {
+      updateTrackStatus(currentTrackIdRef.current, "mastering").catch(() => {});
+    }
     const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
 
     try {
@@ -263,7 +333,13 @@ export function useMasteringWorkflow(
       completeProgress();
       await new Promise((r) => setTimeout(r, 600));
       setSession(result);
+      if (currentTrackIdRef.current) {
+        updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
+      }
     } catch (err) {
+      if (currentTrackIdRef.current) {
+        updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
+      }
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
           t(
@@ -280,6 +356,7 @@ export function useMasteringWorkflow(
       if (abortRef.current === controller) abortRef.current = null;
     }
   }, [session, params, activePresetId, completeProgress, t]);
+
 
   /* ── Preset Select ─────────────────────────────────── */
   const handlePresetSelect = useCallback(
@@ -377,6 +454,8 @@ export function useMasteringWorkflow(
     abortRef.current = null;
     localStorage.removeItem("waveai-session");
     setSession(null);
+    setCurrentTrack(null);
+    currentTrackIdRef.current = null;
     setProcessing(false);
     setError(null);
     setOverMasterWarning(null);
@@ -384,6 +463,7 @@ export function useMasteringWorkflow(
     setStemState(createDefaultStemState());
     presetCacheRef.current.clear();
   }, []);
+
 
   /* ── Stem split ────────────────────────────────────── */
   const handleStemSplit = useCallback(async () => {
@@ -483,6 +563,9 @@ export function useMasteringWorkflow(
   return {
     session,
     setSession,
+    currentTrack,
+    setCurrentTrack,
+    isUploadingToCloud,
     loading,
     uploadProgress,
     uploadBurst,
@@ -514,3 +597,4 @@ export function useMasteringWorkflow(
     handleOverMasterCancel,
   };
 }
+

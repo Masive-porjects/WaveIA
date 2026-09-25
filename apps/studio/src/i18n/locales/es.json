@@ -336,15 +336,18 @@
     "uploadAnother": "Subir otro track",
     "dropzoneTitle": "Carga tu track para masterizar",
     "dropzoneSubtitle": "Arrastra tu archivo o haz clic para comenzar.",
-    "supportedFormats": "Soporta WAV y MP3 — máximo 50MB",
+    "supportedFormats": "Soporta WAV, MP3 y FLAC — máximo 50MB",
     "uploading": "Subiendo audio...",
-    "invalidFormat": "Solo aceptamos archivos WAV o MP3. ¡Mantengamos la compatibilidad!",
+    "invalidFormat": "Solo aceptamos archivos WAV, MP3 o FLAC. ¡Mantengamos la compatibilidad!",
     "fileTooLarge": "El archivo es demasiado grande (máximo 50MB).",
     "selectFile": "Seleccionar archivo",
     "dropHere": "Suelta tu track aquí",
     "changeTrack": "Arrastra un track diferente",
+    "cloudUploading": "Guardando en almacenamiento seguro...",
+    "cloudStored": "Track guardado en tu biblioteca",
     "or": "o"
   },
+
   "splitter": {
     "title": "Stem",
     "titleAccent": "Splitter",

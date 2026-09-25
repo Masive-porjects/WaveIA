@@ -56,7 +56,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
       if (files && files.length > 0) {
         const file = files[0];
         const ext = file.name.split(".").pop()?.toLowerCase();
-        if (ext !== "wav" && ext !== "mp3") {
+        if (ext !== "wav" && ext !== "mp3" && ext !== "flac") {
           onError?.(
             t("common.error"),
             t("upload.invalidFormat"),
@@ -82,7 +82,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
       if (files && files.length > 0) {
         const file = files[0];
         const ext = file.name.split(".").pop()?.toLowerCase();
-        if (ext !== "wav" && ext !== "mp3") {
+        if (ext !== "wav" && ext !== "mp3" && ext !== "flac") {
           onError?.(
             t("common.error"),
             t("upload.invalidFormat"),
@@ -108,7 +108,6 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         onClick={handleClick}
         onDragEnter={handleDragIn}
         onDragLeave={handleDragOut}
-        onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
           relative border border-dashed rounded-xl p-6
@@ -127,7 +126,7 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         <input
           ref={inputRef}
           type="file"
-          accept=".wav,.mp3"
+          accept=".wav,.mp3,.flac"
           onChange={handleFileInput}
           disabled={disabled}
           className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
@@ -135,10 +134,11 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
         <p className="text-xs text-[var(--text-muted)]">
           {isDragging ? t("upload.dropHere") : t("upload.changeTrack")}
         </p>
-        <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">WAV, MP3</p>
+        <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">WAV, MP3, FLAC</p>
       </div>
     );
   }
+
 
   return (
     <motion.div
@@ -196,11 +196,12 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
       <input
         ref={inputRef}
         type="file"
-        accept=".wav,.mp3"
+        accept=".wav,.mp3,.flac"
         onChange={handleFileInput}
         disabled={disabled}
         className="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-20"
       />
+
 
       <div className="relative z-10 flex flex-col items-center gap-3">
         {/* Icon */}
