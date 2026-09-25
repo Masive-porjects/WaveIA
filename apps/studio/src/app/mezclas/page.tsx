@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
 import { VIEW_TRANSITION, fadeUp } from "@/shared/motion";
+import { API_BASE } from "@/adapters/api/config";
 import LicenseGuard from "@/components/LicenseGuard";
 import MobileDrawer from "@/components/MobileDrawer";
 import ModuleDock from "@/components/dock/ModuleDock";
@@ -277,33 +278,132 @@ function MezclasContent() {
                       animate={VIEW_TRANSITION.animate}
                       transition={VIEW_TRANSITION.transition}
                     >
-                      {currentTab !== null && (
-                        <div className="flex-1 min-h-0 relative">
-                          <PaintedModule key={currentTab}>
-                            <MasteringCanvas
-                              tab={currentTab}
-                              session={workflow.session}
-                              params={workflow.params}
-                              setParams={workflow.setParams}
-                              activePresetId={workflow.activePresetId}
-                              onPresetSelect={workflow.handlePresetSelect}
-                              onProcess={workflow.handleProcess}
-                              onReset={workflow.handleReset}
-                              processing={workflow.processing}
-                              stemState={workflow.stemState}
-                              setStemState={workflow.setStemState}
-                              onStemSplit={workflow.handleStemSplit}
-                              onVocalProcess={workflow.handleVocalProcess}
-                              vocalProcessing={workflow.vocalProcessing}
-                              vocalProcessed={workflow.vocalProcessed}
-                              masteringMode={masteringMode}
-                              onNavigateTab={handleModuleClick}
-                            />
-                          </PaintedModule>
+                      {/* Desktop Player */}
+                      {!isMezclaTab && (
+                        <motion.div
+                          layout="position"
+                          transition={{ type: "spring", stiffness: 40, damping: 12 }}
+                          className={`relative z-[1] px-4 lg:px-6 pt-4 pb-2 ${
+                            currentTab === null
+                              ? "flex-1 flex items-center justify-center min-h-0"
+                              : "shrink-0"
+                          }`}
+                        >
+                          {workflow.session && (
+                            <div
+                              ref={playerScaleRef}
+                              className={`w-full origin-center ${
+                                currentTab === null ? "max-w-5xl" : ""
+                              }`}
+                            >
+                              <Player
+                                originalUrl={getAudioUrl(workflow.session.session_id, "original")}
+                                masteredUrl={
+                                  isPresetCompleted(workflow.session, workflow.activePresetId)
+                                    ? getAudioUrl(
+                                        workflow.session.session_id,
+                                        "mastered",
+                                        workflow.activePresetId ?? undefined,
+                                      )
+                                    : null
+                                }
+                                disabled={workflow.processing}
+                                presetId={workflow.activePresetId ?? undefined}
+                                sessionId={workflow.session.session_id}
+                                burstSignal={workflow.masterBurst}
+                              />
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+
+                      {/* Vocal Result Banner */}
+                      {workflow.vocalProcessed && workflow.session && (
+                        <div className="shrink-0 px-4 lg:px-6 py-2">
+                          <div
+                            className="flex items-center gap-3 rounded-xl px-4 py-2"
+                            style={{
+                              background: "rgba(94, 92, 230, 0.06)",
+                              border: "1px solid rgba(94, 92, 230, 0.12)",
+                            }}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#5e5ce6] shadow-lg shadow-[rgba(94,92,230,0.3)]" />
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Voz procesada —{" "}
+                              <a
+                                href={`${API_BASE}/session/${workflow.session.session_id}/vocal/audio`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#5e5ce6] hover:underline"
+                              >
+                                escuchar resultado vocal
+                              </a>
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (!workflow.session) return;
+                                const a = document.createElement("a");
+                                a.href = `${API_BASE}/session/${workflow.session.session_id}/vocal/audio`;
+                                a.download = `${workflow.session.session_id}_vocal.wav`;
+                                a.click();
+                              }}
+                              className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                            >
+                              {t("common.download", "Descargar")} WAV
+                            </button>
+                          </div>
                         </div>
                       )}
 
-                      {/* Dock Navigation */}
+                      {/* Scrollable Tab Canvas */}
+                      <div
+                        className={`relative z-[1] overflow-y-auto px-4 lg:px-6 pt-4 pb-40 ${
+                          sheetTab !== null || currentTab === null ? "hidden" : "flex-1"
+                        }`}
+                      >
+                        {workflow.error && (
+                          <motion.div className="mb-4" {...fadeUp(0)}>
+                            <div
+                              className="p-4 rounded-2xl text-sm"
+                              style={{
+                                background: "rgba(220, 38, 38, 0.08)",
+                                border: "1px solid rgba(220, 38, 38, 0.2)",
+                                color: "var(--accent-error)",
+                              }}
+                            >
+                              {workflow.error}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        <AnimatePresence mode="wait">
+                          {currentTab !== null && (
+                            <PaintedModule key={currentTab}>
+                              <MasteringCanvas
+                                tab={currentTab}
+                                session={workflow.session}
+                                params={workflow.params}
+                                setParams={workflow.setParams}
+                                activePresetId={workflow.activePresetId}
+                                onPresetSelect={workflow.handlePresetSelect}
+                                onProcess={workflow.handleProcess}
+                                onReset={workflow.handleReset}
+                                processing={workflow.processing}
+                                stemState={workflow.stemState}
+                                setStemState={workflow.setStemState}
+                                onStemSplit={workflow.handleStemSplit}
+                                onVocalProcess={workflow.handleVocalProcess}
+                                vocalProcessing={workflow.vocalProcessing}
+                                vocalProcessed={workflow.vocalProcessed}
+                                masteringMode={masteringMode}
+                                onNavigateTab={handleModuleClick}
+                              />
+                            </PaintedModule>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Floating Bottom ModuleDock */}
                       {sheetTab === null && (
                         <ModuleDock
                           activeTab={currentTab}
@@ -321,41 +421,6 @@ function MezclasContent() {
                 </div>
               </div>
             </div>
-
-            {/* Persistent Audio Player Bar */}
-            {workflow.session && (
-              <div
-                ref={playerScaleRef}
-                className="shrink-0 relative z-20 pb-safe px-4 pb-2 transition-transform duration-300"
-              >
-                <div
-                  className="rounded-2xl border p-2 backdrop-blur-2xl shadow-xl"
-                  style={{
-                    backgroundColor: "var(--bg-glass-elevated)",
-                    borderColor: "var(--border-subtle)",
-                  }}
-                >
-                  <Player
-                    originalUrl={
-                      workflow.session ? getAudioUrl(workflow.session.session_id, "original") : null
-                    }
-                    masteredUrl={
-                      isPresetCompleted(workflow.session, workflow.activePresetId)
-                        ? getAudioUrl(
-                            workflow.session.session_id,
-                            "mastered",
-                            workflow.activePresetId ?? undefined,
-                          )
-                        : null
-                    }
-                    disabled={workflow.processing}
-                    presetId={workflow.activePresetId ?? undefined}
-                    sessionId={workflow.session?.session_id}
-                    burstSignal={workflow.masterBurst}
-                  />
-                </div>
-              </div>
-            )}
           </main>
 
           {/* Analysis Sidebar Column */}
