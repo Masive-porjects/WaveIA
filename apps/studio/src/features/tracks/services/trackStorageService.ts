@@ -7,6 +7,8 @@ import type {
   MasterRecord,
   CreateMasterInput,
   TrackFilterStatus,
+  TrackEventType,
+  TrackEvent,
 } from "../types";
 
 /**
@@ -408,6 +410,69 @@ export async function fetchTrackMasters(trackId: string): Promise<MasterRecord[]
   }
 
   return (data || []) as MasterRecord[];
+}
+
+/**
+ * Fetches the user's most recent track for resume prompt.
+ */
+export async function fetchLatestUserTrack(userId: string): Promise<Track | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tracks")
+    .select("*, masters(*)")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching latest user track:", error);
+    return null;
+  }
+
+  return data as Track | null;
+}
+
+/**
+ * Records an auditable event in the track lifecycle (uploaded, analyzed, draft_saved, etc.)
+ * Runs asynchronously and best-effort without blocking the user interface.
+ */
+export async function logTrackEvent(
+  userId: string,
+  trackId: string,
+  eventType: TrackEventType,
+  details: Record<string, any> = {}
+): Promise<void> {
+  try {
+    const supabase = createClient();
+    await supabase.from("track_events").insert({
+      track_id: trackId,
+      user_id: userId,
+      event_type: eventType,
+      details,
+    });
+  } catch (err) {
+    console.warn(`[Audit Notice] Could not log event '${eventType}':`, err);
+  }
+}
+
+/**
+ * Fetches all audit events for a track in reverse chronological order.
+ */
+export async function fetchTrackEvents(trackId: string): Promise<TrackEvent[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("track_events")
+    .select("*")
+    .eq("track_id", trackId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching track events:", error);
+    return [];
+  }
+
+  return (data || []) as TrackEvent[];
 }
 
 

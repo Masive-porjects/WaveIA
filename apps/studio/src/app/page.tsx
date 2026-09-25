@@ -28,7 +28,9 @@ import {
   MobileMasteringView,
 } from "@/features/mastering";
 import { UploadView } from "@/features/upload";
-import { LibraryView } from "@/features/remastering-history";
+import { LibraryView, ResumeSessionModal } from "@/features/remastering-history";
+import { useAuth } from "@/features/auth";
+import { fetchLatestUserTrack, type Track } from "@/features/tracks";
 
 const TABS: { key: MasteringTab; label: string }[] = [
   { key: "mezcla", label: "Mezcla de Audio" },
@@ -48,17 +50,45 @@ export default function Home() {
   const isMobile = useIsMobile();
   const { t } = useTranslation();
 
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<"upload" | "mastering">("upload");
   const [masteringMode, setMasteringMode] = useState<"manual" | "ai">("manual");
   const [currentTab, setCurrentTab] = useState<MasteringTab | null>(null);
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [latestTrack, setLatestTrack] = useState<Track | null>(null);
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const hasCheckedLatestRef = useRef(false);
 
   // Workflow custom hook encapsulating all mastering state & mutations
   const workflow = useMasteringWorkflow({
     onSessionLoaded: () => setCurrentView("mastering"),
   });
+
+  // Check for returning user's latest project without forcing blindly into mastering
+  useEffect(() => {
+    if (!user) {
+      setLatestTrack(null);
+      setResumeModalOpen(false);
+      return;
+    }
+    if (hasCheckedLatestRef.current) return;
+    hasCheckedLatestRef.current = true;
+
+    fetchLatestUserTrack(user.id).then((track) => {
+      if (track) {
+        setLatestTrack(track);
+        if (currentView === "upload" && !workflow.session) {
+          setResumeModalOpen(true);
+        }
+      } else {
+        setLatestTrack(null);
+        setResumeModalOpen(false);
+        setCurrentView("upload");
+      }
+    });
+  }, [user, currentView, workflow.session]);
 
   // Right panel collapse state
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -457,6 +487,26 @@ export default function Home() {
           onNewUpload={() => {
             setLibraryOpen(false);
             handleHomeClick();
+          }}
+        />
+
+        {/* Prompt to Resume Latest Project for Returning Users */}
+        <ResumeSessionModal
+          isOpen={resumeModalOpen}
+          track={latestTrack}
+          isLoading={workflow.isLoadingTrackProject}
+          onContinue={async (track) => {
+            setResumeModalOpen(false);
+            setCurrentView("mastering");
+            await workflow.handleLoadTrackProject(track);
+          }}
+          onNewTrack={() => {
+            setResumeModalOpen(false);
+            handleHomeClick();
+          }}
+          onOpenLibrary={() => {
+            setResumeModalOpen(false);
+            setLibraryOpen(true);
           }}
         />
       </main>

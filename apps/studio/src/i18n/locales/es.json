@@ -661,5 +661,14 @@
     "openInStudio": "Abrir",
     "deleteTitle": "¿Eliminar canción?",
     "deleteDesc": "Esta acción eliminará el archivo original de la nube, todos sus borradores y los masters finales exportados permanentemente."
+  },
+  "resume": {
+    "title": "¡Hola, {name}!",
+    "subtitle": "¿Deseas continuar trabajando en tu última producción?",
+    "draftBadge": "Borrador activo",
+    "masteredBadge": "Master listo",
+    "continueProject": "Continuar con este proyecto",
+    "newAudio": "Subir un nuevo audio",
+    "openLibrary": "O ver todas mis canciones guardadas"
   }
 }

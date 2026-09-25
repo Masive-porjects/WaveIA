@@ -30,6 +30,7 @@ import {
   createMasterRecord,
   clearTrackDraft,
   getOriginalSignedUrl,
+  logTrackEvent,
   type Track,
   type MasterRecord,
 } from "@/features/tracks";
@@ -140,15 +141,21 @@ export function useMasteringWorkflow(
     wasProcessingRef.current = processing;
   }, [processing, session?.mastered_path]);
 
-  // Persist session
+  // Persist session only for anonymous temporary sessions
   useEffect(() => {
-    if (session?.session_id) {
+    if (!user && session?.session_id) {
       localStorage.setItem("waveai-session", session.session_id);
+    } else if (user) {
+      localStorage.removeItem("waveai-session");
     }
-  }, [session?.session_id]);
+  }, [session?.session_id, user]);
 
-  // Restore saved session on mount
+  // Restore saved session on mount ONLY for unauthenticated guest users
   useEffect(() => {
+    if (user) {
+      localStorage.removeItem("waveai-session");
+      return;
+    }
     const savedId = localStorage.getItem("waveai-session");
     if (!savedId || session) return;
     getSession(savedId)
@@ -156,19 +163,10 @@ export function useMasteringWorkflow(
         setSession(s);
         onSessionLoaded?.(s);
       })
-      .catch((err) => {
+      .catch(() => {
         localStorage.removeItem("waveai-session");
-        if (err instanceof ApiError && err.status === 404) {
-          setErrorModal({
-            title: t("errors.sessionExpiredTitle", "Tu sesión anterior expiró"),
-            message: t(
-              "errors.sessionExpiredMessage",
-              "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar.",
-            ),
-          });
-        }
       });
-  }, [onSessionLoaded, session, t]);
+  }, [onSessionLoaded, session, user]);
 
   /* ── Upload Handler ────────────────────────────────── */
   const handleFileSelected = useCallback(
@@ -206,6 +204,12 @@ export function useMasteringWorkflow(
             status: "analyzing",
           });
           setCurrentTrack(savedTrack);
+          // Log audit event
+          logTrackEvent(user.id, trackId, "uploaded", {
+            filename: file.name,
+            size_bytes: file.size,
+            duration: meta.duration,
+          });
           return savedTrack;
         } catch (storageErr) {
           console.error("Cloud storage upload error:", storageErr);
@@ -253,6 +257,13 @@ export function useMasteringWorkflow(
 
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "ready").catch(() => {});
+          if (user) {
+            logTrackEvent(user.id, currentTrackIdRef.current, "analyzed", {
+              detected_genre: analyzed.analysis.detected_genre,
+              confidence: analyzed.analysis.mastering_confidence,
+              is_already_mastered: analyzed.analysis.is_already_mastered,
+            });
+          }
         }
 
         const genre = analyzed.analysis.detected_genre ?? null;
@@ -383,6 +394,12 @@ export function useMasteringWorkflow(
       setSession(result);
       if (currentTrackIdRef.current) {
         updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
+        if (user) {
+          logTrackEvent(user.id, currentTrackIdRef.current, "reprocessed", {
+            params,
+            preset_id: activePresetId,
+          });
+        }
       }
     } catch (err) {
       if (currentTrackIdRef.current) {
@@ -464,6 +481,12 @@ export function useMasteringWorkflow(
         }
         await new Promise((r) => setTimeout(r, 600));
         setSession(result);
+        if (user && currentTrackIdRef.current) {
+          logTrackEvent(user.id, currentTrackIdRef.current, "preset_applied", {
+            preset_id: presetId,
+            params: merged,
+          });
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
@@ -561,17 +584,23 @@ export function useMasteringWorkflow(
 
         // Background consolidation into Supabase Masters if authenticated
         if (user && currentTrack) {
+          logTrackEvent(user.id, currentTrack.id, "master_downloaded", { format });
           uploadMasterAudio(user.id, currentTrack.id, blob, format)
-            .then(({ storagePath }) =>
-              createMasterRecord(user.id, {
+            .then(({ storagePath }) => {
+              logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
+                format,
+                storage_path: storagePath,
+                preset_name: activePresetId ?? null,
+              });
+              return createMasterRecord(user.id, {
                 track_id: currentTrack.id,
                 storage_path: storagePath,
                 format,
                 file_size_bytes: blob.size,
                 preset_name: activePresetId ?? null,
                 parameters_applied: params,
-              }),
-            )
+              });
+            })
             .then(() => {
               updateTrackStatus(currentTrack.id, "completed").catch(() => {});
             })
@@ -619,6 +648,13 @@ export function useMasteringWorkflow(
 
         await updateTrackStatus(currentTrack.id, "completed");
         await clearTrackDraft(currentTrack.id);
+
+        logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
+          format,
+          preset_name: activePresetId ?? null,
+          storage_path: storagePath,
+          size_bytes: blob.size,
+        });
 
         return masterRecord;
       } catch (err) {

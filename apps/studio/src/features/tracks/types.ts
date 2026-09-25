@@ -76,3 +76,21 @@ export interface CreateMasterInput {
 
 export type TrackFilterStatus = "all" | "draft" | "completed";
 
+export type TrackEventType =
+  | "uploaded"
+  | "analyzed"
+  | "draft_saved"
+  | "reprocessed"
+  | "preset_applied"
+  | "master_consolidated"
+  | "master_downloaded";
+
+export interface TrackEvent {
+  id: string;
+  track_id: string;
+  user_id: string;
+  event_type: TrackEventType;
+  details: Record<string, any>;
+  created_at: string;
+}
+

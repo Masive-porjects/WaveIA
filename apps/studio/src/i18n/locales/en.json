@@ -661,5 +661,14 @@
     "openInStudio": "Open",
     "deleteTitle": "Delete song?",
     "deleteDesc": "This action will permanently delete the original audio file from the cloud, all its drafts, and any exported final masters."
+  },
+  "resume": {
+    "title": "Welcome back, {name}!",
+    "subtitle": "Would you like to resume your latest production?",
+    "draftBadge": "Active draft",
+    "masteredBadge": "Master ready",
+    "continueProject": "Resume this project",
+    "newAudio": "Upload a new audio",
+    "openLibrary": "Or explore all my saved tracks"
   }
 }
