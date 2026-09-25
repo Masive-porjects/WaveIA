@@ -161,15 +161,10 @@ export default function UserMenu() {
             {providerMeta.icon}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="hidden sm:inline-block text-xs font-medium max-w-[100px] truncate">
+        <div className="flex items-center">
+          <span className="hidden sm:inline-block text-xs font-medium max-w-[110px] truncate">
             {displayName}
           </span>
-          {isAdmin && (
-            <span className="hidden md:inline-block text-[9px] uppercase font-bold tracking-wider px-1 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              Admin
-            </span>
-          )}
         </div>
         <ChevronDown
           size={13}
