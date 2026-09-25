@@ -29,8 +29,9 @@ import {
   type Track,
 } from "@/features/tracks";
 
-export const ANALYSIS_TIMEOUT_MS = 90_000;
+export const ANALYSIS_TIMEOUT_MS = 180_000;
 export const PROCESS_TIMEOUT_MS = 600_000;
+
 
 export async function waitForAnalysis(
   sessionId: string,
@@ -206,6 +207,10 @@ export function useMasteringWorkflow(
         onSessionLoaded?.(result);
         presetCacheRef.current.clear();
 
+        // Audio uploaded to engine successfully: transition from upload to processing phase
+        setLoading(false);
+        setProcessing(true);
+
         // Await cloud storage completion in background
         await cloudUploadPromise;
 
@@ -213,6 +218,7 @@ export function useMasteringWorkflow(
 
         const analyzed = await waitForAnalysis(result.session_id, ANALYSIS_TIMEOUT_MS);
         if (!analyzed?.analysis) {
+          setProcessing(false);
           if (currentTrackIdRef.current) {
             updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
           }
@@ -237,6 +243,7 @@ export function useMasteringWorkflow(
         const mapped = genreToParams(genre);
 
         if (analyzed.analysis.is_already_mastered) {
+          setProcessing(false);
           setOverMasterWarning({
             open: true,
             confidence: analyzed.analysis.mastering_confidence ?? 0.8,
@@ -247,7 +254,6 @@ export function useMasteringWorkflow(
         }
 
         setParams(mapped);
-        setProcessing(true);
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "mastering").catch(() => {});
         }
@@ -265,11 +271,13 @@ export function useMasteringWorkflow(
           completeProgress();
           await new Promise((r) => setTimeout(r, 300));
           setSession(processed);
+          setProcessing(false);
           if (currentTrackIdRef.current) {
             updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
           }
           onSessionLoaded?.(processed);
         } catch (err) {
+          setProcessing(false);
           if (currentTrackIdRef.current) {
             updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
           }
@@ -323,7 +331,9 @@ export function useMasteringWorkflow(
         });
       } finally {
         setLoading(false);
+        setProcessing(false);
       }
+
     },
     [completeProgress, onSessionLoaded, t, user],
   );
