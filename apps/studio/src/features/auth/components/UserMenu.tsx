@@ -176,11 +176,11 @@ export default function UserMenu() {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 mt-2 w-68 rounded-2xl border p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-150 backdrop-blur-3xl"
           style={{
-            background: "var(--bg-glass-elevated)",
+            backgroundColor: "var(--bg-elevated)",
             borderColor: "var(--border-strong)",
-            boxShadow: "0 16px 40px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+            boxShadow: "0 22px 55px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--border-strong), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
           }}
         >
           <div className="px-3 py-2.5 border-b border-[var(--border-subtle)] mb-1">
@@ -207,7 +207,7 @@ export default function UserMenu() {
                 </span>
               </div>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] truncate">{userEmail || user.email}</p>
+            <p className="text-[11px] text-[var(--text-secondary)] truncate">{userEmail || user.email}</p>
           </div>
 
           <div className="space-y-0.5">
@@ -216,7 +216,7 @@ export default function UserMenu() {
                 <Link
                   href="/"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors font-medium"
+                  className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] hover:brightness-110 transition-colors font-medium"
                 >
                   <ArrowLeft size={14} className="text-[var(--accent-primary)]" />
                   <span>{t("admin.backToStudio", "Volver al Studio")}</span>
