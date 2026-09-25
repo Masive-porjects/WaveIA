@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "@/i18n/useTranslation";
-import Image from "next/image";
+import { GhostIcon } from "@/presentation/components/ThemeToggle";
 
 interface SignOutModalProps {
   isOpen: boolean;
@@ -64,15 +64,8 @@ export default function SignOutModal({ isOpen, displayName }: SignOutModalProps)
               >
                 {/* Outer Glow Ring */}
                 <div className="absolute inset-0 size-16 rounded-full bg-[var(--accent-primary)]/20 blur-md animate-pulse" />
-                <div className="relative size-16 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-elevated)] flex items-center justify-center shadow-lg">
-                  <Image
-                    src="/fantasmita.png"
-                    alt="WaveIA"
-                    width={40}
-                    height={40}
-                    className="object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]"
-                    priority
-                  />
+                <div className="relative size-16 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-elevated)] flex items-center justify-center shadow-lg text-[var(--accent-primary)]">
+                  <GhostIcon size={34} />
                 </div>
               </motion.div>
             </div>

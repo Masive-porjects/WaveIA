@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { AuthContextType, UserProfile } from "../types";
+import SignOutModal from "../components/SignOutModal";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -199,6 +200,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       : "user";
   const isAdmin = role === "admin";
 
+  const activeDisplayName =
+    profile?.display_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Producer";
+
+  const lastDisplayNameRef = useRef(activeDisplayName);
+  if (activeDisplayName && activeDisplayName !== "Producer") {
+    lastDisplayNameRef.current = activeDisplayName;
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -213,6 +226,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      <SignOutModal
+        isOpen={isSigningOut}
+        displayName={lastDisplayNameRef.current}
+      />
     </AuthContext.Provider>
   );
 }

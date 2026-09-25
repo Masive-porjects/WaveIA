@@ -6,7 +6,6 @@ import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail } from "lucide
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
-import SignOutModal from "./SignOutModal";
 
 function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: string) => string) {
   const provider = (providerRaw || "email").toLowerCase();
@@ -75,11 +74,9 @@ function getActiveProvider(user: any): string {
 }
 
 export default function UserMenu() {
-  const { user, profile, isAdmin, isLoading, signOut } = useAuth();
+  const { user, profile, isAdmin, isLoading, isSigningOut, signOut } = useAuth();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [lastDisplayName, setLastDisplayName] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,7 +97,7 @@ export default function UserMenu() {
 
   if (!user) {
     if (isSigningOut) {
-      return <SignOutModal isOpen={true} displayName={lastDisplayName} />;
+      return null;
     }
     return (
       <Link
@@ -226,8 +223,6 @@ export default function UserMenu() {
               type="button"
               onClick={async () => {
                 setIsOpen(false);
-                setLastDisplayName(displayName);
-                setIsSigningOut(true);
                 if (typeof window !== "undefined") {
                   try {
                     localStorage.removeItem("waveia_last_auth_provider");
@@ -243,9 +238,6 @@ export default function UserMenu() {
           </div>
         </div>
       )}
-
-      {/* Farewell Sign-Out Modal */}
-      <SignOutModal isOpen={isSigningOut} displayName={displayName} />
     </div>
   );
 }
