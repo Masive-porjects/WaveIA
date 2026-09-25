@@ -158,6 +158,7 @@ export default function LanguageSwitcher({
     <button
       type="button"
       onClick={toggleLanguage}
+      suppressHydrationWarning
       className={`relative w-9 h-9 rounded-full flex items-center justify-center shrink-0
         bg-[var(--bg-glass)] backdrop-blur-xl
         border border-[var(--border-subtle)] hover:border-[var(--border-strong)]

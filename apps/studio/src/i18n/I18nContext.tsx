@@ -61,6 +61,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
+      const saved = localStorage.getItem(STORAGE_KEY_LANG) as Locale | null;
+      if (saved && (saved === "es" || saved === "en")) {
+        setLocaleState(saved);
+      }
+    } catch {
+      // Ignorar bloqueos de privacidad
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       document.documentElement.lang = locale;
     } catch {
       // Ignorar entorno no-DOM

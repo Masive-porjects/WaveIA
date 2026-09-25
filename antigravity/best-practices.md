@@ -137,11 +137,32 @@ Para permitir que herramientas experimentales o secundarias (Stem Splitter, Voca
 
 ## 🌍 5. Internacionalización (i18n)
 
-1. **Separación de Diccionarios**:
-   - Mantener traducciones organizadas por dominios (`common`, `nav`, `mastering`, `player`, `auth`, `history`) en `src/i18n/locales/es.json` y `en.json`.
-2. **Consistencia de Tipos y Prevención de Hydration Mismatches**:
+1. **Separación de Diccionarios y Registro Bilingüe Simultáneo**:
+   - Mantener traducciones organizadas por dominios (`common`, `nav`, `mastering`, `player`, `auth`, `admin`, `history`) en `src/i18n/locales/es.json` y `en.json`.
+   - **Toda nueva integración o texto debe registrarse en ambos idiomas**.
+2. **Cero Texto Hardcodeado y Cero Spanglish**:
+   - Está prohibido incluir strings de interfaz quemados en componentes TSX.
+   - Todo texto de usuario debe consumirse con `useTranslation()`.
+   - Coherencia total: 100% español latino neutro en `es.json` y 100% inglés natural en `en.json`.
+3. **Consistencia de Tipos y Prevención de Hydration Mismatches**:
    - Usar claves tipadas para que TypeScript advierta si falta una traducción en algún idioma.
    - Leer el idioma preferido en cliente desde `localStorage` o cookies sincronizadas para evitar parpadeos visuales al renderizar en el servidor.
+
+---
+
+## 🎨 7. Estándares de Diseño y UI Frontend (WaveIA Visual Excellence)
+
+1. **Tokens CSS del Sistema**:
+   - Utilizar exclusivamente las variables CSS de superficie y acento (`var(--bg-base)`, `var(--surface-elevated)`, `var(--bg-glass-elevated)`, `var(--accent-primary)`, `var(--border-subtle)`).
+   - Prohibido el uso de colores planos genéricos que rompan con el acabado analógico premium.
+2. **Glassmorphism y Acabados de Estudio**:
+   - Fondos semitransparentes con `backdrop-blur-2xl` y sombras profundas con iluminación sutil en el borde superior (`inset 0 1px 0 rgba(255,255,255,0.08)`).
+3. **Identidad de Marca WaveIA**:
+   - Incorporar la mascota fantasma interactiva (`BigGhostWithNotes`, `FloatingGhosts`) y notas musicales flotantes (`FloatingNotes`) en pantallas de bienvenida, autenticación y transiciones clave.
+4. **Ergonomía y Cero Scroll Innecesario**:
+   - Vistas modales, pantallas de acceso (`/login`, `/register`) y diálogos deben encajar de forma limpia en el viewport (`100vh` / `max-h-screen overflow-hidden`) sin barras de scroll vertical en pantallas estándar.
+5. **Micro-interacciones y Animaciones**:
+   - Transiciones fluidas con `framer-motion` (`AnimatePresence`, `motion.div`) y retroalimentación interactiva en vivo (píldoras de requisitos de contraseña, hovers reactivos y loaders).
 
 ---
 
