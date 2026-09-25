@@ -18,6 +18,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
+import ThemeToggle from "@/presentation/components/ThemeToggle";
+import LanguageSwitcher from "@/presentation/components/LanguageSwitcher";
+import { UserMenu } from "@/features/auth";
+import FloatingGhosts from "@/presentation/components/FloatingGhosts";
+import FloatingNotes from "@/presentation/components/FloatingNotes";
 import { fetchAdminUsers, updateUserRole, fetchRoleAuditLogs } from "../services/adminService";
 import type { AdminUser, RoleAuditLog } from "../types";
 
@@ -164,53 +169,136 @@ export default function AdminDashboard() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg-base)]">
+      <div className="relative min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-x-hidden">
+        {/* Crystal atmosphere */}
         <div
-          className="max-w-md w-full p-8 rounded-3xl border text-center backdrop-blur-2xl shadow-2xl"
+          className="pointer-events-none fixed inset-0 z-0"
           style={{
-            background: "var(--bg-glass-elevated)",
-            borderColor: "var(--border-strong)",
+            background: `
+              radial-gradient(ellipse 70% 55% at 18% 12%, rgba(98, 126, 132, 0.18), transparent 62%),
+              radial-gradient(ellipse 60% 50% at 88% 82%, rgba(130, 156, 161, 0.16), transparent 65%),
+              radial-gradient(ellipse 45% 40% at 68% 8%, rgba(98, 126, 132, 0.12), transparent 60%)
+            `,
           }}
-        >
-          <div className="size-14 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-            <ShieldAlert size={28} />
-          </div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            {t("admin.accessDeniedTitle", "Acceso Restringido")}
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
-            {t(
-              "admin.accessDeniedDesc",
-              "Se requieren permisos de Administrador para acceder a este panel de control."
-            )}
-          </p>
+          aria-hidden="true"
+        />
+        <FloatingGhosts />
+        <FloatingNotes />
+
+        {/* Top Header */}
+        <header className="relative z-30 shrink-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5 border-b border-[var(--border-subtle)] backdrop-blur-xl bg-[var(--bg-app)]/70">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs text-[var(--bg-base)] bg-[var(--accent-primary)] hover:brightness-110 transition-all shadow-md"
+            className="rounded-full px-4 py-2 glass hover:border-[var(--accent-primary)] transition-all flex items-center gap-1.5 shadow-sm"
           >
-            <ArrowLeft size={16} />
-            <span>{t("admin.backToStudio", "Volver al Studio")}</span>
+            <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+              Wave<span className="text-[var(--accent-primary)]">IA</span>
+            </span>
           </Link>
-        </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <LanguageSwitcher />
+            <UserMenu />
+          </div>
+        </header>
+
+        {/* Access denied body */}
+        <main className="relative z-10 flex-1 flex items-center justify-center p-4">
+          <div
+            className="max-w-md w-full p-8 rounded-3xl border text-center backdrop-blur-2xl shadow-2xl"
+            style={{
+              background: "var(--bg-glass-elevated)",
+              borderColor: "var(--border-strong)",
+            }}
+          >
+            <div className="size-14 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+              <ShieldAlert size={28} />
+            </div>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+              {t("admin.accessDeniedTitle", "Acceso Restringido")}
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              {t(
+                "admin.accessDeniedDesc",
+                "Se requieren permisos de Administrador para acceder a este panel de control."
+              )}
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs text-[var(--bg-base)] bg-[var(--accent-primary)] hover:brightness-110 transition-all shadow-md"
+            >
+              <ArrowLeft size={16} />
+              <span>{t("admin.backToStudio", "Volver al Studio")}</span>
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Top Header */}
+    <div className="relative min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-x-hidden">
+      {/* Crystal atmosphere & ambient floating elements */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 70% 55% at 18% 12%, rgba(98, 126, 132, 0.18), transparent 62%),
+            radial-gradient(ellipse 60% 50% at 88% 82%, rgba(130, 156, 161, 0.16), transparent 65%),
+            radial-gradient(ellipse 45% 40% at 68% 8%, rgba(98, 126, 132, 0.12), transparent 60%)
+          `,
+        }}
+        aria-hidden="true"
+      />
+      <FloatingGhosts />
+      <FloatingNotes />
+
+      {/* Top Header Navigation */}
+      <header className="relative z-30 shrink-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5 border-b border-[var(--border-subtle)] backdrop-blur-xl bg-[var(--bg-app)]/70">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="rounded-full px-4 py-2 glass hover:border-[var(--accent-primary)] transition-all flex items-center gap-1.5 shadow-sm group"
+          >
+            <span className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+              Wave<span className="text-[var(--accent-primary)]">IA</span>
+            </span>
+            <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 ml-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              Admin
+            </span>
+          </Link>
+
+          <Link
+            href="/"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent hover:border-[var(--border-subtle)] transition-all"
+          >
+            <ArrowLeft size={13} />
+            <span>{t("admin.backToStudio", "Volver al Studio")}</span>
+          </Link>
+        </div>
+
+        {/* Right tools: Theme, Language, UserMenu */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <LanguageSwitcher />
+          <UserMenu />
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        {/* Page Title & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Link
                 href="/"
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+                className="sm:hidden text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
               >
                 <ArrowLeft size={13} />
                 <span>{t("admin.backToStudio", "Volver al Studio")}</span>
               </Link>
-              <span className="text-[var(--border-strong)]">•</span>
+              <span className="sm:hidden text-[var(--border-strong)]">•</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 WaveIA Control
               </span>
@@ -232,7 +320,7 @@ export default function AdminDashboard() {
               type="button"
               onClick={loadData}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50 shadow-sm"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
               <span>{t("admin.refresh", "Actualizar")}</span>
@@ -720,7 +808,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </AnimatePresence>
-      </div>
+      </main>
     </div>
   );
 }

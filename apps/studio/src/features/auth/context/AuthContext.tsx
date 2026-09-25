@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.location.href = "/login";
+          window.location.href = "/";
         }, 900);
       }
     }
