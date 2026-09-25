@@ -28,10 +28,13 @@
     "paginationFirst": "Primera página",
     "paginationPrevious": "Página anterior",
     "paginationNext": "Página siguiente",
-    "paginationLast": "Última página"
+    "paginationLast": "Última página",
+    "deleting": "Eliminando...",
+    "deleteConfirm": "Eliminar"
   },
   "nav": {
     "home": "Inicio",
+    "myTracks": "Mis Canciones",
     "masteringModeAria": "Elige cómo quieres masterizar",
     "manualMode": "Manual",
     "manualDesc": "Control total",
@@ -217,6 +220,9 @@
     "processButton": "Procesar con estos parámetros",
     "processWithPreset": "Procesar con este preset",
     "downloadMaster": "Descargar master",
+    "savingDraft": "Guardando borrador...",
+    "draftSaved": "Borrador en nube",
+    "draftError": "Error al guardar",
     "selectPreset": "Selecciona un preset de carácter",
     "deliveryTarget": "Plataforma de Entrega",
     "transparentMode": "Modo Transparente",
@@ -633,5 +639,36 @@
     "toggleLight": "Cambiar a tema claro",
     "studioMode": "Modo estudio (Oscuro)",
     "devMode": "Modo dev (Claro)"
+  },
+  "library": {
+    "title": "Mis Canciones",
+    "subtitle": "Historial de producciones, borradores activos y descargas",
+    "newTrack": "Subir nueva",
+    "searchPlaceholder": "Buscar por título o archivo...",
+    "tabAll": "Todos",
+    "tabDrafts": "Borradores",
+    "tabMastered": "Masterizados",
+    "noSearchResults": "No se encontraron canciones para esta búsqueda",
+    "noDrafts": "No tienes borradores activos actualmente",
+    "noMastered": "Aún no has masterizado ninguna canción",
+    "emptyTitle": "Tu biblioteca de canciones está vacía",
+    "emptyDesc": "Sube una pista de audio para comenzar a procesar con los presets y motores IA de WaveIA.",
+    "startMastering": "Subir mi primera pista",
+    "draftBadge": "Borrador",
+    "masteredBadge": "Masterizado",
+    "downloadMaster": "Descargar Master",
+    "resumeMastering": "Continuar masterizando",
+    "openInStudio": "Abrir",
+    "deleteTitle": "¿Eliminar canción?",
+    "deleteDesc": "Esta acción eliminará el archivo original de la nube, todos sus borradores y los masters finales exportados permanentemente."
+  },
+  "resume": {
+    "title": "¡Hola, {name}!",
+    "subtitle": "¿Deseas continuar trabajando en tu última producción?",
+    "draftBadge": "Borrador activo",
+    "masteredBadge": "Master listo",
+    "continueProject": "Continuar con este proyecto",
+    "newAudio": "Subir un nuevo audio",
+    "openLibrary": "O ver todas mis canciones guardadas"
   }
 }

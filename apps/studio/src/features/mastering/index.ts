@@ -1,5 +1,6 @@
 export { useMasteringWorkflow } from "./hooks/useMasteringWorkflow";
 export { useProcessingProgress } from "./hooks/useProcessingProgress";
+export { MasteringProvider, useMastering } from "./context/MasteringContext";
 export { default as MasteringHeader } from "./components/MasteringHeader";
 export { default as MasteringOverlays } from "./components/MasteringOverlays";
 export { default as MasteringCanvas } from "./components/MasteringCanvas";

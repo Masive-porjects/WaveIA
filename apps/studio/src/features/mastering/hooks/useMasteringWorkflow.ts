@@ -26,8 +26,16 @@ import {
   uploadOriginalAudio,
   createTrackRecord,
   updateTrackStatus,
+  uploadMasterAudio,
+  createMasterRecord,
+  clearTrackDraft,
+  getOriginalSignedUrl,
+  logTrackEvent,
   type Track,
+  type MasterRecord,
 } from "@/features/tracks";
+import { useAutosaveDraft, type AutosaveStatus } from "./useAutosaveDraft";
+
 
 export const ANALYSIS_TIMEOUT_MS = 180_000;
 export const PROCESS_TIMEOUT_MS = 600_000;
@@ -87,7 +95,16 @@ export function useMasteringWorkflow(
   const [params, setParams] = useState<MasteringParameters>(DEFAULT_PARAMS);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
+  // Non-destructive realtime autosave for drafts
+  const { autosaveStatus, forceSave } = useAutosaveDraft({
+    trackId: currentTrack?.id ?? null,
+    params,
+    activePresetId,
+    enabled: !!user && !!currentTrack,
+  });
+
   // Stem splitter state
+
   const [stemState, setStemState] = useState<StemSplitterState>(createDefaultStemState());
 
   // Vocal chain state
@@ -124,15 +141,21 @@ export function useMasteringWorkflow(
     wasProcessingRef.current = processing;
   }, [processing, session?.mastered_path]);
 
-  // Persist session
+  // Persist session only for anonymous temporary sessions
   useEffect(() => {
-    if (session?.session_id) {
+    if (!user && session?.session_id) {
       localStorage.setItem("waveai-session", session.session_id);
+    } else if (user) {
+      localStorage.removeItem("waveai-session");
     }
-  }, [session?.session_id]);
+  }, [session?.session_id, user]);
 
-  // Restore saved session on mount
+  // Restore saved session on mount ONLY for unauthenticated guest users
   useEffect(() => {
+    if (user) {
+      localStorage.removeItem("waveai-session");
+      return;
+    }
     const savedId = localStorage.getItem("waveai-session");
     if (!savedId || session) return;
     getSession(savedId)
@@ -140,19 +163,10 @@ export function useMasteringWorkflow(
         setSession(s);
         onSessionLoaded?.(s);
       })
-      .catch((err) => {
+      .catch(() => {
         localStorage.removeItem("waveai-session");
-        if (err instanceof ApiError && err.status === 404) {
-          setErrorModal({
-            title: t("errors.sessionExpiredTitle", "Tu sesión anterior expiró"),
-            message: t(
-              "errors.sessionExpiredMessage",
-              "El servidor se reinició y no pudo recuperarla. Sube el audio otra vez para continuar.",
-            ),
-          });
-        }
       });
-  }, [onSessionLoaded, session, t]);
+  }, [onSessionLoaded, session, user]);
 
   /* ── Upload Handler ────────────────────────────────── */
   const handleFileSelected = useCallback(
@@ -190,6 +204,12 @@ export function useMasteringWorkflow(
             status: "analyzing",
           });
           setCurrentTrack(savedTrack);
+          // Log audit event
+          logTrackEvent(user.id, trackId, "uploaded", {
+            filename: file.name,
+            size_bytes: file.size,
+            duration: meta.duration,
+          });
           return savedTrack;
         } catch (storageErr) {
           console.error("Cloud storage upload error:", storageErr);
@@ -237,6 +257,13 @@ export function useMasteringWorkflow(
 
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "ready").catch(() => {});
+          if (user) {
+            logTrackEvent(user.id, currentTrackIdRef.current, "analyzed", {
+              detected_genre: analyzed.analysis.detected_genre,
+              confidence: analyzed.analysis.mastering_confidence,
+              is_already_mastered: analyzed.analysis.is_already_mastered,
+            });
+          }
         }
 
         const genre = analyzed.analysis.detected_genre ?? null;
@@ -254,56 +281,12 @@ export function useMasteringWorkflow(
         }
 
         setParams(mapped);
+        completeProgress();
+        setProcessing(false);
         if (currentTrackIdRef.current) {
-          updateTrackStatus(currentTrackIdRef.current, "mastering").catch(() => {});
+          updateTrackStatus(currentTrackIdRef.current, "ready").catch(() => {});
         }
-
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
-
-        try {
-          const processed = await processAudio(
-            analyzed.session_id,
-            mapped,
-            controller.signal,
-          );
-          completeProgress();
-          await new Promise((r) => setTimeout(r, 300));
-          setSession(processed);
-          setProcessing(false);
-          if (currentTrackIdRef.current) {
-            updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
-          }
-          onSessionLoaded?.(processed);
-        } catch (err) {
-          setProcessing(false);
-          if (currentTrackIdRef.current) {
-            updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
-          }
-          if (err instanceof DOMException && err.name === "AbortError") {
-            const timeoutRetryMsg = t(
-              "errors.processTimeoutRetry",
-              'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
-            );
-            setError(timeoutRetryMsg);
-            setErrorModal({
-              title: t("common.error", "Error"),
-              message: timeoutRetryMsg,
-            });
-            return;
-          }
-          const processErrorMsg = err instanceof Error ? err.message : t("common.error", "Processing failed");
-          setError(processErrorMsg);
-          setErrorModal({
-            title: t("common.error", "Error"),
-            message: processErrorMsg,
-          });
-        } finally {
-          clearTimeout(watchdog);
-          setProcessing(false);
-          if (abortRef.current === controller) abortRef.current = null;
-        }
+        onSessionLoaded?.(analyzed);
       } catch (err) {
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
@@ -367,6 +350,12 @@ export function useMasteringWorkflow(
       setSession(result);
       if (currentTrackIdRef.current) {
         updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
+        if (user) {
+          logTrackEvent(user.id, currentTrackIdRef.current, "reprocessed", {
+            params,
+            preset_id: activePresetId,
+          });
+        }
       }
     } catch (err) {
       if (currentTrackIdRef.current) {
@@ -448,6 +437,12 @@ export function useMasteringWorkflow(
         }
         await new Promise((r) => setTimeout(r, 600));
         setSession(result);
+        if (user && currentTrackIdRef.current) {
+          logTrackEvent(user.id, currentTrackIdRef.current, "preset_applied", {
+            preset_id: presetId,
+            params: merged,
+          });
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           setError(
@@ -542,11 +537,169 @@ export function useMasteringWorkflow(
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        // Background consolidation into Supabase Masters if authenticated
+        if (user && currentTrack) {
+          logTrackEvent(user.id, currentTrack.id, "master_downloaded", { format });
+          uploadMasterAudio(user.id, currentTrack.id, blob, format)
+            .then(({ storagePath }) => {
+              logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
+                format,
+                storage_path: storagePath,
+                preset_name: activePresetId ?? null,
+              });
+              return createMasterRecord(user.id, {
+                track_id: currentTrack.id,
+                storage_path: storagePath,
+                format,
+                file_size_bytes: blob.size,
+                preset_name: activePresetId ?? null,
+                parameters_applied: params,
+              });
+            })
+            .then(() => {
+              updateTrackStatus(currentTrack.id, "completed").catch(() => {});
+            })
+            .catch((storageErr) => {
+              console.warn("Background master cloud save notice:", storageErr);
+            });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Download failed");
       }
     },
-    [session, activePresetId],
+    [session, activePresetId, user, currentTrack, params],
+  );
+
+  /* ── Master Consolidation (Explicit) ────────────────── */
+  const [isConsolidating, setIsConsolidating] = useState(false);
+
+  const handleConsolidateMaster = useCallback(
+    async (format: "wav" | "mp3" = "wav"): Promise<MasterRecord | null> => {
+      if (!session || !user || !currentTrack) return null;
+      setIsConsolidating(true);
+      setError(null);
+      try {
+        const blob = await downloadMastered(
+          session.session_id,
+          format,
+          activePresetId ?? undefined,
+        );
+
+        const { storagePath } = await uploadMasterAudio(
+          user.id,
+          currentTrack.id,
+          blob,
+          format,
+        );
+
+        const masterRecord = await createMasterRecord(user.id, {
+          track_id: currentTrack.id,
+          storage_path: storagePath,
+          format,
+          file_size_bytes: blob.size,
+          preset_name: activePresetId ?? null,
+          parameters_applied: params,
+        });
+
+        await updateTrackStatus(currentTrack.id, "completed");
+        await clearTrackDraft(currentTrack.id);
+
+        logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
+          format,
+          preset_name: activePresetId ?? null,
+          storage_path: storagePath,
+          size_bytes: blob.size,
+        });
+
+        return masterRecord;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al consolidar master";
+        setError(msg);
+        return null;
+      } finally {
+        setIsConsolidating(false);
+      }
+    },
+    [session, user, currentTrack, activePresetId, params],
+  );
+
+  /* ── Load Track from Library / History ─────────────── */
+  const [isLoadingTrackProject, setIsLoadingTrackProject] = useState(false);
+
+  const handleLoadTrackProject = useCallback(
+    async (track: Track) => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setLoading(true);
+      setIsLoadingTrackProject(true);
+      setError(null);
+
+      try {
+        currentTrackIdRef.current = track.id;
+        setCurrentTrack(track);
+
+        // 1. Restore draft parameters or active preset
+        const restoredParams: MasteringParameters = track.draft_parameters
+          ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
+          : DEFAULT_PARAMS;
+        setParams(restoredParams);
+        setActivePresetId(track.active_preset ?? null);
+
+        // 2. Get signed URL for original audio from Supabase
+        const signedUrl = await getOriginalSignedUrl(track.storage_path);
+        const res = await fetch(signedUrl);
+        if (!res.ok) throw new Error("No se pudo descargar el audio original del proyecto.");
+        const blob = await res.blob();
+        const file = new File([blob], track.original_filename || `${track.title}.wav`, {
+          type: blob.type || "audio/wav",
+        });
+
+        // 3. Upload to AudioMind engine
+        const sessionResult = await uploadAudio(file, setUploadProgress);
+        setSession(sessionResult);
+        onSessionLoaded?.(sessionResult);
+
+        setLoading(false);
+        setProcessing(true);
+
+        const analyzed = await waitForAnalysis(sessionResult.session_id, ANALYSIS_TIMEOUT_MS);
+        if (!analyzed?.analysis) {
+          throw new Error("El análisis del audio tardó demasiado al restaurar el proyecto.");
+        }
+        setSession(analyzed);
+
+        // 4. If draft parameters exist, process immediately with them
+        const targetParams: MasteringParameters = track.draft_parameters
+          ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
+          : genreToParams(analyzed.analysis.detected_genre ?? null);
+        setParams(targetParams);
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const processed = await processAudio(
+          analyzed.session_id,
+          targetParams,
+          controller.signal,
+          track.active_preset ?? undefined,
+        );
+        completeProgress();
+        setSession(processed);
+        onSessionLoaded?.(processed);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error al cargar proyecto";
+        setError(msg);
+        setErrorModal({
+          title: t("common.error", "Error"),
+          message: msg,
+        });
+      } finally {
+        setLoading(false);
+        setProcessing(false);
+        setIsLoadingTrackProject(false);
+      }
+    },
+    [completeProgress, onSessionLoaded, t],
   );
 
   /* ── Over-master confirmations ─────────────────────── */
@@ -613,10 +766,14 @@ export function useMasteringWorkflow(
     setParams,
     activePresetId,
     setActivePresetId,
+    autosaveStatus,
+    forceSave,
     stemState,
     setStemState,
     vocalProcessing,
     vocalProcessed,
+    isConsolidating,
+    isLoadingTrackProject,
     handleFileSelected,
     handleProcess,
     handlePresetSelect,
@@ -625,6 +782,8 @@ export function useMasteringWorkflow(
     handleStemSplit,
     handleVocalProcess,
     handleDownload,
+    handleConsolidateMaster,
+    handleLoadTrackProject,
     handleOverMasterConfirm,
     handleOverMasterCancel,
   };

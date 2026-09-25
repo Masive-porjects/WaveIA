@@ -3,10 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail, ArrowLeft } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail, ArrowLeft, Music2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
+
+interface UserMenuProps {
+  onOpenLibrary?: () => void;
+}
 
 function getProviderMeta(providerRaw?: string, t?: (key: string, fallback: string) => string) {
   const provider = (providerRaw || "email").toLowerCase();
@@ -74,7 +78,7 @@ function getActiveProvider(user: any): string {
   return user?.app_metadata?.provider || "email";
 }
 
-export default function UserMenu() {
+export default function UserMenu({ onOpenLibrary }: UserMenuProps = {}) {
   const pathname = usePathname();
   const isInAdmin = pathname?.startsWith("/admin");
   const { user, profile, isAdmin, isLoading, isSigningOut, signOut } = useAuth();
@@ -231,6 +235,20 @@ export default function UserMenu() {
                   <span>{t("admin.menuLink", "Panel de Administración")}</span>
                 </Link>
               )
+            )}
+
+            {onOpenLibrary && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenLibrary();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-colors text-left cursor-pointer font-medium"
+              >
+                <Music2 size={14} className="text-[var(--accent-primary)]" />
+                <span>{t("nav.myTracks", "Mis Canciones")}</span>
+              </button>
             )}
 
             <button

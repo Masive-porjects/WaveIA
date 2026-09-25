@@ -142,21 +142,50 @@ Este documento establece la hoja de ruta técnica paso a paso para la reorganiza
 
 ---
 
-### 📜 FASE 5: Historial de Mezclas y Remasterización
-**Objetivo**: Permitir a los usuarios consultar sus pistas previas, ver el historial de versiones ($v1, v2, v3$) y remasterizar sin resubir el audio original.
+### 📜 FASE 5: Historial de Proyectos, Auto-guardado de Borradores y Consolidación de Masters [COMPLETADA]
+**Objetivo**: Implementar persistencia completa y no destructiva: auto-guardado automático de borradores en tiempo real (receta JSON sin costo de RAM/Storage), biblioteca de proyectos con paginación estándar reutilizable, reanudación fluida de sesiones y consolidación de masters definitivos en el bucket `audio-masters`.
 
-- **Tareas**:
-  1. Diseñar el esquema de base de datos relacional:
-     - `profiles`: Datos de usuario y preferencias.
-     - `tracks`: Pistas originales (`title`, `original_audio_path`, `bpm`, `genre`).
-     - `master_versions`: Cada render de mastering (`version_number`, `preset_id`, `platform_target`, `integrated_lufs`, `true_peak_dbtp`, `mastered_audio_path`, `status`).
-  2. Crear la vista `apps/studio/src/app/(dashboard)/history/page.tsx`:
-     - Listado de proyectos con buscador y filtros por fecha/género.
-     - Vista de detalle de pista con timeline de versiones ($v1, v2, v3$).
-  3. Implementar flujo de **Remasterización**:
-     - Desde una pista existente, el usuario puede seleccionar un nuevo preset o ajustar la plataforma objetivo (`platform_target`) y generar una versión posterior ($v2$) usando el audio original ya guardado.
-     - Comparador A/B entre versiones ($v1$ vs $v2$).
-- **Criterio de Aceptación**: El usuario puede entrar a su historial, escuchar versiones antiguas y lanzar una nueva versión sin tener que volver a subir el archivo.
+- [x] **5.1 Modelo Relacional y Migración en Base de Datos (Supabase)**:
+  - Extender `public.tracks`:
+    - `draft_parameters`: `JSONB` (almacena la receta completa de controles DSP: clarity, compresión, limitador, saturación, estéreo, etc.).
+    - `active_preset`: `TEXT` (id del preset activo, ej. "epico", "brutal", "pulido").
+  - Crear tabla `public.masters` (renders definitivos consolidados):
+    - `id UUID PRIMARY KEY`, `track_id UUID REFERENCES tracks(id)`, `user_id UUID REFERENCES auth.users(id)`.
+    - `storage_path TEXT` (apuntando al bucket `audio-masters/{user_id}/{track_id}/master_{timestamp}.wav`).
+    - `format TEXT`, `file_size_bytes BIGINT`, `integrated_lufs NUMERIC`, `true_peak_db NUMERIC`.
+    - `parameters_applied JSONB`, `preset_name TEXT`, `created_at TIMESTAMPTZ`.
+  - Políticas de seguridad RLS en `public.masters` vinculadas a `auth.uid() = user_id`.
+
+- [x] **5.2 Auto-guardado de Borradores en Tiempo Real (Autosave Engine)**:
+  - Crear hook `useAutosaveDraft` con **debounce de 800ms**:
+    - Guarda automáticamente los parámetros en la fila del track en `public.tracks` tan pronto el usuario detiene el ajuste de knobs/sliders.
+    - Cero impacto en almacenamiento de audio (receta < 1 KB) y cero retención de memoria en el servidor.
+  - Micro-indicador visual de estado en el `MasteringHeader`:
+    - `Guardando...` (con pulso tenue) / `Guardado en la nube` (con icono de nube sutil).
+
+- [x] **5.3 Consolidación de Master Definitivo en `audio-masters`**:
+  - Al pulsar *"Consolidar / Exportar Master Definitivo"* o al descargar:
+    - Carga del audio renderizado de alta fidelidad directamente hacia `audio-masters`.
+    - Creación de registro en `public.masters` con métricas finales auditadas.
+    - Marcado de la pista como `status: 'completed'` y limpieza del borrador activo (`draft_parameters = null`).
+
+- [x] **5.4 Pantalla de Biblioteca / Historial de Proyectos ("Mis Canciones")**:
+  - Ubicación: `apps/studio/src/features/remastering-history/` y modal/vista accesible desde Header y `UserMenu`.
+  - Integración obligatoria del componente estándar `<Pagination />` (`apps/studio/src/presentation/components/ui/Pagination.tsx`).
+  - Buscador reactivo por título/archivo y filtros por estado (*Todos*, *En borrador*, *Masterizados*).
+  - Acciones por pista:
+    - 🟡 **Continuar Masterizando**: Restaura el track y su receta exacta de parámetros en el Studio.
+    - 🟢 **Descargar / Escuchar Master**: Streaming/descarga mediante URL firmada desde `audio-masters`.
+    - 🔴 **Eliminar Track**: Borrado en cascada (registro DB + audios en Storage).
+  - Diseño fiel a las guías de Antigravity: `glass-elevated`, tokens `--bg-app`, `--border-subtle`, animaciones fluidas con `framer-motion` y cero scroll innecesario.
+  - Textos 100% integrados al sistema de traducción `i18n` (`es.json` y `en.json`), sin textos hardcodeados.
+
+- **Criterio de Aceptación**:
+  - [x] Cualquier ajuste en el Studio se auto-guarda en menos de 1 segundo sin degradar la UI.
+  - [x] Si el usuario recarga la página o cierra sesión, puede entrar a su Historial, seleccionar el track y retomar el proyecto exactamente donde lo dejó.
+  - [x] Al exportar el master definitivo, el archivo queda guardado en `audio-masters` y reflejado en el historial.
+  - [x] `bun run build` pasa con 0 errores (código de salida 0).
+
 
 ---
 
