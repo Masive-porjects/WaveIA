@@ -171,11 +171,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase, fetchProfile]);
 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const signOut = useCallback(async () => {
+    setIsSigningOut(true);
     try {
       await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
     } catch (err) {
       console.error("Error signing out:", err);
     } finally {
@@ -206,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role,
         isAdmin,
         isLoading,
+        isSigningOut,
         signOut,
         refreshProfile,
       }}

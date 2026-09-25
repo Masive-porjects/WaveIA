@@ -27,7 +27,7 @@ import { fetchAdminUsers, updateUserRole, fetchRoleAuditLogs } from "../services
 import type { AdminUser, RoleAuditLog } from "../types";
 
 export default function AdminDashboard() {
-  const { user: currentUser, isAdmin, isLoading: authLoading } = useAuth();
+  const { user: currentUser, isAdmin, isLoading: authLoading, isSigningOut } = useAuth();
   const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<"users" | "audit">("users");
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSigningOut) {
     return (
       <div className="relative min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-x-hidden">
         {/* Crystal atmosphere */}
@@ -285,8 +285,13 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+      {/* Main Content Area with Entrance Animation */}
+      <motion.main
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6"
+      >
         {/* Page Title & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -808,7 +813,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </AnimatePresence>
-      </main>
+      </motion.main>
     </div>
   );
 }

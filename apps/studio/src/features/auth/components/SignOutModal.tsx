@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -12,14 +14,21 @@ interface SignOutModalProps {
 
 export default function SignOutModal({ isOpen, displayName }: SignOutModalProps) {
   const { t } = useTranslation();
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto"
         >
           {/* Backdrop Blur */}
           <motion.div
@@ -109,6 +118,7 @@ export default function SignOutModal({ isOpen, displayName }: SignOutModalProps)
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

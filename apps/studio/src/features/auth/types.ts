@@ -18,6 +18,7 @@ export interface AuthContextType {
   role: UserRole;
   isAdmin: boolean;
   isLoading: boolean;
+  isSigningOut: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
