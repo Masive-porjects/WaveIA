@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail, ArrowLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
@@ -74,6 +75,8 @@ function getActiveProvider(user: any): string {
 }
 
 export default function UserMenu() {
+  const pathname = usePathname();
+  const isInAdmin = pathname?.startsWith("/admin");
   const { user, profile, isAdmin, isLoading, isSigningOut, signOut } = useAuth();
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -209,14 +212,25 @@ export default function UserMenu() {
 
           <div className="space-y-0.5">
             {isAdmin && (
-              <Link
-                href="/admin"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 transition-colors font-medium"
-              >
-                <ShieldCheck size={14} className="text-amber-400" />
-                <span>{t("admin.menuLink", "Panel de Administración")}</span>
-              </Link>
+              isInAdmin ? (
+                <Link
+                  href="/"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors font-medium"
+                >
+                  <ArrowLeft size={14} className="text-[var(--accent-primary)]" />
+                  <span>{t("admin.backToStudio", "Volver al Studio")}</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-xs rounded-xl hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 transition-colors font-medium"
+                >
+                  <ShieldCheck size={14} className="text-amber-400" />
+                  <span>{t("admin.menuLink", "Panel de Administración")}</span>
+                </Link>
+              )
             )}
 
             <button
