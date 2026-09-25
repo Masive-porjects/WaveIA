@@ -127,67 +127,55 @@ export default function SocialAuthButtons({
   return (
     <>
       <div className="space-y-3">
-        {/* Primary Social Options Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Primary Social Options */}
+        <div className="space-y-2">
           {/* Google */}
           <button
             type="button"
             disabled={!!loadingProvider}
             onClick={() => handleOAuthSignIn("google")}
-            className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50 shadow-sm"
           >
             {loadingProvider === "google" ? (
               <Loader2 size={14} className="animate-spin" />
             ) : (
               <GoogleIcon className="size-4 shrink-0" />
             )}
-            <span>Google</span>
+            <span>{t("auth.continueWithGoogle", "Continuar con Google")}</span>
           </button>
 
-          {/* Spotify */}
-          <button
-            type="button"
-            disabled={!!loadingProvider}
-            onClick={() => handleOAuthSignIn("spotify")}
-            className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#1DB954] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
-          >
-            {loadingProvider === "spotify" ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <SpotifyIcon className="size-4 shrink-0" />
-            )}
-            <span>Spotify</span>
-          </button>
+          {/* Secondary Social Options (Discord & GitHub) */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Discord */}
+            <button
+              type="button"
+              disabled={!!loadingProvider}
+              onClick={() => handleOAuthSignIn("discord")}
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#5865F2] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+            >
+              {loadingProvider === "discord" ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <DiscordIcon className="size-4 shrink-0" />
+              )}
+              <span>Discord</span>
+            </button>
 
-          {/* Discord */}
-          <button
-            type="button"
-            disabled={!!loadingProvider}
-            onClick={() => handleOAuthSignIn("discord")}
-            className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[#5865F2] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
-          >
-            {loadingProvider === "discord" ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <DiscordIcon className="size-4 shrink-0" />
-            )}
-            <span>Discord</span>
-          </button>
-
-          {/* GitHub */}
-          <button
-            type="button"
-            disabled={!!loadingProvider}
-            onClick={() => handleOAuthSignIn("github")}
-            className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
-          >
-            {loadingProvider === "github" ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <GitHubIcon className="size-4 shrink-0" />
-            )}
-            <span>GitHub</span>
-          </button>
+            {/* GitHub */}
+            <button
+              type="button"
+              disabled={!!loadingProvider}
+              onClick={() => handleOAuthSignIn("github")}
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] text-xs font-medium text-[var(--text-primary)] transition-all cursor-pointer disabled:opacity-50"
+            >
+              {loadingProvider === "github" ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <GitHubIcon className="size-4 shrink-0" />
+              )}
+              <span>GitHub</span>
+            </button>
+          </div>
         </div>
 
         {/* Divider */}

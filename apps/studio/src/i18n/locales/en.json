@@ -78,6 +78,7 @@
     "loginSocialSubtitle": "Choose your preferred sign-in method",
     "registerSocialSubtitle": "Create your account with social providers or email",
     "orContinueWith": "or continue with",
+    "continueWithGoogle": "Continue with Google",
     "continueWithEmail": "Sign in with Email and Password",
     "registerWithEmail": "Sign up with Email",
     "backToSocialOptions": "View other sign-in options",
