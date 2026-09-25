@@ -66,12 +66,23 @@ WITH CHECK (auth.uid() = user_id);
   - Botón "Abrir": Reanuda la sesión en el studio rehidratando el audio y aplicando los parámetros exactos del borrador.
   - Integración nativa con el componente `<Pagination />`.
   - Diálogo de confirmación accesible para borrado permanente.
+- [ResumeSessionModal.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/components/ResumeSessionModal.tsx):
+  - Modal inteligente de bienvenida y reanudación de proyectos para usuarios con producciones existentes.
+  - Muestra la tarjeta del track más reciente con sus especificaciones, badge de estado y hora de modificación.
+  - Ofrece 3 opciones claras: *"Continuar con este proyecto"*, *"Subir un nuevo audio"* (mantiene historial intacto) y *"Ver todas mis canciones"*.
+  - **Zero-State Session Guard**: Si el usuario no tiene canciones registradas en Supabase, el sistema limpia cualquier sesión residual huérfana y presenta la vista limpia de carga de audio (`UploadView`).
 - [index.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/index.ts): Exportación limpia del módulo.
+
+### `apps/studio/src/features/tracks` (Trazabilidad y Auditoría de Eventos)
+- **Tabla `public.track_events`**: Almacena cada hito del ciclo de vida del audio con RLS (`uploaded`, `analyzed`, `draft_saved`, `reprocessed`, `preset_applied`, `master_consolidated`, `master_downloaded`).
+- **`logTrackEvent`**: Ejecuta registros de fondo sin impactar los tiempos de respuesta de la interfaz ni bloquear el reproductor.
+- **`fetchLatestUserTrack`**: Consulta el último proyecto activo del usuario para el modal de bienvenida inteligente.
 
 ### `apps/studio/src/features/mastering`
 - [useAutosaveDraft.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useAutosaveDraft.ts): Hook de auto-guardado con debounce de 800ms, seguimiento de estados (`idle`, `saving`, `saved`, `error`) y método `forceSave`.
 - [useMasteringWorkflow.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useMasteringWorkflow.ts):
-  - Integración de `useAutosaveDraft`.
+  - Eliminación de la restauración ciega en `localStorage` que abría sesiones residuales; Supabase es ahora la fuente única de verdad.
+  - Integración de `logTrackEvent` en cada punto crítico de la cadena de masterización.
   - Método `handleLoadTrackProject(track)`: Carga el audio original mediante URL firmada de Supabase, lo transfiere al motor AudioMind y rehidrata los parámetros del borrador.
   - Método `handleConsolidateMaster(format)`: Guarda de forma explícita o al descargar el master en `audio-masters` y registra la entrada en `public.masters`.
 - [MasteringHeader.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/MasteringHeader.tsx):
