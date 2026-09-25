@@ -83,16 +83,31 @@ export async function GET(request: Request) {
         }
 
         try {
-          await supabase.from("profiles").upsert(
-            {
+          // Check if profile already exists to preserve existing role (e.g. admin)
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("id, role")
+            .eq("id", user.id)
+            .single();
+
+          if (existingProfile) {
+            await supabase
+              .from("profiles")
+              .update({
+                email: resolvedEmail,
+                display_name: displayName,
+                avatar_url: avatarUrl,
+              })
+              .eq("id", user.id);
+          } else {
+            await supabase.from("profiles").insert({
               id: user.id,
               email: resolvedEmail,
               display_name: displayName,
               avatar_url: avatarUrl,
               role: "user",
-            },
-            { onConflict: "id" }
-          );
+            });
+          }
         } catch {
           // Non-blocking if table is being created
         }

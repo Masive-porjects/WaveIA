@@ -80,19 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setProfile(newProfileData);
 
-        // Auto-provision in database in the background without needing manual scripts
+        // Auto-provision in database only if profile doesn't exist yet (never overwrite role)
         supabase
           .from("profiles")
-          .upsert(
-            {
-              id: userId,
-              email: resolvedEmail,
-              display_name: fallbackDisplayName,
-              avatar_url: fallbackAvatar,
-              role: fallbackRole,
-            },
-            { onConflict: "id" }
-          )
+          .insert({
+            id: userId,
+            email: resolvedEmail,
+            display_name: fallbackDisplayName,
+            avatar_url: fallbackAvatar,
+            role: fallbackRole,
+          })
           .then((res: { error?: { message?: string } | null }) => {
             if (res?.error) {
               console.warn("Auto-provision profile:", res.error.message);
