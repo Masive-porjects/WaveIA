@@ -190,6 +190,12 @@ export default function SocialStatusModal({
                   if (lower.includes("unverified") || lower.includes("verification")) {
                     return t("auth.oauthEmailVerificationRequired");
                   }
+                  if (
+                    lower.includes("database error") ||
+                    lower.includes("saving new user")
+                  ) {
+                    return t("auth.oauthDatabaseError");
+                  }
                   return errorMessage;
                 })()}
               </p>

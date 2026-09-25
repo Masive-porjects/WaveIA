@@ -85,6 +85,7 @@
     "oauthErrorGeneric": "Error signing in with selected provider.",
     "oauthMultipleAccounts": "An account is already registered with this email address via another provider or password. Please sign in with your original method.",
     "oauthEmailVerificationRequired": "Your account requires email verification. Please check your inbox or enable 'Skip email verification' in the Supabase Dashboard.",
+    "oauthDatabaseError": "Database error saving new user. A conflict occurred in the profile table trigger or required fields in Supabase.",
     "modalConnectingTitle": "Connecting with {provider}",
     "modalPhrase1": "Establishing secure connection...",
     "modalPhrase2": "Synchronizing audio credentials...",

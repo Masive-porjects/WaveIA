@@ -85,6 +85,7 @@
     "oauthErrorGeneric": "Error al iniciar sesión con el proveedor seleccionado.",
     "oauthMultipleAccounts": "Ya existe una cuenta registrada con este correo mediante otra red social o contraseña. Por favor ingresa con el método que usaste originalmente.",
     "oauthEmailVerificationRequired": "Tu cuenta requiere verificación de correo. Revisa tu correo o activa 'Skip email verification' en el panel de Supabase.",
+    "oauthDatabaseError": "Error en la base de datos al guardar el usuario. Ocurrió un conflicto en el trigger o en los campos obligatorios de la tabla de perfiles en Supabase.",
     "modalConnectingTitle": "Conectando con {provider}",
     "modalPhrase1": "Estableciendo conexión segura...",
     "modalPhrase2": "Sincronizando credenciales de audio...",
