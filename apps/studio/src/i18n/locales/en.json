@@ -21,7 +21,14 @@
     "duration": "Duration",
     "notIdentified": "Unidentified",
     "refresh": "Refresh",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "paginationShowing": "Showing {from} - {to} of {total}",
+    "paginationPerPage": "per page",
+    "paginationPageOf": "Page {page} of {totalPages}",
+    "paginationFirst": "First page",
+    "paginationPrevious": "Previous page",
+    "paginationNext": "Next page",
+    "paginationLast": "Last page"
   },
   "nav": {
     "home": "Home",

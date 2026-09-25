@@ -25,7 +25,13 @@ import LanguageSwitcher from "@/presentation/components/LanguageSwitcher";
 import { UserMenu } from "@/features/auth";
 import FloatingGhosts from "@/presentation/components/FloatingGhosts";
 import FloatingNotes from "@/presentation/components/FloatingNotes";
-import { fetchAdminUsers, updateUserRole, fetchRoleAuditLogs } from "../services/adminService";
+import Pagination from "@/presentation/components/ui/Pagination";
+import {
+  fetchAdminUsers,
+  fetchAdminStats,
+  updateUserRole,
+  fetchRoleAuditLogs,
+} from "../services/adminService";
 import type { AdminUser, RoleAuditLog } from "../types";
 
 interface RoleSelectDropdownProps {
@@ -141,90 +147,106 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<"users" | "audit">("users");
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+  const [stats, setStats] = useState({ total: 0, admins: 0, users: 0 });
   const [auditLogs, setAuditLogs] = useState<RoleAuditLog[]>([]);
+  const [totalAuditCount, setTotalAuditCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
+  // Pagination states
+  const [userPage, setUserPage] = useState(1);
+  const [userPageSize, setUserPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all");
+
+  // Debounce search input by 250ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setUserPage(1);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Role change confirmation modal state
   const [targetUser, setTargetUser] = useState<AdminUser | null>(null);
   const [selectedNewRole, setSelectedNewRole] = useState<string>("");
   const [submittingRole, setSubmittingRole] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadUsersData = useCallback(async () => {
+    if (!isAdmin) return;
     try {
-      const [fetchedUsers, fetchedLogs] = await Promise.all([
-        fetchAdminUsers(),
-        fetchRoleAuditLogs(),
+      const [usersRes, statsRes] = await Promise.all([
+        fetchAdminUsers({
+          page: userPage,
+          pageSize: userPageSize,
+          search: debouncedSearch,
+          role: roleFilter,
+        }),
+        fetchAdminStats(),
       ]);
-      setUsers(fetchedUsers);
-      setAuditLogs(fetchedLogs);
+      setUsers(usersRes.users);
+      setTotalUsersCount(usersRes.totalCount);
+      setStats(statsRes);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : t("admin.loadError", "Error al cargar la información del panel.")
       );
-    } finally {
-      setLoading(false);
     }
-  }, [t]);
+  }, [isAdmin, userPage, userPageSize, debouncedSearch, roleFilter, t]);
 
+  const loadAuditData = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const auditRes = await fetchRoleAuditLogs({
+        page: auditPage,
+        pageSize: auditPageSize,
+      });
+      setAuditLogs(auditRes.logs);
+      setTotalAuditCount(auditRes.totalCount);
+    } catch {
+      // Non blocking
+    }
+  }, [isAdmin, auditPage, auditPageSize]);
+
+  // Initial and reactive load
   useEffect(() => {
     let isMounted = true;
-
     if (!authLoading && isAdmin) {
-      Promise.all([fetchAdminUsers(), fetchRoleAuditLogs()])
-        .then(([fetchedUsers, fetchedLogs]) => {
-          if (isMounted) {
-            setUsers(fetchedUsers);
-            setAuditLogs(fetchedLogs);
-            setLoading(false);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setError(
-              err instanceof Error
-                ? err.message
-                : t("admin.loadError", "Error al cargar la información del panel.")
-            );
-            setLoading(false);
-          }
-        });
+      setLoading(true);
+      Promise.all([loadUsersData(), loadAuditData()]).finally(() => {
+        if (isMounted) setLoading(false);
+      });
     }
-
     return () => {
       isMounted = false;
     };
-  }, [authLoading, isAdmin, t]);
+  }, [authLoading, isAdmin, loadUsersData, loadAuditData]);
 
-  // Filtered users list
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
-      const matchesSearch =
-        (u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-        (u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-        u.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesRole =
-        roleFilter === "all" ? true : u.role.toLowerCase() === roleFilter.toLowerCase();
-
-      return matchesSearch && matchesRole;
-    });
-  }, [users, searchQuery, roleFilter]);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await Promise.all([loadUsersData(), loadAuditData()]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadUsersData, loadAuditData]);
 
   // Stats
-  const totalUsers = users.length;
-  const adminCount = users.filter((u) => u.role === "admin").length;
-  const regularCount = totalUsers - adminCount;
-  const totalAuditEvents = auditLogs.length;
+  const totalUsers = stats.total;
+  const adminCount = stats.admins;
+  const regularCount = stats.users;
+  const totalAuditEvents = totalAuditCount;
 
   const handleOpenRoleModal = (u: AdminUser, newRole: string) => {
     if (u.id === currentUser?.id) {
@@ -602,7 +624,10 @@ export default function AdminDashboard() {
                 {(["all", "admin", "user"] as const).map((rf) => (
                   <button
                     key={rf}
-                    onClick={() => setRoleFilter(rf)}
+                    onClick={() => {
+                      setRoleFilter(rf);
+                      setUserPage(1);
+                    }}
                     className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                       roleFilter === rf
                         ? "bg-[var(--surface-active)] text-[var(--text-primary)] border border-[var(--accent-primary)]/40"
@@ -645,7 +670,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-subtle)]">
-                    {filteredUsers.length === 0 ? (
+                    {users.length === 0 ? (
                       <tr>
                         <td
                           colSpan={5}
@@ -655,7 +680,7 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((u) => {
+                      users.map((u) => {
                         const isSelf = u.id === currentUser?.id;
                         const initial = (u.display_name || u.email || "U")
                           .charAt(0)
@@ -748,6 +773,19 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+
+              <Pagination
+                page={userPage}
+                pageSize={userPageSize}
+                totalCount={totalUsersCount}
+                pageSizeOptions={[10, 25, 50]}
+                onPageChange={(p) => setUserPage(p)}
+                onPageSizeChange={(sz) => {
+                  setUserPageSize(sz);
+                  setUserPage(1);
+                }}
+                isLoading={loading}
+              />
             </div>
           </div>
         )}
@@ -834,6 +872,19 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               )}
+
+              <Pagination
+                page={auditPage}
+                pageSize={auditPageSize}
+                totalCount={totalAuditCount}
+                pageSizeOptions={[10, 25, 50]}
+                onPageChange={(p) => setAuditPage(p)}
+                onPageSizeChange={(sz) => {
+                  setAuditPageSize(sz);
+                  setAuditPage(1);
+                }}
+                isLoading={loading}
+              />
             </div>
           </div>
         )}

@@ -21,7 +21,14 @@
     "duration": "Duración",
     "notIdentified": "No identificado",
     "refresh": "Actualizar",
-    "saving": "Guardando..."
+    "saving": "Guardando...",
+    "paginationShowing": "Mostrando {from} - {to} de {total}",
+    "paginationPerPage": "por pág.",
+    "paginationPageOf": "Página {page} de {totalPages}",
+    "paginationFirst": "Primera página",
+    "paginationPrevious": "Página anterior",
+    "paginationNext": "Página siguiente",
+    "paginationLast": "Última página"
   },
   "nav": {
     "home": "Inicio",
