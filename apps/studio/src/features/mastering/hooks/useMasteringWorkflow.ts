@@ -281,56 +281,12 @@ export function useMasteringWorkflow(
         }
 
         setParams(mapped);
+        completeProgress();
+        setProcessing(false);
         if (currentTrackIdRef.current) {
-          updateTrackStatus(currentTrackIdRef.current, "mastering").catch(() => {});
+          updateTrackStatus(currentTrackIdRef.current, "ready").catch(() => {});
         }
-
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
-
-        try {
-          const processed = await processAudio(
-            analyzed.session_id,
-            mapped,
-            controller.signal,
-          );
-          completeProgress();
-          await new Promise((r) => setTimeout(r, 300));
-          setSession(processed);
-          setProcessing(false);
-          if (currentTrackIdRef.current) {
-            updateTrackStatus(currentTrackIdRef.current, "completed").catch(() => {});
-          }
-          onSessionLoaded?.(processed);
-        } catch (err) {
-          setProcessing(false);
-          if (currentTrackIdRef.current) {
-            updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});
-          }
-          if (err instanceof DOMException && err.name === "AbortError") {
-            const timeoutRetryMsg = t(
-              "errors.processTimeoutRetry",
-              'El procesamiento tardó demasiado y se canceló. Apretá "Procesar con estos parámetros" para reintentar.',
-            );
-            setError(timeoutRetryMsg);
-            setErrorModal({
-              title: t("common.error", "Error"),
-              message: timeoutRetryMsg,
-            });
-            return;
-          }
-          const processErrorMsg = err instanceof Error ? err.message : t("common.error", "Processing failed");
-          setError(processErrorMsg);
-          setErrorModal({
-            title: t("common.error", "Error"),
-            message: processErrorMsg,
-          });
-        } finally {
-          clearTimeout(watchdog);
-          setProcessing(false);
-          if (abortRef.current === controller) abortRef.current = null;
-        }
+        onSessionLoaded?.(analyzed);
       } catch (err) {
         if (currentTrackIdRef.current) {
           updateTrackStatus(currentTrackIdRef.current, "error").catch(() => {});

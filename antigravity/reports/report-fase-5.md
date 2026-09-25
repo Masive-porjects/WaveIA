@@ -97,13 +97,17 @@ WITH CHECK (auth.uid() = user_id);
 ## 4. Verificación y Calidad
 - **Compilación de Producción**: `bun run build` ejecutado exitosamente con **código 0**.
 - **Comprobación de Tipos**: TypeScript pasó con **0 errores** en todas las rutas y componentes.
-- **Rutas validadas**:
-  - `/` (Studio principal con reproductor, canvas y biblioteca)
-  - `/admin` (Panel administrativo)
-  - `/login`, `/register`, `/auth/callback` (Flujo de autenticación)
-  - `/voz`, `/voz/chat`, `/voz/escuchar`, `/voz/speak` (Módulo de voz)
+- **Rutas y Arquitectura de Navegación Desacoplada**:
+  - `/` (Portal de bienvenida limpio y desacoplado, preparado para la futura Fase de Landing Page comercial con `// TODO: FASE LANDING PAGE`).
+  - `/upload` (Vista dedicada de subida de audio y modal inteligente de reanudación `ResumeSessionModal`).
+  - `/mezclas` (Espacio de trabajo del estudio: reproductor, canvas de masterización, dock analógico, analizador y gestión de drafts/masters).
+  - `/admin` (Panel administrativo).
+  - `/login`, `/register`, `/auth/callback` (Flujo de autenticación).
+  - `/voz`, `/voz/chat`, `/voz/escuchar`, `/voz/speak` (Módulo de voz).
 
 ---
 
-## 5. Próximos Pasos (Fase 6)
-- Despliegue, optimización de caché, telemetría y pruebas end-to-end finales.
+## 5. Próximos Pasos (Fase 6 y Fase Futura)
+- **Fase 6**: Despliegue, optimización de caché, telemetría y pruebas end-to-end finales.
+- **Fase Futura (Landing Page)**: Desarrollo del portal comercial completo en la ruta raíz `/` de WaveIA.
+
