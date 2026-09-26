@@ -18,6 +18,21 @@ class ProcessingStatus(str, Enum):
     ERROR = "error"
 
 
+# Lifecycle of the Mix Engine output of a session (``SessionData.mix_status``).
+# The client must be able to tell "never mixed" from "mix running" from
+# "mix delivered" from "mix failed" — the gate "if you chose to mix, deliver
+# the mix first" (feature ``odd/tasks/mix-master-flow.md``) is only
+# actionable when the backend owns this state. ``completed`` is the ONLY
+# value that makes ``mix_path`` masterable.
+MixStatus = Literal["none", "processing", "completed", "failed"]
+
+# Which audio file a mastering run consumes: the uploaded original or the
+# Mix Engine output. Resolved per request by ``/process`` (``source`` query
+# param) — the smart default picks ``mix`` only when the mix is ``completed``
+# and its file exists, otherwise ``original``.
+MasterSource = Literal["original", "mix"]
+
+
 class AnalysisResult(BaseModel):
     integrated_lufs: float
     true_peak_db: float
@@ -755,6 +770,13 @@ class SessionData(BaseModel):
             "full-mix tempo_bpm / genre / genre_confidence."
         ),
     )
+    # Lifecycle of the mix, kept OUT of ``mix_analysis`` on purpose: the
+    # analysis dict is the snapshot of the LAST SUCCESSFUL mix, while this
+    # field is the live state (``processing`` while the pipeline runs,
+    # ``failed`` on error) and is what ``/process?source=mix`` reads before
+    # consuming ``mix_path``. Defaults to ``none`` so sessions persisted
+    # before the field existed keep loading unchanged.
+    mix_status: MixStatus = "none"
 
 
 class BeatData(BaseModel):
