@@ -383,7 +383,7 @@ export default function LibraryView({
                             </>
                           )}
                           <span>•</span>
-                          <span className="text-[var(--text-muted)]">
+                          <span className="text-[var(--text-muted)]" suppressHydrationWarning>
                             {formatDate(track.created_at)}
                           </span>
                         </div>

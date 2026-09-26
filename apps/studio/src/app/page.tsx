@@ -16,11 +16,13 @@ import ThemeToggle from "@/presentation/components/ThemeToggle";
 import { UserMenu, useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n";
 import { useMastering } from "@/features/mastering";
+import { useIsMounted } from "@/shared/hooks";
 
 export default function HomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { session } = useMastering();
+  const isMounted = useIsMounted();
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-app)] text-[var(--text-primary)] font-sans relative overflow-x-hidden selection:bg-[var(--accent-primary)] selection:text-white">
@@ -94,7 +96,7 @@ export default function HomePage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            {session && (
+            {isMounted && session && (
               <Link
                 href="/mezclas"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm border border-[var(--border-strong)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer"
