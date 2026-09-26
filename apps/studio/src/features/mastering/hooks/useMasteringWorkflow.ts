@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type SessionData,
   type MasteringParameters,
+  type MixStatus,
   DEFAULT_PARAMS,
   type VocalChainParams,
   uploadAudio,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/api";
 import { PLATFORM_DEFAULTS } from "@/components/DeliveryPanel";
 import { type StemSplitterState, createDefaultStemState } from "@/components/StemSplitter";
-import { genreToParams, hasCompletedMix } from "@/lib/audioUtils";
+import { genreToParams, getMixGate, hasCompletedMix } from "@/lib/audioUtils";
 import { useProcessingProgress } from "./useProcessingProgress";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -136,6 +137,56 @@ export function useMasteringWorkflow(
       // rendering the mix it already has; the next poll corrects it.
     }
   }, [session]);
+
+  /* ── Mix gate (T4) ───────────────────────────────────────
+     Gate NO-bloqueante hacia el master: nunca mezcló (`none`) o la
+     mezcla se entregó (`completed`) → el master está libre. Si el
+     usuario inició una mezcla y no hay audio mezclado entregado
+     (`processing` / `failed`) → el master NO arranca: se muestra el
+     aviso y el CTA lleva al tab de mezcla. El veredicto viene de
+     `getMixGate` (función pura, testeada en audioUtils.test.ts), nunca
+     de un flag local de la UI. */
+  const mixGate = getMixGate(session);
+  const mixStatus: MixStatus = mixGate.mixStatus;
+  const isMixGateBlocked: boolean = mixGate.blocked;
+
+  /* Último intento de master con el gate bloqueado. Se guarda la sesión y
+     el estado para que el aviso solo se "acredite" mientras sigue vigente:
+     al cambiar de estado (o de sesión) el énfasis se limpia solo, sin
+     efectos. */
+  const [mixGateAttempt, setMixGateAttempt] = useState<{
+    sessionId: string;
+    status: MixStatus;
+  } | null>(null);
+  const mixGateAttempted =
+    isMixGateBlocked &&
+    mixGateAttempt?.sessionId === session?.session_id &&
+    mixGateAttempt?.status === mixStatus;
+
+  /** Aviso i18n del bloqueo (null = master libre). */
+  const mixGateNotice: string | null = !isMixGateBlocked
+    ? null
+    : mixStatus === "processing"
+      ? t("mezcla.gateProcessingNotice", "Termina tu mezcla antes de masterizar.")
+      : t(
+          "mezcla.gateFailedNotice",
+          "Tu mezcla falló. Reintenta la mezcla para continuar al master.",
+        );
+
+  /** CTA del aviso: en ambos casos lleva al tab de mezcla; cambia el verbo
+   *  porque `failed` es una mezcla entregable que hay que reintentar. */
+  const mixGateCtaLabel: string | null = !isMixGateBlocked
+    ? null
+    : mixStatus === "processing"
+      ? t("mezcla.gateProcessingCta", "Ir a la mezcla")
+      : t("mezcla.gateFailedCta", "Reintentar la mezcla");
+
+  /** Guarda el intento bloqueado. Se usa como guarda al inicio de todo
+   *  trigger que masteriza (procesar con parámetros y aplicar preset). */
+  const blockMasterRun = useCallback(() => {
+    if (!session) return;
+    setMixGateAttempt({ sessionId: session.session_id, status: mixStatus });
+  }, [session, mixStatus]);
 
   // Real progress polled from the backend for the ProcessingOverlay
   const { progress, completeProgress } = useProcessingProgress({
@@ -360,6 +411,15 @@ export function useMasteringWorkflow(
   const handleProcess = useCallback(async () => {
     if (!session) return;
 
+    // Gate de mezcla (T4): con una mezcla iniciada y NO entregada no se
+    // masteriza. Se registra el intento (el aviso se acredita) y se
+    // retorna SIN llamar a processAudio: ni source=mix (400 del backend)
+    // ni un master silencioso del original por detrás de la pantalla.
+    if (isMixGateBlocked) {
+      blockMasterRun();
+      return;
+    }
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -416,13 +476,22 @@ export function useMasteringWorkflow(
       setProcessing(false);
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [session, params, activePresetId, completeProgress, t, hasMix]);
+  }, [session, params, activePresetId, completeProgress, t, hasMix, isMixGateBlocked, blockMasterRun]);
 
 
   /* ── Preset Select ─────────────────────────────────── */
   const handlePresetSelect = useCallback(
     async (presetParams: MasteringParameters, presetId?: string) => {
       if (!session) return;
+
+      // Mismo gate (T4) que `handleProcess`: aplicar un preset TAMBIÉN es una
+      // corrida de master. Sin audio mezclado entregado, el backend resolvería
+      // el original por su cuenta — el usuario masterizaría en silencio lo
+      // equivocado mientras su mezcla sigue viva.
+      if (isMixGateBlocked) {
+        blockMasterRun();
+        return;
+      }
 
       const platform = params.platform_target;
       const platformDelivery =
@@ -500,7 +569,7 @@ export function useMasteringWorkflow(
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [session, params, completeProgress, t],
+    [session, params, completeProgress, t, isMixGateBlocked, blockMasterRun],
   );
 
   /* ── Reset to Original ─────────────────────────────── */
@@ -920,6 +989,12 @@ export function useMasteringWorkflow(
     setSession,
     hasMix,
     handleMixSettled,
+    /* ── Mix gate (T4) ── */
+    mixStatus,
+    isMixGateBlocked,
+    mixGateAttempted,
+    mixGateNotice,
+    mixGateCtaLabel,
     currentTrack,
     setCurrentTrack,
     isUploadingToCloud,

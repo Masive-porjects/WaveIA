@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import gsap from "gsap";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +16,7 @@ import Player from "@/components/Player";
 import { ComingSoonNotice } from "@/components/ComingSoonNotice";
 import { useIsMobile } from "@/shared/useIsMobile";
 import { isPresetCompleted } from "@/lib/audioUtils";
+import type { MixGateState } from "@/presentation/components/MixGateNotice";
 import { getAudioUrl } from "@/lib/api";
 import { useTranslation } from "@/i18n";
 import { ChevronLeft, AlertCircle, X } from "lucide-react";
@@ -146,6 +147,30 @@ function MezclasContent() {
     workflow.handleBackToUpload();
     router.push("/upload");
   }, [workflow, router]);
+
+  /* ── Gate de mezcla → master (T4) ───────────────────────
+     Estado único compartido por los 3 call sites de `MasteringCanvas` (mobile,
+     canvas desktop, ModuleSheet) y por la vista mobile. El veredicto y los
+     textos traducidos los arma el workflow; el CTA navega al tab de mezcla
+     (`handleModuleClick` es el mismo toggle de tabs en mobile y desktop). */
+  const mixGate = useMemo<MixGateState>(
+    () => ({
+      blocked: workflow.isMixGateBlocked,
+      status: workflow.mixStatus,
+      attempted: workflow.mixGateAttempted,
+      message: workflow.mixGateNotice,
+      ctaLabel: workflow.mixGateCtaLabel,
+      onGoToMix: () => handleModuleClick("mezcla"),
+    }),
+    [
+      workflow.isMixGateBlocked,
+      workflow.mixStatus,
+      workflow.mixGateAttempted,
+      workflow.mixGateNotice,
+      workflow.mixGateCtaLabel,
+      handleModuleClick,
+    ],
+  );
 
   const isMezclaTab = currentTab === "mezcla" || sheetTab === "mezcla";
 
@@ -283,6 +308,7 @@ function MezclasContent() {
                       onPresetSelect={workflow.handlePresetSelect}
                       onProcess={workflow.handleProcess}
                       onDownload={workflow.handleDownload}
+                      mixGate={mixGate}
                       renderTabContent={(tab) => (
                         <MasteringCanvas
                           tab={tab}
@@ -303,6 +329,7 @@ function MezclasContent() {
                           masteringMode={masteringMode}
                           onNavigateTab={handleModuleClick}
                           onMixSettled={workflow.handleMixSettled}
+                          mixGate={mixGate}
                         />
                       )}
                     />
@@ -444,6 +471,7 @@ function MezclasContent() {
                                 masteringMode={masteringMode}
                                 onNavigateTab={handleModuleClick}
                                 onMixSettled={workflow.handleMixSettled}
+                                mixGate={mixGate}
                               />
                             </PaintedModule>
                           )}
@@ -527,6 +555,7 @@ function MezclasContent() {
               masteringMode={masteringMode}
               onNavigateTab={handleModuleClick}
               onMixSettled={workflow.handleMixSettled}
+              mixGate={mixGate}
             />
           </ModuleSheet>
         )}
