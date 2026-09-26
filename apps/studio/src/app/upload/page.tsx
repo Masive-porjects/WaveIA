@@ -27,6 +27,7 @@ export default function UploadPage() {
   const [hasSavedTracks, setHasSavedTracks] = useState(false);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+  const [isNavigatingToStudio, setIsNavigatingToStudio] = useState(false);
   const [pendingTrackTitle, setPendingTrackTitle] = useState<string>("");
   const hasCheckedLatestRef = useRef(false);
 
@@ -64,7 +65,7 @@ export default function UploadPage() {
   };
 
   const handleConfirmWorkflow = (mode: "manual" | "ai") => {
-    setWorkflowModalOpen(false);
+    setIsNavigatingToStudio(true);
     router.push(`/mezclas?mode=${mode}`);
   };
 
@@ -159,6 +160,7 @@ export default function UploadPage() {
           isOpen={workflowModalOpen}
           trackTitle={pendingTrackTitle}
           onConfirm={handleConfirmWorkflow}
+          isLoading={isNavigatingToStudio}
           canDismiss={false}
         />
       </main>

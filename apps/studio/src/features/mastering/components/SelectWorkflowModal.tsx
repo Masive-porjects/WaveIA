@@ -12,6 +12,7 @@ import {
   AudioWaveform,
   ShieldCheck,
   X,
+  Loader2,
 } from "lucide-react";
 import { useTranslation } from "@/i18n/useTranslation";
 
@@ -21,6 +22,7 @@ interface SelectWorkflowModalProps {
   onConfirm: (mode: "manual" | "ai") => void;
   onClose?: () => void;
   canDismiss?: boolean;
+  isLoading?: boolean;
 }
 
 export default function SelectWorkflowModal({
@@ -29,6 +31,7 @@ export default function SelectWorkflowModal({
   onConfirm,
   onClose,
   canDismiss = false,
+  isLoading = false,
 }: SelectWorkflowModalProps) {
   const { t } = useTranslation();
   const [selectedMode, setSelectedMode] = useState<"manual" | "ai">("manual");
@@ -247,11 +250,21 @@ export default function SelectWorkflowModal({
 
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => onConfirm("manual")}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl font-bold text-xs bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white shadow-[0_4px_20px_rgba(98,126,132,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl font-bold text-xs bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white shadow-[0_4px_20px_rgba(98,126,132,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-85 disabled:cursor-wait"
             >
-              <span>{t("workflow.continueManual", "Continuar al Estudio en Modo Manual")}</span>
-              <ArrowRight size={15} />
+              {isLoading ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>{t("workflow.enteringStudio", "Ingresando a la Consola...")}</span>
+                </>
+              ) : (
+                <>
+                  <span>{t("workflow.continueManual", "Continuar al Estudio en Modo Manual")}</span>
+                  <ArrowRight size={15} />
+                </>
+              )}
             </button>
           </div>
         </motion.div>

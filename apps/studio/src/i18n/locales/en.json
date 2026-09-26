@@ -76,6 +76,7 @@
     "lockedNoticeMessage": "The neural inference engine will be integrated during the Intelligent Agents phase. The studio currently operates in Manual Mode.",
     "statusLocked": "Locked in this version",
     "continueManual": "Proceed to Studio in Manual Mode",
+    "enteringStudio": "Entering mastering console...",
     "modeTooltip": "Click to view workflow details",
     "manualModeLabel": "Manual Mode",
     "fullControlShort": "Full Control"
