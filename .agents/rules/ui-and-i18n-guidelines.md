@@ -41,9 +41,17 @@ Este documento define las reglas de estricto cumplimiento para cualquier nueva p
      - Mascota fantasma interactiva (`BigGhostWithNotes`, `FloatingGhosts`).
      - Notas musicales flotantes (`FloatingNotes`).
      - Gradientes radiales de luz mística (tonos cyan / púrpura / violeta).
-4. **Ergonomía y Cero Scroll**:
+4. **Tipografía Oficial**:
+   - `Inter` (`wght 300, 400, 500, 600, 700`): Para toda la interfaz de usuario, etiquetas técnicas, tablas y controles.
+   - `Instrument Serif`: Usada para titulares estilizados y detalles de marca.
+   - Fuentes Monoespaciadas (`ui-monospace`, `Courier New` o similar): Para lecturas numéricas de precisión (LUFS, dBTP, BPM, Hz, Sample Rate).
+5. **Medidores y LEDs Acústicos**:
+   - Seguro (Safe): `#34c759` (Verde analógico).
+   - Precaución (Warn): `#ff9500` (Ámbar cálido).
+   - Clipping / Alerta (Clip): `#ff3b30` / `#dc2626` (Rojo crítico).
+6. **Ergonomía y Cero Scroll**:
    - Pantallas como `/login`, `/register`, modales de confirmación o paneles de diálogo deben diseñarse para ajustarse completamente en la ventana (`h-screen max-h-screen overflow-hidden` o contenido centrado) sin generar barras de desplazamiento vertical en resoluciones comunes de escritorio/laptop.
-5. **Micro-interacciones y Animaciones Fluidas**:
+7. **Micro-interacciones y Animaciones Fluidas**:
    - Uso de `framer-motion` para transiciones de entrada (`initial`, `animate`, `exit`) y alternancia de vistas con `AnimatePresence`.
    - Micro-indicadores visuales interactivos en tiempo real (como los estados de validación de contraseñas, hover en tarjetas, loaders en botones).
 
@@ -53,10 +61,3 @@ Este documento define las reglas de estricto cumplimiento para cualquier nueva p
 1. **Cursor Pointer Obligatorio**:
    - Todo elemento accionable (botones, tarjetas clickeables, pestañas, modales, selectores y controles) debe mostrar obligatoriamente `cursor: pointer`.
    - Elementos deshabilitados deben mostrar `cursor: not-allowed`.
-
----
-
-## 4. Flujo Git Obligatorio por Sesión y Tarea
-1. **Commits Continuos y Trazables**:
-   - Al finalizar cualquier conjunto de cambios, resolución de bug, refactorización o ajuste solicitado por el usuario, el asistente DEBE realizar inmediatamente el commit respectivo en git con un mensaje convencional descriptivo (`feat(...)`, `fix(...)`, `refactor(...)`, etc.).
-   - Nunca dejar tareas terminadas sin registrar en git en la sesión activa.
