@@ -701,7 +701,17 @@
     "alreadyInSession": "Ya estás en esta sesión. Haz clic para volver al estudio.",
     "inStudio": "En Estudio",
     "deleteTitle": "¿Eliminar canción?",
-    "deleteDesc": "Esta acción eliminará el archivo original de la nube, todos sus borradores y los masters finales exportados permanentemente."
+    "deleteDesc": "Esta acción eliminará el archivo original de la nube, todos sus borradores y los masters finales exportados permanentemente.",
+    "hideChanges": "Ocultar cambios",
+    "viewChanges": "Ver receta de cambios",
+    "recipeTitle": "Resumen de Procesamiento vs Original",
+    "consolidatedMaster": "Master Definitivo",
+    "activeDraft": "Borrador en Curso",
+    "appliedPreset": "Carácter",
+    "loudnessTarget": "Loudness",
+    "truePeak": "Techo True-Peak",
+    "exportFormat": "Formato",
+    "dspChain": "Modificaciones:"
   },
   "resume": {
     "title": "¡Hola, {name}!",

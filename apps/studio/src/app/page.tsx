@@ -99,6 +99,8 @@ export default function HomePage() {
             {isMounted && session && (
               <Link
                 href="/mezclas"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm border border-[var(--border-strong)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer"
               >
                 <Music2 className="w-4 h-4 text-[var(--accent-secondary)]" />

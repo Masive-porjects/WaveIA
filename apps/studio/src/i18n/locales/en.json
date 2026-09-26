@@ -701,7 +701,17 @@
     "alreadyInSession": "You are currently in this session. Click to return to studio.",
     "inStudio": "In Studio",
     "deleteTitle": "Delete song?",
-    "deleteDesc": "This action will permanently delete the original audio file from the cloud, all its drafts, and any exported final masters."
+    "deleteDesc": "This action will permanently delete the original audio file from the cloud, all its drafts, and any exported final masters.",
+    "hideChanges": "Hide changes",
+    "viewChanges": "View recipe and changes",
+    "recipeTitle": "Processing Summary vs Original",
+    "consolidatedMaster": "Consolidated Master",
+    "activeDraft": "Active Draft",
+    "appliedPreset": "Sonic Character",
+    "loudnessTarget": "Loudness",
+    "truePeak": "True-Peak Ceiling",
+    "exportFormat": "Format",
+    "dspChain": "Modifications:"
   },
   "resume": {
     "title": "Welcome back, {name}!",

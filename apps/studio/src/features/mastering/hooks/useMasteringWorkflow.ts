@@ -605,7 +605,10 @@ export function useMasteringWorkflow(
           parameters_applied: params,
         });
 
-        await updateTrackStatus(currentTrack.id, "completed");
+        await clearTrackDraft(currentTrack.id, true);
+        setCurrentTrack((prev) =>
+          prev ? { ...prev, draft_parameters: null, status: "completed" } : null
+        );
 
         logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
           name: masterName,

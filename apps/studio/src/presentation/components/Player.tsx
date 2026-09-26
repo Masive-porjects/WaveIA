@@ -15,11 +15,17 @@ import { useTranslation } from "@/i18n";
 /** Listening sources for the fair A/B (Original / Referencia / Master). */
 type SourceKind = "original" | "reference" | "mastered";
 
+import { PRESET_INFO } from "@/core/presets";
+
 const PRESET_NAMES: Record<string, string> = {
   universal: "Pulido",
   fuego: "Brutal",
   claridad: "Cristalino",
   cinta: "Vintage",
+  natural: "Crudo",
+  espacial: "Envolvente",
+  cinematico: "Épico",
+  empuje: "Muro",
   calidez: "Cálido",
   espacio: "Espacial",
   club: "Club / EDM",
@@ -731,7 +737,9 @@ export default function Player({
     reference: 0,
   };
 
-  const activePresetName = presetId ? PRESET_NAMES[presetId] || presetId : null;
+  const activePresetName = presetId
+    ? PRESET_INFO[presetId]?.title || PRESET_NAMES[presetId] || presetId
+    : null;
 
   return (
     <div className="rounded-2xl py-2 px-3 overflow-hidden bg-transparent border-none">
