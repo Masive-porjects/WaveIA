@@ -4,8 +4,9 @@
 route them at neutral 0 dB gains onto a stereo mono-compatible bus, write
 ``outputs/{id}_mix.wav`` and serve it. The JSON analysis payload
 (per-stem analysis + full-mix ``tempo_bpm`` / ``genre`` /
-``genre_confidence``) travels in the ``X-Mix-Result`` response header and
-is mirrored on the session (``mix_path`` / ``mix_analysis``). The mix is
+``genre_confidence`` plus the resulting ``mix_status``) travels in the
+``X-Mix-Result`` response header and is mirrored on the session
+(``mix_path`` / ``mix_analysis`` / ``mix_status``). The mix is
 recorded independently of the mastering pipeline: ``mastered_path`` is
 never touched.
 """
@@ -130,6 +131,12 @@ async def mix_session(
     payload. Validated strictly: only ``drums_db | bass_db | other_db |
     vocals_db`` keys inside ±6 dB, otherwise 422. Absent or all-zero
     trims keep the exact previous payload (no ``trim_report`` key).
+
+    ``session.mix_status`` tracks the run: ``processing`` before the heavy
+    pipeline, ``completed`` on success, ``failed`` on error (the previous
+    ``mix_path`` / ``mix_analysis`` survive a failure — they describe the
+    last delivered mix). It is also exposed in the ``X-Mix-Result`` header
+    and by ``GET /session/{id}``, so the client never has to invent it.
     """
     session = sessions.get(session_id)
     if not session:
@@ -175,18 +182,37 @@ async def mix_session(
                 stem_trims=request.stem_trims if request else None,
             )
 
+    # The pipeline is about to run: publish the state BEFORE the heavy work
+    # so a concurrent GET /session/{id} (or the client's own gate) sees
+    # "processing" and never mistakes a running mix for a missing one. The
+    # guards above are request rejections — they leave the state untouched.
+    session.mix_status = "processing"
+    save_sessions(sessions)
+
     try:
         result = await asyncio.get_running_loop().run_in_executor(
             demo_guard.DSP_THREAD_POOL, _run_mix
         )
     except Exception as e:
+        # The mix failed: the live state must say so (the previous
+        # ``mix_path`` / ``mix_analysis``, if any, stay untouched — they
+        # describe the last SUCCESSFUL mix and remain downloadable).
+        session.mix_status = "failed"
+        save_sessions(sessions)
         raise HTTPException(status_code=500, detail=f"Mix failed: {str(e)}") from e
 
-    # The session payload mirrors the header: analysis + full-mix fields.
-    # ``mix_path`` stays a separate field (the file pointer).
-    payload = {key: value for key, value in result.items() if key != "mix_path"}
+    # The session payload mirrors the header: analysis + full-mix fields +
+    # the state this mix reached. ``mix_path`` stays a separate field (the
+    # file pointer) and ``mix_status`` is ALSO a first-class session field,
+    # so the live state survives a later failed re-mix: the stored
+    # ``mix_analysis`` is the snapshot of the last DELIVERED mix.
+    payload = {
+        **{key: value for key, value in result.items() if key != "mix_path"},
+        "mix_status": "completed",
+    }
     session.mix_path = result["mix_path"]
     session.mix_analysis = payload
+    session.mix_status = "completed"
     demo_guard.touch(session_id)
     save_sessions(sessions)
 
@@ -208,7 +234,9 @@ async def get_mix_audio(
     The mix survives backend restarts like any persisted session: this
     GET reads ``session.mix_path`` directly instead of re-running
     ``build_mix``, so the frontend player/download can use a stable URL
-    even after a page reload.
+    even after a page reload. ``X-Mix-Status`` reports the live mix state
+    so a player can tell a delivered mix from a failed one without a
+    second request to ``GET /session/{id}``.
     """
     session = sessions.get(session_id)
     if not session or not session.mix_path or not Path(session.mix_path).exists():
@@ -217,4 +245,5 @@ async def get_mix_audio(
         session.mix_path,
         media_type="audio/wav",
         filename=f"{session_id}_mix.wav",
+        headers={"X-Mix-Status": session.mix_status},
     )
