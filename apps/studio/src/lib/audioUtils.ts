@@ -82,6 +82,23 @@ export function isPresetCompleted(
   return session.preset_masters?.[presetId]?.status === "completed" || Boolean(session.mastered_path);
 }
 
+/* ── Mix Engine state (T2) ─────────────────────────────── */
+
+/**
+ * ``hasMix``: the session holds a DELIVERED mix the master can consume.
+ *
+ * Source of truth is the backend-owned ``session.mix_status`` (T2) — the UI
+ * never infers it from the presence of a local mix blob. Only
+ * ``mix_status === "completed"`` counts: ``processing``/``failed``/absent all
+ * mean "no masterable mix" (the backend rejects ``source=mix`` with a 400 in
+ * those states), so the caller can safely branch on this single boolean.
+ */
+export function hasCompletedMix(
+  session: SessionData | null | undefined,
+): boolean {
+  return session?.mix_status === "completed";
+}
+
 /* ── Client detection helper ──────────────────────────── */
 
 export function useIsClient(): boolean {

@@ -55,6 +55,18 @@ export interface MasteringReport {
   warnings: string[]; // en español neutro latinoamericano
 }
 
+/**
+ * Lifecycle of the Mix Engine output of a session (backend contract, T2).
+ * ``completed`` is the ONLY value that makes ``mix_path`` masterable, so it
+ * is also the client-side meaning of ``hasMix`` (see ``hasCompletedMix``).
+ * Optional here so sessions saved before the field existed keep typing.
+ */
+export type MixStatus = "none" | "processing" | "completed" | "failed";
+
+/** Which audio file a mastering run consumes: the uploaded original or the
+ *  delivered Mix Engine output (``POST /process?source=``). */
+export type MasterSource = "original" | "mix";
+
 export interface SessionData {
   session_id: string;
   status: "uploaded" | "analyzing" | "processing" | "completed" | "error";
@@ -71,6 +83,12 @@ export interface SessionData {
      pointer/analysis pair so the mastering pipeline is never affected. */
   mix_path?: string | null;
   mix_analysis?: MixResult | null;
+  /* Live state of the mix, owned by the backend (T2): ``processing`` while
+     the pipeline runs, ``completed`` when the WAV was delivered, ``failed``
+     on error (the last DELIVERED mix_path survives). Kept out of
+     ``mix_analysis`` because that one is the snapshot of the last SUCCESSFUL
+     mix. Absent = "none" (session predates the field). */
+  mix_status?: MixStatus;
   preset_masters?: Record<
     string,
     {
@@ -202,10 +220,17 @@ export async function processAudio(
   parameters: MasteringParameters,
   signal?: AbortSignal,
   presetId?: string,
+  source?: MasterSource,
 ): Promise<SessionData> {
   const url = new URL(`${API_BASE}/session/${sessionId}/process`);
   if (presetId) {
     url.searchParams.set("preset_id", presetId);
+  }
+  // Explicit source (T2): the client decides WHICH file the run consumes
+  // instead of relying on the backend's smart default. Omitting it keeps the
+  // historic smart resolution (mix only when it is completed and on disk).
+  if (source) {
+    url.searchParams.set("source", source);
   }
   const res = await fetch(url, {
     method: "POST",

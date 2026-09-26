@@ -11,6 +11,7 @@ import AlbumMastering from "@/presentation/components/AlbumMastering";
 import MasteringGuide from "@/presentation/components/MasteringGuide";
 import type { MasteringTab } from "@/presentation/components/dock/types";
 import type { MasteringParameters, SessionData, VocalChainParams, StemSplitResult } from "@/lib/api";
+import { hasCompletedMix } from "@/lib/audioUtils";
 import { useTranslation } from "@/i18n/useTranslation";
 
 interface MasteringCanvasProps {
@@ -31,6 +32,9 @@ interface MasteringCanvasProps {
   onVocalProcess: (p: VocalChainParams) => Promise<void>;
   masteringMode: "manual" | "ai";
   onNavigateTab: (tab: MasteringTab) => void;
+  /** El mix terminó (éxito o fallo): el padre relee la sesión para
+   *  sincronizar `session.mix_status` (T2) → `hasMix`. */
+  onMixSettled?: () => void;
 }
 
 export default function MasteringCanvas({
@@ -51,6 +55,7 @@ export default function MasteringCanvas({
   onVocalProcess,
   masteringMode,
   onNavigateTab,
+  onMixSettled,
 }: MasteringCanvasProps) {
   const { t } = useTranslation();
 
@@ -174,6 +179,9 @@ export default function MasteringCanvas({
             genreHint={session.analysis?.detected_genre ?? null}
             disabled={processing}
             mode={masteringMode}
+            /* Estado de mezcla del backend, no un flag local (T2/T3). */
+            hasMix={hasCompletedMix(session)}
+            onMixSettled={onMixSettled}
             onMasterize={() => onNavigateTab("modules")}
           />
         </div>
