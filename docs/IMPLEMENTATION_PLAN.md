@@ -16,7 +16,7 @@ Este documento establece la hoja de ruta técnica paso a paso para la reorganiza
 4. **Ciclo por Fase**:
    - `git checkout dev` → `git pull origin dev` → `git checkout -b feat/fase-X-...`
    - Implementación + Pruebas locales (`lint`, `build`, `pytest`).
-   - Generación del reporte de fase en `docs/reports/report-fase-X.md`.
+   - Generación del reporte de fase en `docs/evidence/reports/REPORT_FASE_X.md`.
    - Commit semántico → Push de la rama feature → Creación del PR hacia `dev`.
 5. **Reporte Formal de Estado**:
    - Cada fase cerrada debe contar con su reporte documentando el estado actual, archivos impactados, verificaciones técnicas y próximos pasos.

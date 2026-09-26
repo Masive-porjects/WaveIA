@@ -30,5 +30,5 @@ Este documento establece las políticas obligatorias de control de versiones y e
 
 ## 3. Reportes de Fases y Documentación
 1. **Entrega de Reportes por Fase**:
-   - Al finalizar cada fase del roadmap, se debe redactar el reporte detallado correspondiente en `docs/reports/report-fase-X.md`.
+   - Al finalizar cada fase del roadmap, se debe redactar el reporte detallado correspondiente en `docs/evidence/reports/REPORT_FASE_X.md`.
    - El informe debe incluir: Resumen ejecutivo, esquema de base de datos/Supabase, componentes desarrollados, validación de compilación y próximos pasos.
