@@ -70,7 +70,9 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
           );
           return;
         }
-        onFileSelected(file);
+        setTimeout(() => {
+          onFileSelected(file);
+        }, 0);
       }
     },
     [onFileSelected, disabled, onError, t]
@@ -96,7 +98,12 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
           );
           return;
         }
-        onFileSelected(file);
+        // Reset input value so re-selecting same file triggers change
+        e.target.value = "";
+        // Yield to browser main thread so INP (Interaction to Next Paint) completes instantly
+        setTimeout(() => {
+          onFileSelected(file);
+        }, 0);
       }
     },
     [onFileSelected, onError, t]

@@ -42,28 +42,18 @@ function resolvePath(obj: unknown, path: string): string | null {
   return typeof current === "string" ? current : null;
 }
 
-function getInitialLocale(): Locale {
-  if (typeof window === "undefined") return "es";
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_LANG) as Locale | null;
-    if (saved && (saved === "es" || saved === "en")) {
-      return saved;
-    }
-    const browserLang = navigator.language.startsWith("es") ? "es" : "en";
-    return browserLang;
-  } catch {
-    return "es";
-  }
-}
-
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+  // Always initialize with 'es' to guarantee matching SSR and initial client hydration
+  const [locale, setLocaleState] = useState<Locale>("es");
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_LANG) as Locale | null;
       if (saved && (saved === "es" || saved === "en")) {
         setLocaleState(saved);
+      } else if (typeof navigator !== "undefined") {
+        const browserLang = navigator.language.startsWith("es") ? "es" : "en";
+        setLocaleState(browserLang);
       }
     } catch {
       // Ignorar bloqueos de privacidad

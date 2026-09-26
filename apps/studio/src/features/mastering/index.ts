@@ -7,3 +7,4 @@ export { default as MasteringCanvas } from "./components/MasteringCanvas";
 export { default as AnalysisSidebar } from "./components/AnalysisSidebar";
 export { default as MobileMasteringView } from "./components/MobileMasteringView";
 export { default as ConsolidateMasterModal } from "./components/ConsolidateMasterModal";
+export { default as SelectWorkflowModal } from "./components/SelectWorkflowModal";

@@ -7,6 +7,7 @@ import { User as UserIcon, LogOut, ChevronDown, ShieldCheck, Mail, ArrowLeft, Mu
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { GoogleIcon, SpotifyIcon, DiscordIcon, GitHubIcon } from "./SocialIcons";
+import { useIsMounted } from "@/shared/hooks";
 
 interface UserMenuProps {
   onOpenLibrary?: () => void;
@@ -85,6 +86,7 @@ export default function UserMenu({ onOpenLibrary }: UserMenuProps = {}) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isMounted = useIsMounted();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -96,7 +98,7 @@ export default function UserMenu({ onOpenLibrary }: UserMenuProps = {}) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (isLoading) {
+  if (!isMounted || isLoading) {
     return (
       <div className="size-8 rounded-full animate-pulse bg-[var(--surface-hover)] border border-[var(--border-subtle)]" />
     );

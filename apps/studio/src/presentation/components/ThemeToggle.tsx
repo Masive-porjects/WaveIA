@@ -3,30 +3,34 @@
 import { useState, useEffect, useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/i18n/useTranslation";
+import { useIsMounted } from "@/shared/hooks";
 
 const THEME_KEY = "waveai-theme";
 
 export type Theme = "dark" | "light";
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  try {
-    const current = document.documentElement.dataset.theme as Theme | undefined;
-    if (current === "light" || current === "dark") return current;
-    const saved = localStorage.getItem(THEME_KEY) as Theme | null;
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {
-    // Modo incógnito o storage bloqueado
-  }
-  return "dark";
-}
-
 /* ── useThemeMode ────────────────────────────────────────
-   Shared theme state (dark/light). Reads the html[data-theme]
-   attribute that the anti-FOUC script already wrote pre-hydration
-   and persists every change to localStorage. */
+   Shared theme state (dark/light). Initializes to 'dark' for
+   deterministic SSR, then updates to match document.dataset.theme
+   or localStorage in useEffect. */
 export function useThemeMode() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  useEffect(() => {
+    try {
+      const current = document.documentElement.dataset.theme as Theme | undefined;
+      if (current === "light" || current === "dark") {
+        setTheme(current);
+        return;
+      }
+      const saved = localStorage.getItem(THEME_KEY) as Theme | null;
+      if (saved === "light" || saved === "dark") {
+        setTheme(saved);
+      }
+    } catch {
+      // Modo incógnito o storage bloqueado
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -106,8 +110,18 @@ function AISpark({ size = 12 }: { size?: number }) {
 /* ── Toggle ──────────────────────────────────────────── */
 
 export default function ThemeToggle() {
+  const isMounted = useIsMounted();
   const { theme, toggle, isDark } = useThemeMode();
   const { t } = useTranslation();
+
+  if (!isMounted) {
+    return (
+      <div
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-[var(--bg-glass)] border border-[var(--border-subtle)]"
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <button

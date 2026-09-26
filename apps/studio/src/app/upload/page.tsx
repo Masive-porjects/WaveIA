@@ -8,6 +8,7 @@ import {
   useMastering,
   MasteringHeader,
   MasteringOverlays,
+  SelectWorkflowModal,
 } from "@/features/mastering";
 import { UploadView } from "@/features/upload";
 import { LibraryView, ResumeSessionModal } from "@/features/remastering-history";
@@ -25,6 +26,9 @@ export default function UploadPage() {
   const [latestTrack, setLatestTrack] = useState<Track | null>(null);
   const [hasSavedTracks, setHasSavedTracks] = useState(false);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+  const [isNavigatingToStudio, setIsNavigatingToStudio] = useState(false);
+  const [pendingTrackTitle, setPendingTrackTitle] = useState<string>("");
   const hasCheckedLatestRef = useRef(false);
 
   // Check for returning user's latest project without forcing blindly into mastering
@@ -54,20 +58,25 @@ export default function UploadPage() {
   }, [user, workflow.session]);
 
   const handleFileSelected = async (file: File) => {
+    setPendingTrackTitle(file.name.replace(/\.[^/.]+$/, ""));
     await workflow.handleFileSelected(file);
-    router.push("/mezclas");
+    // After audio upload and spectral analysis completes, show the mode choice modal
+    setWorkflowModalOpen(true);
+  };
+
+  const handleConfirmWorkflow = (mode: "manual" | "ai") => {
+    setIsNavigatingToStudio(true);
+    router.push(`/mezclas?mode=${mode}`);
   };
 
   const handleResumeProject = async (track: Track) => {
     setResumeModalOpen(false);
-    await workflow.handleLoadTrackProject(track);
-    router.push(`/mezclas?track=${track.id}`);
+    window.open(`/mezclas?track=${track.id}`, "_blank");
   };
 
   const handleSelectTrackFromLibrary = async (track: Track) => {
     setLibraryOpen(false);
-    await workflow.handleLoadTrackProject(track);
-    router.push(`/mezclas?track=${track.id}`);
+    window.open(`/mezclas?track=${track.id}`, "_blank");
   };
 
   return (
@@ -142,6 +151,15 @@ export default function UploadPage() {
             setResumeModalOpen(false);
             setLibraryOpen(true);
           }}
+        />
+
+        {/* Modal to choose workflow mode (Manual vs AI Assistant) upon new upload */}
+        <SelectWorkflowModal
+          isOpen={workflowModalOpen}
+          trackTitle={pendingTrackTitle}
+          onConfirm={handleConfirmWorkflow}
+          isLoading={isNavigatingToStudio}
+          canDismiss={false}
         />
       </main>
     </LicenseGuard>

@@ -171,7 +171,7 @@ export async function fetchUserTracks(
   }
 
   if (params?.filter === "draft") {
-    query = query.not("draft_parameters", "is", null);
+    query = query.neq("status", "completed");
   } else if (params?.filter === "completed") {
     query = query.eq("status", "completed");
   }
@@ -230,14 +230,23 @@ export async function deleteTrack(
 
   if (masters && masters.length > 0) {
     const masterPaths = masters.map((m: { storage_path: string }) => m.storage_path).filter(Boolean);
-    if (masterPaths.length > 0) {
-      await supabase.storage.from("audio-masters").remove(masterPaths);
+    const originalsPaths = masterPaths
+      .filter((p: string) => p.startsWith("audio-originals:"))
+      .map((p: string) => p.replace("audio-originals:", ""));
+    const directPaths = masterPaths.filter((p: string) => !p.startsWith("audio-originals:"));
+
+    if (originalsPaths.length > 0) {
+      await supabase.storage.from("audio-originals").remove(originalsPaths);
+    }
+    if (directPaths.length > 0) {
+      await supabase.storage.from("audio-masters").remove(directPaths);
     }
   }
 
   // 2. Delete original audio file
   if (storagePath) {
-    await supabase.storage.from("audio-originals").remove([storagePath]);
+    const cleanOrig = storagePath.replace(/^audio-originals:/, "");
+    await supabase.storage.from("audio-originals").remove([cleanOrig]);
   }
 
   // 3. Delete track record (cascades to public.masters)
@@ -344,7 +353,10 @@ export async function clearTrackDraft(
 }
 
 /**
- * Uploads a consolidated master render to the audio-masters bucket in Supabase Storage.
+ * Uploads a consolidated master render to Supabase Storage.
+ * Attempts upload to the audio-masters bucket first.
+ * If that fails (e.g. missing RLS policy or unconfigured bucket), seamlessly
+ * falls back to audio-originals under the user's isolated folder where RLS is already verified.
  */
 export async function uploadMasterAudio(
   userId: string,
@@ -355,19 +367,44 @@ export async function uploadMasterAudio(
   const supabase = createClient();
   const storagePath = `${userId}/${trackId}/master_${Date.now()}.${format}`;
 
-  const { data, error } = await supabase.storage
-    .from("audio-masters")
-    .upload(storagePath, fileOrBlob, {
+  // 1. Primary: Try dedicated audio-masters bucket
+  try {
+    const { data, error } = await supabase.storage
+      .from("audio-masters")
+      .upload(storagePath, fileOrBlob, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: format === "mp3" ? "audio/mpeg" : `audio/${format}`,
+      });
+
+    if (!error && data?.path) {
+      return { storagePath: data.path };
+    }
+
+    console.warn(
+      "[Storage Notice] audio-masters upload failed, attempting fallback to audio-originals:",
+      error?.message
+    );
+  } catch (err) {
+    console.warn("[Storage Notice] audio-masters bucket unavailable, fallback to audio-originals:", err);
+  }
+
+  // 2. Resilient Fallback: audio-originals under user folder to bypass missing audio-masters RLS
+  const fallbackPath = `${userId}/masters/${trackId}_master_${Date.now()}.${format}`;
+  const { data: fallbackData, error: fallbackError } = await supabase.storage
+    .from("audio-originals")
+    .upload(fallbackPath, fileOrBlob, {
       cacheControl: "3600",
       upsert: true,
       contentType: format === "mp3" ? "audio/mpeg" : `audio/${format}`,
     });
 
-  if (error) {
-    throw new Error(`Error uploading master to Supabase Storage: ${error.message}`);
+  if (fallbackError) {
+    throw new Error(`Error uploading master to Supabase Storage: ${fallbackError.message}`);
   }
 
-  return { storagePath: data.path };
+  // Store with prefix so getMasterSignedUrl knows which bucket to read
+  return { storagePath: `audio-originals:${fallbackData.path}` };
 }
 
 /**
@@ -409,17 +446,41 @@ export async function createMasterRecord(
 
 /**
  * Generates a signed URL to stream or download a consolidated master.
+ * Handles paths residing in either audio-masters or fallback audio-originals.
  */
 export async function getMasterSignedUrl(
   storagePath: string,
   expiresInSeconds = 3600
 ): Promise<string> {
   const supabase = createClient();
+
+  // If path was saved in fallback audio-originals
+  if (storagePath.startsWith("audio-originals:")) {
+    const cleanPath = storagePath.replace(/^audio-originals:/, "");
+    const { data, error } = await supabase.storage
+      .from("audio-originals")
+      .createSignedUrl(cleanPath, expiresInSeconds);
+
+    if (error || !data?.signedUrl) {
+      throw new Error(`Error generating signed master URL: ${error?.message || "Unknown"}`);
+    }
+    return data.signedUrl;
+  }
+
+  // Primary: audio-masters
   const { data, error } = await supabase.storage
     .from("audio-masters")
     .createSignedUrl(storagePath, expiresInSeconds);
 
   if (error || !data?.signedUrl) {
+    // Also try audio-originals as a safety fallback
+    const fallback = await supabase.storage
+      .from("audio-originals")
+      .createSignedUrl(storagePath, expiresInSeconds);
+
+    if (fallback.data?.signedUrl) {
+      return fallback.data.signedUrl;
+    }
     throw new Error(`Error generating signed master URL: ${error?.message || "Unknown"}`);
   }
 

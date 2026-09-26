@@ -3,6 +3,7 @@
 import React, { useCallback, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation, type Locale } from "@/i18n/useTranslation";
+import { useIsMounted } from "@/shared/hooks";
 
 interface LanguageSwitcherProps {
   className?: string;
@@ -139,12 +140,22 @@ function FlagGlobeIcon({ locale, size = 19 }: { locale: Locale; size?: number })
 export default function LanguageSwitcher({
   className = "",
 }: LanguageSwitcherProps) {
+  const isMounted = useIsMounted();
   const { locale, setLocale, isEs } = useTranslation();
 
   const toggleLanguage = useCallback(() => {
     const next: Locale = isEs ? "en" : "es";
     setLocale(next);
   }, [isEs, setLocale]);
+
+  if (!isMounted) {
+    return (
+      <div
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-[var(--bg-glass)] border border-[var(--border-subtle)] ${className}`}
+        aria-hidden="true"
+      />
+    );
+  }
 
   const label = isEs
     ? "Cambiar a idioma inglés (EN)"

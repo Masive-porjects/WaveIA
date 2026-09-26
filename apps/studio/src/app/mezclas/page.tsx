@@ -18,7 +18,7 @@ import { useIsMobile } from "@/shared/useIsMobile";
 import { isPresetCompleted } from "@/lib/audioUtils";
 import { getAudioUrl } from "@/lib/api";
 import { useTranslation } from "@/i18n";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, AlertCircle, X } from "lucide-react";
 import {
   useMastering,
   MasteringHeader,
@@ -27,6 +27,7 @@ import {
   AnalysisSidebar,
   MobileMasteringView,
   ConsolidateMasterModal,
+  SelectWorkflowModal,
 } from "@/features/mastering";
 import { LibraryView } from "@/features/remastering-history";
 import { fetchUserTracks, renameTrackDraft, getUserTracksCount, type Track } from "@/features/tracks";
@@ -50,6 +51,7 @@ function MezclasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const trackIdParam = searchParams.get("track");
+  const modeParam = searchParams.get("mode");
   const isMobile = useIsMobile();
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -62,7 +64,14 @@ function MezclasContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [consolidateModalOpen, setConsolidateModalOpen] = useState(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const [hasSavedTracks, setHasSavedTracks] = useState(true);
+
+  useEffect(() => {
+    if (modeParam === "manual" || modeParam === "ai") {
+      setMasteringMode(modeParam);
+    }
+  }, [modeParam]);
 
   useEffect(() => {
     if (user?.id) {
@@ -177,6 +186,7 @@ function MezclasContent() {
           onConsolidate={() => setConsolidateModalOpen(true)}
           draftName={workflow.currentTrack?.draft_name || workflow.currentTrack?.active_preset || "Mezcla Principal"}
           hasSavedTracks={Boolean(workflow.currentTrack || hasSavedTracks)}
+          onOpenWorkflowModal={() => setWorkflowModalOpen(true)}
           onRenameDraft={async (newName) => {
             if (workflow.currentTrack) {
               try {
@@ -388,14 +398,25 @@ function MezclasContent() {
                         {workflow.error && (
                           <motion.div className="mb-4" {...fadeUp(0)}>
                             <div
-                              className="p-4 rounded-2xl text-sm"
+                              className="p-4 rounded-2xl text-xs sm:text-sm flex items-center justify-between gap-3 shadow-lg"
                               style={{
-                                background: "rgba(220, 38, 38, 0.08)",
-                                border: "1px solid rgba(220, 38, 38, 0.2)",
+                                background: "rgba(220, 38, 38, 0.12)",
+                                border: "1px solid rgba(220, 38, 38, 0.28)",
                                 color: "var(--accent-error)",
                               }}
                             >
-                              {workflow.error}
+                              <div className="flex items-center gap-2.5">
+                                <AlertCircle size={17} className="shrink-0 text-red-400" />
+                                <span>{workflow.error}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => workflow.setError(null)}
+                                className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+                                aria-label={t("common.close", "Cerrar")}
+                              >
+                                <X size={15} />
+                              </button>
                             </div>
                           </motion.div>
                         )}
@@ -512,10 +533,9 @@ function MezclasContent() {
           isOpen={libraryOpen}
           onClose={() => setLibraryOpen(false)}
           currentTrackId={workflow.currentTrack?.id}
-          onSelectTrack={async (track) => {
+          onSelectTrack={(track) => {
             setLibraryOpen(false);
-            await workflow.handleLoadTrackProject(track);
-            router.push(`/mezclas?track=${track.id}`);
+            window.open(`/mezclas?track=${track.id}`, "_blank");
           }}
           onTracksCountChange={(count) => setHasSavedTracks(count > 0 || Boolean(workflow.currentTrack))}
           onNewUpload={handleHomeClick}
@@ -530,6 +550,18 @@ function MezclasContent() {
           activePresetId={workflow.activePresetId}
           isConsolidating={workflow.isConsolidating}
           onConfirm={workflow.handleConsolidateMaster}
+        />
+
+        {/* Workflow Mode Explanation & Selector Modal */}
+        <SelectWorkflowModal
+          isOpen={workflowModalOpen}
+          trackTitle={workflow.currentTrack?.title}
+          onConfirm={(mode) => {
+            setMasteringMode(mode);
+            setWorkflowModalOpen(false);
+          }}
+          onClose={() => setWorkflowModalOpen(false)}
+          canDismiss={true}
         />
       </main>
     </LicenseGuard>

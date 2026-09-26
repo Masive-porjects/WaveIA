@@ -194,7 +194,9 @@ export default function ResumeSessionModal({
                   <span>•</span>
                 </>
               ) : null}
-              <span className="text-[var(--text-muted)]">{formatDate(track.updated_at)}</span>
+              <span className="text-[var(--text-muted)]" suppressHydrationWarning>
+                {formatDate(track.updated_at)}
+              </span>
             </div>
           </div>
 

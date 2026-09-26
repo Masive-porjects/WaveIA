@@ -41,6 +41,7 @@ interface MasteringHeaderProps {
   draftName?: string | null;
   onRenameDraft?: (newName: string) => void;
   hasSavedTracks?: boolean;
+  onOpenWorkflowModal?: () => void;
 }
 
 export default function MasteringHeader({
@@ -60,6 +61,7 @@ export default function MasteringHeader({
   draftName,
   onRenameDraft,
   hasSavedTracks = false,
+  onOpenWorkflowModal,
 }: MasteringHeaderProps) {
   const { t } = useTranslation();
   const [isEditingDraftName, setIsEditingDraftName] = useState(false);
@@ -180,102 +182,24 @@ export default function MasteringHeader({
             )}
           </motion.div>
         )}
+        {/* Workflow Mode Badge */}
+        {currentView === "mastering" && onOpenWorkflowModal && (
+          <button
+            type="button"
+            onClick={onOpenWorkflowModal}
+            title={t("workflow.modeTooltip", "Clic para ver detalles del flujo actual")}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer select-none"
+          >
+            <SlidersHorizontal size={12} className="text-[var(--accent-primary)]" />
+            <span className="font-semibold text-[11px]">{t("workflow.manualModeLabel", "Modo Manual")}</span>
+            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-bold">
+              {t("workflow.fullControlShort", "Control Total")}
+            </span>
+          </button>
+        )}
       </div>
 
-      {currentView === "mastering" && (
-        <div
-          className="z-10 flex shrink-0 items-center gap-1 rounded-2xl border p-1.5 shadow-[var(--shadow-card)] backdrop-blur-2xl lg:absolute lg:left-1/2 lg:-translate-x-1/2"
-          style={{
-            background: "var(--bg-glass-elevated)",
-            borderColor: "var(--border-strong)",
-          }}
-          role="group"
-          aria-label={t("nav.masteringModeAria", "Elige cómo quieres masterizar")}
-        >
-          {([
-            {
-              id: "manual",
-              label: t("nav.manualMode", "Manual"),
-              description: t("nav.manualDesc", "Control total"),
-              icon: SlidersHorizontal,
-            },
-            {
-              id: "ai",
-              label: t("nav.aiMode", "Asistente IA"),
-              description: t("nav.aiDesc", "Recomendaciones"),
-              icon: Sparkles,
-            },
-          ] as const).map(({ id, label, description, icon: Icon }) => {
-            const active = masteringMode === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setMasteringMode(id);
-                  if (id === "ai") onClearSheet?.();
-                }}
-                className="group relative flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-[border-color,color] duration-300 md:min-w-36 lg:min-w-44 lg:px-4"
-                style={{
-                  background: active ? "transparent" : "var(--surface-hover)",
-                  borderColor: active ? "var(--accent-primary)" : "transparent",
-                  color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                  boxShadow: active ? "none" : "inset 0 1px 0 rgba(255,255,255,0.04)",
-                }}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="mastering-mode-pill"
-                    aria-hidden
-                    className="absolute inset-0 -z-10 rounded-xl"
-                    style={{
-                      background:
-                        "color-mix(in srgb, var(--accent-primary) 22%, var(--bg-elevated))",
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,0.14), 0 0 20px rgba(98,126,132,0.2)",
-                    }}
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  />
-                )}
-
-                <span
-                  className="flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-300"
-                  style={{
-                    background: active ? "var(--accent-primary)" : "var(--surface-active)",
-                    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                  }}
-                >
-                  <Icon size={15} strokeWidth={2} aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block whitespace-nowrap text-xs font-semibold tracking-tight lg:text-sm">
-                    {id === "ai" ? (
-                      <>
-                        <span className="md:hidden">IA</span>
-                        <span className="hidden md:inline">{label}</span>
-                      </>
-                    ) : (
-                      label
-                    )}
-                  </span>
-                  <span className="mt-0.5 hidden whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)] lg:block">
-                    {description}
-                  </span>
-                </span>
-                {active && (
-                  <span
-                    className="absolute right-2 top-2 size-1.5 rounded-full bg-[var(--accent-secondary)] shadow-[0_0_8px_rgba(130,156,161,0.8)]"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {currentView === "mastering" && onConsolidate && (
           <button
             type="button"
