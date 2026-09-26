@@ -141,23 +141,29 @@ export function useMasteringWorkflow(
     wasProcessingRef.current = processing;
   }, [processing, session?.mastered_path]);
 
-  // Persist session only for anonymous temporary sessions
+  // Persist session association across page reloads
   useEffect(() => {
-    if (!user && session?.session_id) {
-      localStorage.setItem("waveai-session", session.session_id);
-    } else if (user) {
-      localStorage.removeItem("waveai-session");
+    if (typeof window === "undefined") return;
+    if (session?.session_id) {
+      const trackId = currentTrack?.id || currentTrackIdRef.current;
+      if (trackId) {
+        sessionStorage.setItem(`waveai-track-session-${trackId}`, session.session_id);
+        localStorage.setItem(`waveai-track-session-${trackId}`, session.session_id);
+      }
+      sessionStorage.setItem("waveai-active-session", session.session_id);
+      if (!user) {
+        localStorage.setItem("waveai-session", session.session_id);
+      }
     }
-  }, [session?.session_id, user]);
+  }, [session?.session_id, currentTrack?.id, user]);
 
-  // Restore saved session on mount ONLY for unauthenticated guest users
+  // Restore saved session on mount for guest users or fallback active session
   useEffect(() => {
-    if (user) {
-      localStorage.removeItem("waveai-session");
-      return;
-    }
-    const savedId = localStorage.getItem("waveai-session");
-    if (!savedId || session) return;
+    if (typeof window === "undefined" || session) return;
+    if (user) return; // Authenticated users restore via handleLoadTrackProject
+
+    const savedId = localStorage.getItem("waveai-session") || sessionStorage.getItem("waveai-active-session");
+    if (!savedId) return;
     getSession(savedId)
       .then((s) => {
         setSession(s);
@@ -165,6 +171,7 @@ export function useMasteringWorkflow(
       })
       .catch(() => {
         localStorage.removeItem("waveai-session");
+        sessionStorage.removeItem("waveai-active-session");
       });
   }, [onSessionLoaded, session, user]);
 
@@ -223,6 +230,10 @@ export function useMasteringWorkflow(
       try {
         const result = await uploadAudio(file, setUploadProgress);
         setUploadBurst((n) => n + 1);
+        if (currentTrackIdRef.current && typeof window !== "undefined") {
+          sessionStorage.setItem(`waveai-track-session-${currentTrackIdRef.current}`, result.session_id);
+          localStorage.setItem(`waveai-track-session-${currentTrackIdRef.current}`, result.session_id);
+        }
         setSession(result);
         onSessionLoaded?.(result);
         presetCacheRef.current.clear();
@@ -479,7 +490,10 @@ export function useMasteringWorkflow(
   const handleBackToUpload = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    localStorage.removeItem("waveai-session");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("waveai-session");
+      sessionStorage.removeItem("waveai-active-session");
+    }
     setSession(null);
     setCurrentTrack(null);
     currentTrackIdRef.current = null;
@@ -677,6 +691,54 @@ export function useMasteringWorkflow(
         setParams(restoredParams);
         setActivePresetId(track.active_preset ?? null);
 
+        // Check if an existing session in AudioMind is still alive and ready (prevents redundant DSP on reload)
+        const cachedSessionId =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem(`waveai-track-session-${track.id}`) ||
+              localStorage.getItem(`waveai-track-session-${track.id}`)
+            : null;
+
+        if (cachedSessionId) {
+          try {
+            const existing = await getSession(cachedSessionId);
+            if (existing && existing.status === "completed" && existing.mastered_path) {
+              setSession(existing);
+              onSessionLoaded?.(existing);
+              setLoading(false);
+              setIsLoadingTrackProject(false);
+              return;
+            } else if (existing && existing.analysis) {
+              setSession(existing);
+              const targetParams: MasteringParameters = hasCustomDraft
+                ? restoredParams
+                : (existing.analysis?.detected_genre ? genreToParams(existing.analysis.detected_genre) : DEFAULT_PARAMS);
+              setParams(targetParams);
+              setLoading(false);
+              setProcessing(true);
+
+              const controller = new AbortController();
+              abortRef.current = controller;
+              const processed = await processAudio(
+                existing.session_id,
+                targetParams,
+                controller.signal,
+                track.active_preset ?? undefined,
+              );
+              completeProgress();
+              setSession(processed);
+              onSessionLoaded?.(processed);
+              setIsLoadingTrackProject(false);
+              return;
+            }
+          } catch (cachedErr) {
+            console.warn("[Project Restore] Cached audio engine session expired or unavailable:", cachedErr);
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem(`waveai-track-session-${track.id}`);
+              localStorage.removeItem(`waveai-track-session-${track.id}`);
+            }
+          }
+        }
+
         // 2. Get signed URL for original audio from Supabase
         const signedUrl = await getOriginalSignedUrl(track.storage_path);
         const res = await fetch(signedUrl);
@@ -688,6 +750,10 @@ export function useMasteringWorkflow(
 
         // 3. Upload to AudioMind engine
         const sessionResult = await uploadAudio(file, setUploadProgress);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(`waveai-track-session-${track.id}`, sessionResult.session_id);
+          localStorage.setItem(`waveai-track-session-${track.id}`, sessionResult.session_id);
+        }
         setSession(sessionResult);
         onSessionLoaded?.(sessionResult);
 
