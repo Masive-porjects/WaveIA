@@ -72,6 +72,18 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 | [`DEMO_FEASIBILITY.md`](evidence/DEMO_FEASIBILITY.md) | Factibilidad de la demo (incluye el rastro de HumanMidi y la recomendación de remoción) | Evidencia |
 | `evidence/*.json` | Mediciones crudas: `benchmark_staircase_report.json`, `validate_duration_report.json` | Evidencia |
 
+### `docs/reports/` — REPORTES DE FASE (avances formales)
+
+| Documento | Para qué sirve | Estado |
+|---|---|---|
+| [`implementation-plan.md`](implementation-plan.md) | Roadmap y plan de implementación macro por fases | **Vigente** |
+| [`reports/report-fase-0.md`](reports/report-fase-0.md) | Informe de Fase 0: Erradicación de Convex y gobierno técnico | Entregado |
+| [`reports/report-fase-1.md`](reports/report-fase-1.md) | Informe de Fase 1: Arquitectura limpia por features y modularidad | Entregado |
+| [`reports/report-fase-2.md`](reports/report-fase-2.md) | Informe de Fase 2: Navegación desacoplada y Composition Root | Entregado |
+| [`reports/report-fase-3.md`](reports/report-fase-3.md) | Informe de Fase 3: Sistema multiidioma i18n extensible | Entregado |
+| [`reports/report-fase-4.md`](reports/report-fase-4.md) | Informe de Fase 4: Autenticación con Supabase Auth y RBAC | Entregado |
+| [`reports/report-fase-5.md`](reports/report-fase-5.md) | Informe de Fase 5: Persistencia 1:N, drafts y consolidación de masters | Entregado |
+
 ### `docs/archive/` — HISTÓRICO (contexto, no operativo)
 
 | Documento | Para qué sirve | Estado |
@@ -90,11 +102,14 @@ Audio → AudioMind (FastAPI) → Master → Studio Live Engine (Web Audio) → 
 |---|---|
 | ¿Cómo levanto el entorno? | `docs/runbooks/SETUP.md` |
 | ¿Cómo despliego la demo? | `docs/runbooks/DEPLOY_RUNBOOK.md` (plan: `DEMO_DEPLOYMENT_PLAN.md`, LOCKED) |
+| ¿Plan de implementación y fases? | `docs/implementation-plan.md` |
+| ¿Reportes técnicos de fases de desarrollo? | `docs/reports/` |
+| ¿Lineamientos normativos para agentes de IA? | `.agents/rules/` y `AGENTS.md` (raíz) |
 | ¿Valores exactos de presets, rangos y endpoints? | `docs/reference/specs/08_implementacion_llm.md` |
 | ¿Cómo funciona el backend DSP? | `docs/reference/specs/03_waveai_backend_mastering.md` + `docs/reference/DSP_INDUSTRY_REVIEW.md` |
 | ¿Cómo se ve y se comporta la UI? | `docs/reference/DESIGN.md` + `docs/reference/specs/04_waveai_sistema_diseno.md` |
 | ¿Cómo funciona el Live Engine? | `docs/reference/specs/05_live_engine_gestos_a_master.md` |
-| ¿Qué reglas son no negociables al escribir código? | `AGENTS.md` (raíz) |
+| ¿Qué reglas son no negociables al escribir código? | `AGENTS.md` (raíz) y `.agents/rules/` |
 | ¿Cambio el protocolo Live? | `packages/contracts/live_params.schema.json` (fuente de verdad); regenera tipos con `packages/contracts/scripts/gen_types.sh` |
 | ¿Qué ve el usuario final? | `docs/manual/USER_MANUAL.md` + `docs/manual/UX_MAP.md` |
 | ¿Métricas y validaciones de la demo? | `docs/evidence/` |
