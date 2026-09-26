@@ -171,7 +171,7 @@ export async function fetchUserTracks(
   }
 
   if (params?.filter === "draft") {
-    query = query.not("draft_parameters", "is", null);
+    query = query.neq("status", "completed");
   } else if (params?.filter === "completed") {
     query = query.eq("status", "completed");
   }

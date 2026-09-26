@@ -467,7 +467,11 @@ export default function LibraryView({
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent-primary)]/15 hover:bg-[var(--accent-primary)]/25 border border-[var(--accent-primary)]/30 text-xs font-semibold text-[var(--accent-primary)] hover:text-white transition-all cursor-pointer"
                           >
                             <Sliders size={13} />
-                            <span>{t("library.openInStudio", "Abrir")}</span>
+                            <span>
+                              {isMastered
+                                ? t("library.openInStudio", "Abrir")
+                                : t("library.continueDraft", "Continuar")}
+                            </span>
                             <ArrowRight size={12} />
                           </button>
                         )}

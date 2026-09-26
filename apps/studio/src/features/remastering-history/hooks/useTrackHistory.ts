@@ -57,8 +57,20 @@ export function useTrackHistory({
         search: debouncedSearch.trim() || undefined,
         filter,
       });
-      setTracks(res.items);
-      setTotalCount(res.totalCount);
+
+      let items = res.items;
+      if (filter === "draft") {
+        items = items.filter(
+          (t) => t.status !== "completed" && (!t.masters || t.masters.length === 0)
+        );
+      } else if (filter === "completed") {
+        items = items.filter(
+          (t) => t.status === "completed" || Boolean(t.masters && t.masters.length > 0)
+        );
+      }
+
+      setTracks(items);
+      setTotalCount(filter === "all" ? res.totalCount : items.length);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error al cargar el historial";
       setError(msg);
