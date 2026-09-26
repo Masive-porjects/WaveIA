@@ -1015,6 +1015,11 @@ async def reset_session_master(session_id: str) -> SessionData:
     stay on disk, untracked by the session — a later preset selection
     re-masters normally. The uploaded original and its analysis are
     untouched.
+
+    ``vocal_path`` is cleared for the same reason: the processed vocal is a
+    stem artifact tracked on its own pointer, and a reset drops every derived
+    output pointer so the client stops advertising a vocal it is not using.
+    The rendered WAV stays on disk, untracked, exactly like the masters.
     """
     session = sessions.get(session_id)
     if not session:
@@ -1028,6 +1033,7 @@ async def reset_session_master(session_id: str) -> SessionData:
     session.reference_filename = None
     session.reference_comparison = None
     session.preset_masters = {}
+    session.vocal_path = None
     session.status = ProcessingStatus.UPLOADED
     session.progress = 0.0
     session.error = None

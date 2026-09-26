@@ -755,6 +755,13 @@ class SessionData(BaseModel):
             "full-mix tempo_bpm / genre / genre_confidence."
         ),
     )
+    # Vocal Chain (VoiceChain Pro) output pointer. The processed vocal is a
+    # STEM artifact, never a master: it keeps its own field so ``POST /vocal``
+    # can never overwrite ``mastered_path`` (which ``/audio/mastered``,
+    # ``/raw-mastered``, ``/download`` and the reference comparison all read
+    # as "the master"). Same pattern as ``mix_path``: an additive optional
+    # pointer, so sessions persisted before the field existed load unchanged.
+    vocal_path: str | None = None
 
 
 class BeatData(BaseModel):
