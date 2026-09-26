@@ -437,7 +437,14 @@
     "manualTweakNote": "Manual adjustment — applies when platform is Automatic or Custom."
   },
   "mezcla": {
-    "loadAudioPrompt": "Upload an audio file to use Audio Mix."
+    "loadAudioPrompt": "Upload an audio file to use Audio Mix.",
+    "mixedSideLabel": "Mixed audio (final)",
+    "originalSideLabel": "Original (raw)",
+    "mixedAudioBadge": "Mixed audio",
+    "gateProcessingNotice": "Finish your mix before mastering.",
+    "gateFailedNotice": "Your mix failed. Retry the mix to continue to the master.",
+    "gateProcessingCta": "Go to mix",
+    "gateFailedCta": "Retry mix"
   },
   "vocal": {
     "title": "VoiceChain",

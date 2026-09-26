@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from typing import NamedTuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
@@ -22,6 +23,7 @@ from audiomind.models.audio import (
     MasteringParameters,
     MasteringReport,
     MasterResultMetrics,
+    MasterSource,
     PresetMasterEntry,
     ProcessingStatus,
     ReferenceComparison,
@@ -219,6 +221,72 @@ class StatelessMasterRequest(BaseModel):
     settings: MasteringParameters
 
 
+class MasterInput(NamedTuple):
+    """The single audio file one ``/process`` run must consume.
+
+    ``source`` is the resolved decision (``original`` | ``mix``) and
+    ``input_path`` the file it points at. Every step of the run — the
+    existence check, ``analyze_audio`` and the engine's ``input_path`` —
+    reads this, so the delivered master always comes from the SELECTED
+    input (feature ``odd/tasks/mix-master-flow.md``).
+    """
+
+    source: MasterSource
+    input_path: str
+
+
+def _resolve_master_input(
+    session: SessionData, source: MasterSource | None
+) -> MasterInput:
+    """Resolve which file ``/process`` must master for this session.
+
+    ``source=None`` (the default) is the SMART resolution: the mix wins
+    only when it is genuinely deliverable — ``mix_status == "completed"``
+    AND its file is on disk — otherwise the uploaded original. Any
+    client that does not know about mixes (older builds) therefore keeps
+    the historic behavior.
+
+    An explicit ``source="mix"`` on a session that never completed a mix
+    is a REQUEST error (400) with the real state in the message, not a
+    silent fallback to the original: asking for the mix and getting the
+    original back would be a lie.
+    """
+    if source is None:
+        resolved: MasterSource = "original"
+        if (
+            session.mix_status == "completed"
+            and session.mix_path
+            and Path(session.mix_path).exists()
+        ):
+            resolved = "mix"
+    else:
+        resolved = source
+        if resolved == "mix" and session.mix_status != "completed":
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"source='mix' requires a completed mix, but mix_status="
+                    f"'{session.mix_status}'. Run POST /session/{{id}}/mix "
+                    "first and wait for mix_status='completed'."
+                ),
+            )
+
+    if resolved == "mix":
+        # A ``completed`` mix whose file vanished (cleaned volume, manual
+        # delete) is not deliverable: refuse instead of 500ing inside DSP.
+        if not session.mix_path or not Path(session.mix_path).exists():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "source='mix' but the mix file is missing on disk "
+                    f"(mix_status='{session.mix_status}'). Re-run the mix."
+                ),
+            )
+        return MasterInput(source="mix", input_path=str(session.mix_path))
+
+    return MasterInput(source="original", input_path=str(session.original_path or ""))
+
+
 def _master_result_from_engine(result: dict[str, Any]) -> MasterResultMetrics:
     """Map the engine result dict onto the response model.
 
@@ -343,6 +411,8 @@ def _retry_once_on_lufs_miss(
     output_path: Path,
     preset_entry: dict[str, Any],
     progress_cb: Callable[[float], None],
+    master_input: MasterInput,
+    analysis: AnalysisResult | None,
 ) -> tuple[dict[str, Any], bool]:
     """Single bounded auto-retry at reduced engine intensity.
 
@@ -350,13 +420,16 @@ def _retry_once_on_lufs_miss(
     a sibling temp file (attempt 1 stays restorable) and the attempt
     closest to the preset LUFS target wins. Hard cap: ONE retry.
     Returns ``(final_result, retried)``.
+
+    The retry re-reads the SAME selected input (and the same analysis) as
+    the first attempt, so a mix master never falls back to the original.
     """
     target_lufs = preset_entry.get("target_lufs")
     if target_lufs is None:
         return result, False
 
     first_verdict = validate_master(
-        _master_result_from_engine(result), preset_entry, session.analysis
+        _master_result_from_engine(result), preset_entry, analysis
     )
     if not any(
         issue["metric"] == "lufs" for issue in (first_verdict or {}).get("issues", [])
@@ -367,10 +440,10 @@ def _retry_once_on_lufs_miss(
     retry_output = output_path.with_name(f"{output_path.stem}_retry.wav")
     try:
         retry_result = process_audio(
-            input_path=session.original_path,
+            input_path=master_input.input_path,
             output_path=retry_output,
             params=params,
-            analysis_result=session.analysis,
+            analysis_result=analysis,
             intensity_multiplier=_BASE_INTENSITY_MULTIPLIER * _RETRY_INTENSITY_SCALE,
             progress_cb=progress_cb,
         )
@@ -394,6 +467,8 @@ async def _process_preset_on_demand(
     session_id: str,
     params: MasteringParameters,
     preset_id: str,
+    master_input: MasterInput,
+    analysis: AnalysisResult | None,
 ) -> SessionData:
     """Run (or join) the single-flighted heavy DSP job for one preset.
 
@@ -402,7 +477,9 @@ async def _process_preset_on_demand(
     * CASE 1 — nothing recorded yet: create the flight Future, submit the
       job to the gated pool, await it.
     * CASE 2 — preset already completed with an existing file: return the
-      session state for that preset. NO DSP.
+      session state for that preset. NO DSP. Only valid for the ORIGINAL
+      source: that cache holds masters of the uploaded track, so a mix
+      master always runs the engine (see ``master_input``).
     * CASE 3 — flight in progress for (session, preset): await the SAME
       Future; never a second heavy pipeline.
     * CASE 4 — flight in progress for a DIFFERENT preset: the new job
@@ -417,7 +494,8 @@ async def _process_preset_on_demand(
     # CASE 2 — already-mastered preset with a file on disk: serve it.
     entry = session.preset_masters.get(preset_id)
     if (
-        entry is not None
+        master_input.source == "original"
+        and entry is not None
         and entry.status == "completed"
         and entry.output_path
         and Path(entry.output_path).exists()
@@ -442,6 +520,8 @@ async def _process_preset_on_demand(
                 params=params,
                 preset_id=preset_id,
                 output_path=output_path,
+                master_input=master_input,
+                analysis=analysis,
             )
 
     # CASE 1 / CASE 3 — create or join the shared flight future.
@@ -467,21 +547,29 @@ def _run_preset_job(
     params: MasteringParameters,
     preset_id: str,
     output_path: Path,
+    master_input: MasterInput,
+    analysis: AnalysisResult | None,
 ) -> None:
     """Heavy DSP + bookkeeping for one preset (runs in a gated pool thread).
 
     Analysis is produced here when the upload-time background analysis is
     missing (the engine tolerates ``analysis_result=None`` with safe
-    defaults, mirroring the legacy /process path).
+    defaults, mirroring the legacy /process path). ``master_input`` decides
+    WHICH file is read and analyzed, so the preset master is always a
+    master of the selected source.
     """
     # Meter: this is the ONLY place the heavy pipeline runs, so the count
     # is the authoritative "DSP executions" evidence for demo validation.
     demo_guard.record_dsp_execution()
-    if session.analysis is None and session.status != ProcessingStatus.ANALYZING:
+    if analysis is None and session.status != ProcessingStatus.ANALYZING:
         try:
-            analysis = analyze_audio(session.original_path)
+            analysis = analyze_audio(master_input.input_path)
             if analysis is not None:
-                session.analysis = analysis
+                # ``session.analysis`` describes the UPLOADED original and is
+                # read by compare-reference / validation / metrics: a mix
+                # master never overwrites it.
+                if master_input.source == "original":
+                    session.analysis = analysis
         except Exception:
             pass  # analysis is optional; the engine handles None safely
 
@@ -500,10 +588,10 @@ def _run_preset_job(
 
     try:
         result = process_audio(
-            input_path=session.original_path,
+            input_path=master_input.input_path,
             output_path=output_path,
             params=params,
-            analysis_result=session.analysis,
+            analysis_result=analysis,
             progress_cb=update_progress,
         )
 
@@ -519,6 +607,8 @@ def _run_preset_job(
                 output_path=output_path,
                 preset_entry=preset_entry,
                 progress_cb=update_progress,
+                master_input=master_input,
+                analysis=analysis,
             )
         except Exception:
             retried = False
@@ -527,7 +617,7 @@ def _run_preset_job(
         validation: ValidationReport | None = None
         try:
             verdict = validate_master(
-                master_result, preset_entry, session.analysis
+                master_result, preset_entry, analysis
             )
             if verdict is not None:
                 if retried:
@@ -581,6 +671,14 @@ async def process_session(
     session_id: str,
     params: MasteringParameters,
     preset_id: str | None = Query(default=None, description="Preset ID for pre-built lookup"),
+    source: MasterSource | None = Query(
+        default=None,
+        description=(
+            "Which audio file to master: 'original' (uploaded track) or "
+            "'mix' (Mix Engine output). Omitted = smart: 'mix' when the mix "
+            "is completed and on disk, else 'original'."
+        ),
+    ),
     _: object = Depends(require_license),
 ) -> SessionData:
     """Process a session with the given mastering parameters.
@@ -589,12 +687,32 @@ async def process_session(
     uploaded track + preset, the cached WAV is served directly — no DSP
     pipeline runs. This makes the demo feel instant (~1–2s instead of
     ~44s for a 3-min track).
+
+    ``source`` selects the file the whole chain consumes (existence check,
+    analysis and DSP input), so the Mix → Master flow can master the
+    delivered mix instead of always the upload:
+
+    * omitted → smart default: the mix only when it is ``completed`` and
+      its file exists, otherwise the original (unchanged for clients that
+      never mix);
+    * ``source=mix`` without a completed mix → 400 naming the real state
+      (never a silent fallback to the original);
+    * ``source=original`` → the historic behavior, bit-for-bit.
+
+    The pre-built / pre-render caches hold masters of the UPLOADED track,
+    so they are shortcuts for the original source only; a mix master
+    always runs the engine. Response shape is unchanged.
     """
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    if not session.original_path or not Path(session.original_path).exists():
+    # Which file this run consumes (raises 400 on source=mix without a
+    # completed mix) — resolved before ANY read so the existence check,
+    # the analysis and the engine all agree.
+    master_input = _resolve_master_input(session, source)
+
+    if not master_input.input_path or not Path(master_input.input_path).exists():
         raise HTTPException(
             status_code=400, detail="No audio file found for this session"
         )
@@ -613,18 +731,39 @@ async def process_session(
             ),
         )
 
+    # Analysis of the SELECTED input. ``session.analysis`` always describes
+    # the UPLOADED original (compare-reference, validation and metrics read
+    # it), so a mix run analyzes the mix into a LOCAL and leaves the session
+    # field untouched. The original flow below is unchanged: it only fills
+    # ``session.analysis`` when it is missing.
+    selected_analysis: AnalysisResult | None = session.analysis
+    if master_input.source == "mix":
+        try:
+            selected_analysis = await asyncio.get_running_loop().run_in_executor(
+                _dsp_executor, analyze_audio, master_input.input_path
+            )
+        except Exception as e:
+            session.status = ProcessingStatus.ERROR
+            session.error = f"Analysis failed: {str(e)}"
+            raise HTTPException(status_code=500, detail=session.error) from e
+
     output_path = settings.output_dir / f"{session_id}_mastered.wav"
     output_path = output_path.resolve()
 
     # ── Pre-built lookup: serve cached master instantly ────── */
-    if preset_id:
+    # Both cache shortcuts below are ORIGINAL-only: the pre-built WAV and
+    # the pre-rendered presets are masters of the UPLOADED track, so
+    # serving them for source=mix would return a master of the wrong file.
+    original_source = master_input.source == "original"
+    if preset_id and original_source:
         # Key by the ORIGINAL filename (e.g. "mi_tema_fuego.wav"), since the
         # stored file is renamed to the session id. Falls back to the stored
-        # path stem for sessions created before original_filename existed.
+        # path stem for sessions created before original_filename existed
+        # (``master_input.input_path`` IS the original path in this branch).
         original_stem = (
             Path(session.original_filename).stem
             if session.original_filename
-            else Path(session.original_path).stem
+            else Path(master_input.input_path).stem
         )
         prebuilt_file = settings.prebuilt_dir / f"{original_stem}_{preset_id}.wav"
         # A mastered WAV is always > 1 KiB; smaller files are broken stubs
@@ -666,7 +805,7 @@ async def process_session(
             return session
 
     # ── Pre-render cache: serve dynamically pre-rendered master ── */
-    if preset_id and session_id in _prerender_cache:
+    if preset_id and original_source and session_id in _prerender_cache:
         entry = _prerender_cache[session_id].get(preset_id)
         if (
             entry
@@ -712,17 +851,26 @@ async def process_session(
             session_id=session_id,
             params=params,
             preset_id=preset_id,
+            master_input=master_input,
+            analysis=selected_analysis,
         )
 
     # Use background analysis if already done; skip re-analysis entirely
     # when it's still running (status == ANALYZING) to avoid double work.
     # The engine handles analysis_result=None gracefully with safe defaults.
-    if not session.analysis and session.status != ProcessingStatus.ANALYZING:
+    # Only the ORIGINAL source reaches here for analysis: a mix run already
+    # analyzed the mix above (into ``selected_analysis``).
+    if (
+        master_input.source == "original"
+        and not session.analysis
+        and session.status != ProcessingStatus.ANALYZING
+    ):
         session.status = ProcessingStatus.ANALYZING
         try:
             session.analysis = await asyncio.get_running_loop().run_in_executor(
-                _dsp_executor, analyze_audio, session.original_path
+                _dsp_executor, analyze_audio, master_input.input_path
             )
+            selected_analysis = session.analysis
         except Exception as e:
             session.status = ProcessingStatus.ERROR
             session.error = f"Analysis failed: {str(e)}"
@@ -739,10 +887,10 @@ async def process_session(
         """CPU-bound work executed in a thread so the event loop stays free."""
         with demo_guard.gate():
             result = process_audio(
-                input_path=session.original_path,
+                input_path=master_input.input_path,
                 output_path=output_path,
                 params=params,
-                analysis_result=session.analysis,
+                analysis_result=selected_analysis,
                 progress_cb=update_progress,
             )
             session.mastered_path = result["output_path"]
@@ -762,13 +910,15 @@ async def process_session(
                         output_path=output_path,
                         preset_entry=preset_entry,
                         progress_cb=update_progress,
+                        master_input=master_input,
+                        analysis=selected_analysis,
                     )
                 except Exception:
                     retried = False
                 try:
                     session.master_result = _master_result_from_engine(result)
                     verdict = validate_master(
-                        session.master_result, preset_entry, session.analysis
+                        session.master_result, preset_entry, selected_analysis
                     )
                     if verdict is not None:
                         if retried:
@@ -1015,6 +1165,19 @@ async def reset_session_master(session_id: str) -> SessionData:
     stay on disk, untracked by the session — a later preset selection
     re-masters normally. The uploaded original and its analysis are
     untouched.
+
+    ``mix_status`` is cleared with the rest of the session state (``none``):
+    the mix is not a master pointer, but a reset means "start over from my
+    upload", so the client stops advertising a delivered mix and the
+    default ``/process`` source goes back to the original. The already
+    written ``mix_path`` / ``mix_analysis`` survive (the WAV stays
+    downloadable from its stable URL); running the mix again re-marks the
+    session as ``completed``.
+
+    ``vocal_path`` is cleared for the same reason: the processed vocal is a
+    stem artifact tracked on its own pointer, and a reset drops every derived
+    output pointer so the client stops advertising a vocal it is not using.
+    The rendered WAV stays on disk, untracked, exactly like the masters.
     """
     session = sessions.get(session_id)
     if not session:
@@ -1028,6 +1191,8 @@ async def reset_session_master(session_id: str) -> SessionData:
     session.reference_filename = None
     session.reference_comparison = None
     session.preset_masters = {}
+    session.mix_status = "none"
+    session.vocal_path = None
     session.status = ProcessingStatus.UPLOADED
     session.progress = 0.0
     session.error = None

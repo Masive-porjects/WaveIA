@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type SessionData,
   type MasteringParameters,
+  type MixStatus,
   DEFAULT_PARAMS,
   type VocalChainParams,
   uploadAudio,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/api";
 import { PLATFORM_DEFAULTS } from "@/components/DeliveryPanel";
 import { type StemSplitterState, createDefaultStemState } from "@/components/StemSplitter";
-import { genreToParams } from "@/lib/audioUtils";
+import { genreToParams, getMixGate, hasCompletedMix } from "@/lib/audioUtils";
 import { useProcessingProgress } from "./useProcessingProgress";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -114,6 +115,78 @@ export function useMasteringWorkflow(
   // Abort controller for in-flight processing requests
   const abortRef = useRef<AbortController | null>(null);
   const presetCacheRef = useRef<Map<string, SessionData>>(new Map());
+
+  /* ── Mix state (T2/T3) ───────────────────────────────
+     ``hasMix`` is DERIVED from the backend-owned ``session.mix_status``,
+     never from a local mix blob: the master tab and the mix tab read the
+     same boolean, and the next tasks (mix/original toggle, gating the
+     download) can branch on it. */
+  const hasMix = hasCompletedMix(session);
+
+  /** Re-read the session so the client sees the backend mix lifecycle
+   *  (``mix_status``) that POST /mix just published. Called by the mix tab
+   *  when a run settles — the mix response itself is a WAV blob + header,
+   *  never the session state. */
+  const handleMixSettled = useCallback(async () => {
+    const current = session;
+    if (!current) return;
+    try {
+      setSession(await getSession(current.session_id));
+    } catch {
+      // Backend best-effort: a lost refresh only means the tab keeps
+      // rendering the mix it already has; the next poll corrects it.
+    }
+  }, [session]);
+
+  /* ── Mix gate (T4) ───────────────────────────────────────
+     Gate NO-bloqueante hacia el master: nunca mezcló (`none`) o la
+     mezcla se entregó (`completed`) → el master está libre. Si el
+     usuario inició una mezcla y no hay audio mezclado entregado
+     (`processing` / `failed`) → el master NO arranca: se muestra el
+     aviso y el CTA lleva al tab de mezcla. El veredicto viene de
+     `getMixGate` (función pura, testeada en audioUtils.test.ts), nunca
+     de un flag local de la UI. */
+  const mixGate = getMixGate(session);
+  const mixStatus: MixStatus = mixGate.mixStatus;
+  const isMixGateBlocked: boolean = mixGate.blocked;
+
+  /* Último intento de master con el gate bloqueado. Se guarda la sesión y
+     el estado para que el aviso solo se "acredite" mientras sigue vigente:
+     al cambiar de estado (o de sesión) el énfasis se limpia solo, sin
+     efectos. */
+  const [mixGateAttempt, setMixGateAttempt] = useState<{
+    sessionId: string;
+    status: MixStatus;
+  } | null>(null);
+  const mixGateAttempted =
+    isMixGateBlocked &&
+    mixGateAttempt?.sessionId === session?.session_id &&
+    mixGateAttempt?.status === mixStatus;
+
+  /** Aviso i18n del bloqueo (null = master libre). */
+  const mixGateNotice: string | null = !isMixGateBlocked
+    ? null
+    : mixStatus === "processing"
+      ? t("mezcla.gateProcessingNotice", "Termina tu mezcla antes de masterizar.")
+      : t(
+          "mezcla.gateFailedNotice",
+          "Tu mezcla falló. Reintenta la mezcla para continuar al master.",
+        );
+
+  /** CTA del aviso: en ambos casos lleva al tab de mezcla; cambia el verbo
+   *  porque `failed` es una mezcla entregable que hay que reintentar. */
+  const mixGateCtaLabel: string | null = !isMixGateBlocked
+    ? null
+    : mixStatus === "processing"
+      ? t("mezcla.gateProcessingCta", "Ir a la mezcla")
+      : t("mezcla.gateFailedCta", "Reintentar la mezcla");
+
+  /** Guarda el intento bloqueado. Se usa como guarda al inicio de todo
+   *  trigger que masteriza (procesar con parámetros y aplicar preset). */
+  const blockMasterRun = useCallback(() => {
+    if (!session) return;
+    setMixGateAttempt({ sessionId: session.session_id, status: mixStatus });
+  }, [session, mixStatus]);
 
   // Real progress polled from the backend for the ProcessingOverlay
   const { progress, completeProgress } = useProcessingProgress({
@@ -338,6 +411,15 @@ export function useMasteringWorkflow(
   const handleProcess = useCallback(async () => {
     if (!session) return;
 
+    // Gate de mezcla (T4): con una mezcla iniciada y NO entregada no se
+    // masteriza. Se registra el intento (el aviso se acredita) y se
+    // retorna SIN llamar a processAudio: ni source=mix (400 del backend)
+    // ni un master silencioso del original por detrás de la pantalla.
+    if (isMixGateBlocked) {
+      blockMasterRun();
+      return;
+    }
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -350,11 +432,18 @@ export function useMasteringWorkflow(
     const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
 
     try {
+      // Explicit source (T2/T3): a delivered mix IS the input to master.
+      // Sending it instead of relying on the backend's smart default makes
+      // the client's intent auditable in the request and keeps the neutral
+      // parameters bit-exact against the SELECTED file (bypass unchanged).
+      // The preset path (handlePresetSelect) keeps the smart default, which
+      // resolves to the same file.
       const result = await processAudio(
         session.session_id,
         params,
         controller.signal,
         activePresetId ?? undefined,
+        hasMix ? "mix" : "original",
       );
       completeProgress();
       await new Promise((r) => setTimeout(r, 600));
@@ -387,13 +476,22 @@ export function useMasteringWorkflow(
       setProcessing(false);
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [session, params, activePresetId, completeProgress, t]);
+  }, [session, params, activePresetId, completeProgress, t, hasMix, isMixGateBlocked, blockMasterRun]);
 
 
   /* ── Preset Select ─────────────────────────────────── */
   const handlePresetSelect = useCallback(
     async (presetParams: MasteringParameters, presetId?: string) => {
       if (!session) return;
+
+      // Mismo gate (T4) que `handleProcess`: aplicar un preset TAMBIÉN es una
+      // corrida de master. Sin audio mezclado entregado, el backend resolvería
+      // el original por su cuenta — el usuario masterizaría en silencio lo
+      // equivocado mientras su mezcla sigue viva.
+      if (isMixGateBlocked) {
+        blockMasterRun();
+        return;
+      }
 
       const platform = params.platform_target;
       const platformDelivery =
@@ -471,14 +569,22 @@ export function useMasteringWorkflow(
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [session, params, completeProgress, t],
+    [session, params, completeProgress, t, isMixGateBlocked, blockMasterRun],
   );
 
   /* ── Reset to Original ─────────────────────────────── */
   const handleReset = useCallback(async () => {
     if (!session) return;
     try {
-      await resetSession(session.session_id);
+      const reset = await resetSession(session.session_id);
+      // The reset response is the backend truth for the mix lifecycle
+      // (mix_status goes back to "none"), so `hasMix` must follow it —
+      // otherwise a later run would ask for source=mix and get a 400.
+      // Only the mix field is adopted: the local session keeps its master
+      // pointers until the next process replaces them (unchanged behavior).
+      setSession((prev) =>
+        prev ? { ...prev, mix_status: reset.mix_status ?? "none" } : prev,
+      );
     } catch {
       // Backend best-effort
     }
@@ -766,23 +872,51 @@ export function useMasteringWorkflow(
         }
         setSession(analyzed);
 
-        // 4. If draft parameters exist, process immediately with them; otherwise use genre defaults
-        const targetParams: MasteringParameters = hasCustomDraft
-          ? restoredParams
-          : (analyzed.analysis.detected_genre ? genreToParams(analyzed.analysis.detected_genre) : DEFAULT_PARAMS);
-        setParams(targetParams);
+// 4. Decide: auto-resume ONLY a master interrupted mid-flight; never
+        //    auto-master on open. Opening a track restores its draft params
+        //    (or neutral defaults) and keeps the original as the preview
+        //    source until the user explicitly masters.
+        if (track.status === "mastering") {
+          const targetParams: MasteringParameters = track.draft_parameters
+            ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
+            : genreToParams(analyzed.analysis.detected_genre ?? null);
+          setParams(targetParams);
 
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const processed = await processAudio(
-          analyzed.session_id,
-          targetParams,
-          controller.signal,
-          track.active_preset ?? undefined,
-        );
-        completeProgress();
-        setSession(processed);
-        onSessionLoaded?.(processed);
+          const controller = new AbortController();
+          abortRef.current = controller;
+          const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
+          try {
+            const processed = await processAudio(
+              analyzed.session_id,
+              targetParams,
+              controller.signal,
+              track.active_preset ?? undefined,
+            );
+            completeProgress();
+            setSession(processed);
+            onSessionLoaded?.(processed);
+            await updateTrackStatus(track.id, "completed");
+            if (user) {
+              logTrackEvent(user.id, track.id, "reprocessed", {
+                params: targetParams,
+                preset_id: track.active_preset ?? null,
+                resumed: true,
+              });
+            }
+          } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") {
+              throw new Error(
+                t(
+                  "errors.processTimeout",
+                  "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
+                ),
+              );
+            }
+            throw err;
+          } finally {
+            clearTimeout(watchdog);
+          }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error al cargar proyecto";
         setError(msg);
@@ -796,7 +930,7 @@ export function useMasteringWorkflow(
         setIsLoadingTrackProject(false);
       }
     },
-    [completeProgress, onSessionLoaded, t],
+    [completeProgress, onSessionLoaded, t, user],
   );
 
   /* ── Over-master confirmations ─────────────────────── */
@@ -845,6 +979,14 @@ export function useMasteringWorkflow(
   return {
     session,
     setSession,
+    hasMix,
+    handleMixSettled,
+    /* ── Mix gate (T4) ── */
+    mixStatus,
+    isMixGateBlocked,
+    mixGateAttempted,
+    mixGateNotice,
+    mixGateCtaLabel,
     currentTrack,
     setCurrentTrack,
     isUploadingToCloud,

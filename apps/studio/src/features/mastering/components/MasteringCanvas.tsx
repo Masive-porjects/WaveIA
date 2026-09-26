@@ -5,12 +5,16 @@ import ModulePanel from "@/presentation/components/ModulePanel";
 import GenreGuide from "@/presentation/components/GenreGuide";
 import StemSplitter, { type StemSplitterState } from "@/presentation/components/StemSplitter";
 import MixPanel from "@/presentation/components/MixPanel";
+import MixGateNotice, {
+  type MixGateState,
+} from "@/presentation/components/MixGateNotice";
 import VocalChain from "@/presentation/components/VocalChain";
 import SongStarter from "@/presentation/components/SongStarter";
 import AlbumMastering from "@/presentation/components/AlbumMastering";
 import MasteringGuide from "@/presentation/components/MasteringGuide";
 import type { MasteringTab } from "@/presentation/components/dock/types";
 import type { MasteringParameters, SessionData, VocalChainParams, StemSplitResult } from "@/lib/api";
+import { hasCompletedMix } from "@/lib/audioUtils";
 import { useTranslation } from "@/i18n/useTranslation";
 
 interface MasteringCanvasProps {
@@ -31,6 +35,12 @@ interface MasteringCanvasProps {
   onVocalProcess: (p: VocalChainParams) => Promise<void>;
   masteringMode: "manual" | "ai";
   onNavigateTab: (tab: MasteringTab) => void;
+  /** El mix terminó (éxito o fallo): el padre relee la sesión para
+   *  sincronizar `session.mix_status` (T2) → `hasMix`. */
+  onMixSettled?: () => void;
+  /** Gate de mezcla (T4): solo se renderiza en el tab de master y solo
+   *  bloquea cuando hay una mezcla iniciada sin audio entregado. */
+  mixGate?: MixGateState;
 }
 
 export default function MasteringCanvas({
@@ -51,6 +61,8 @@ export default function MasteringCanvas({
   onVocalProcess,
   masteringMode,
   onNavigateTab,
+  onMixSettled,
+  mixGate,
 }: MasteringCanvasProps) {
   const { t } = useTranslation();
 
@@ -98,6 +110,11 @@ export default function MasteringCanvas({
             activePresetId={activePresetId}
             onPresetSelect={onPresetSelect}
           />
+
+          {/* Gate de mezcla (T4): el botón queda habilitado a propósito —
+              apretarlo muestra el aviso y lleva al tab de mezcla, en vez de
+              masterizar en silencio o dejar el usuario sin explicación. */}
+          <MixGateNotice gate={mixGate} className="mt-4" />
 
           <button
             onClick={onProcess}
@@ -174,6 +191,9 @@ export default function MasteringCanvas({
             genreHint={session.analysis?.detected_genre ?? null}
             disabled={processing}
             mode={masteringMode}
+            /* Estado de mezcla del backend, no un flag local (T2/T3). */
+            hasMix={hasCompletedMix(session)}
+            onMixSettled={onMixSettled}
             onMasterize={() => onNavigateTab("modules")}
           />
         </div>

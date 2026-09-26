@@ -53,6 +53,13 @@ interface MixPanelProps {
   disabled?: boolean;
   /** ``session.analysis.detected_genre`` — alimenta el mini-panel IA. */
   genreHint?: string | null;
+  /** ``hasMix`` del backend (``session.mix_status === "completed"``, T2):
+   *  hay una mezcla ENTREGADA y masterizable. Etiqueta la tarjeta del
+   *  resultado; el master usa el mismo booleano como ``source=mix``. */
+  hasMix: boolean;
+  /** Notifica que el POST /mix terminó (éxito o fallo) para que el padre
+   *  relea la sesión y sincronice ``mix_status``. */
+  onMixSettled?: () => void;
   /** Modo global Manual/Asistente IA (switch del navbar). Gobierna el
    *  mini-panel de recomendaciones IA del módulo. */
   mode: "manual" | "ai";
@@ -226,6 +233,14 @@ const FADER_DEFAULTS: Record<string, number> = {
 };
 const FADER_BAND = 6.0;
 
+/* ── Watchdog del POST /mix (T6) ────────────────────────────
+   El Mix Engine es una request blocking: si el backend se cuelga, sin
+   este watchdog la UI queda congelada en 95% para siempre. 600 s a
+   propósito, alineado con ``PROCESS_TIMEOUT_MS`` de
+   ``useMasteringWorkflow``: la mezcla nunca debe bloquear la UI más
+   tiempo que el master. */
+const MIX_TIMEOUT_MS = 600_000;
+
 function FaderControl({
   label,
   value,
@@ -290,6 +305,8 @@ export default function MixPanel({
   audioDurationSeconds,
   disabled,
   genreHint,
+  hasMix,
+  onMixSettled,
   mode,
   onMasterize,
 }: MixPanelProps) {
@@ -323,6 +340,11 @@ export default function MixPanel({
   const stageRef = useRef(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Watchdog del POST /mix: si el backend no responde en MIX_TIMEOUT_MS,
+  // aborta el fetch en vuelo. ``timedOutRef`` distingue el timeout del
+  // cancel explícito del usuario (ambos llegan como AbortError).
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timedOutRef = useRef(false);
   // Lista dinámica de etapas DSP (filtrada por dimensionEnabled) vista por
   // el ticker; se asigna en cada render para que el intervalo siempre use
   // la longitud actual sin re-crear el timer.
@@ -330,12 +352,17 @@ export default function MixPanel({
 
   // Revoca el objectURL local al desmontar (el player lo usa hasta ese
   // momento, por eso NO se revoca en el finally de handleMix), limpia el
-  // intervalo si se desmonta a mitad del mix y aborta el fetch en vuelo.
+  // intervalo y el watchdog si se desmonta a mitad del mix y aborta el
+  // fetch en vuelo.
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
+      }
+      if (watchdogRef.current) {
+        clearTimeout(watchdogRef.current);
+        watchdogRef.current = null;
       }
       abortRef.current?.abort();
       if (objectUrlRef.current) {
@@ -365,6 +392,16 @@ export default function MixPanel({
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    // Watchdog: si el backend se cuelga, el fetch se aborta solo en vez de
+    // dejar la UI clavada en 95%. Se limpia en el success, en el catch y
+    // en el finally para no disparar después de terminar.
+    timedOutRef.current = false;
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => {
+      timedOutRef.current = true;
+      controller.abort();
+    }, MIX_TIMEOUT_MS);
 
     setMixing(true);
     setError(null);
@@ -408,26 +445,51 @@ export default function MixPanel({
         stemTrims,
       });
       clearProgressTimer();
+      if (watchdogRef.current) {
+        clearTimeout(watchdogRef.current);
+        watchdogRef.current = null;
+      }
       objectUrlRef.current = audioUrl;
       setProgressPct(100);
       setMixUrl(audioUrl);
       setMixResult(result);
       setShowResult(true);
+      // El POST /mix ya publicó mix_status en el backend (T2): el padre
+      // relee la sesión para que `hasMix` (y con él la etiqueta y el
+      // source=mix del master) reflejen la entrega.
+      onMixSettled?.();
     } catch (e) {
       clearProgressTimer();
-      // Cancelación explícita del usuario: estado informativo, NO un fallo.
-      // (El backend puede seguir procesando server-side; el cliente deja de
-      // esperar y no marca done.)
-      if ((e as { name?: string })?.name === "AbortError") {
+      if (watchdogRef.current) {
+        clearTimeout(watchdogRef.current);
+        watchdogRef.current = null;
+      }
+      // El estado de mezcla cambió igual (failed / processing tras abort):
+      // sincronizamos para no arrastrar un `hasMix` viejo.
+      onMixSettled?.();
+      // Watchdog: el backend no respondió a tiempo. SÍ es un fallo (el
+      // usuario no pidió cancelar), así que se muestra como error y no
+      // como el aviso informativo de cancelación.
+      if ((e as { name?: string })?.name === "AbortError" && timedOutRef.current) {
+        setCancelled(false);
+        setError("La mezcla tardó demasiado y se detuvo. Vuelve a intentarlo.");
+      } else if ((e as { name?: string })?.name === "AbortError") {
+        // Cancelación explícita del usuario: estado informativo, NO un fallo.
+        // (El backend puede seguir procesando server-side; el cliente deja de
+        // esperar y no marca done.)
         setCancelled(true);
       } else {
         setError(e instanceof Error ? e.message : "No se pudo mezclar el audio");
       }
     } finally {
+      if (watchdogRef.current) {
+        clearTimeout(watchdogRef.current);
+        watchdogRef.current = null;
+      }
       if (abortRef.current === controller) abortRef.current = null;
       setMixing(false);
     }
-  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled, autoBalance, faderValues]);
+  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled, autoBalance, faderValues, onMixSettled]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -892,6 +954,10 @@ export default function MixPanel({
             originalUrl={getAudioUrl(sessionId, "original")}
             mixedUrl={audioSrc}
             mixedDuration={analysis?.duration_seconds ?? null}
+            /* La insignia "Audio mezclado" se muestra SOLO con una mezcla
+               entregada por el backend (mix_status completed), no con un
+               WAV local en vuelo o fallido. */
+            hasMix={hasMix}
           />
 
           {analysis && <MixAnalysisGrid result={analysis} />}
