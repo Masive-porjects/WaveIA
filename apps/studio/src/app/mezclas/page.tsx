@@ -292,6 +292,7 @@ function MezclasContent() {
                           vocalProcessed={workflow.vocalProcessed}
                           masteringMode={masteringMode}
                           onNavigateTab={handleModuleClick}
+                          onMixSettled={workflow.handleMixSettled}
                         />
                       )}
                     />
@@ -421,6 +422,7 @@ function MezclasContent() {
                                 vocalProcessed={workflow.vocalProcessed}
                                 masteringMode={masteringMode}
                                 onNavigateTab={handleModuleClick}
+                                onMixSettled={workflow.handleMixSettled}
                               />
                             </PaintedModule>
                           )}
@@ -503,6 +505,7 @@ function MezclasContent() {
               vocalProcessed={workflow.vocalProcessed}
               masteringMode={masteringMode}
               onNavigateTab={handleModuleClick}
+              onMixSettled={workflow.handleMixSettled}
             />
           </ModuleSheet>
         )}
