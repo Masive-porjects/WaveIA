@@ -108,11 +108,11 @@ function revealWave(
 
 const NOTE_COLORS = ["#ff5a5f", "#ffb347", "#4ecdc4", "#7b68ee", "#ff6b9d"];
 
-export function MusicNote({ color }: { color: string }) {
+export function MusicNote({ color, size = 14 }: { color: string; size?: number }) {
   return (
     <svg
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}

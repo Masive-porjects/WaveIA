@@ -628,14 +628,25 @@ export function useMasteringWorkflow(
 
         return masterRecord;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Error al consolidar master";
-        setError(msg);
-        return null;
+        const rawMsg = err instanceof Error ? err.message : "Error al consolidar master";
+        console.error("[Mastering Consolidation Error]", rawMsg);
+        let userMsg = t(
+          "mastering.consolidateError",
+          "No se pudo guardar la mezcla en la nube de Supabase. Revisa tu conexión o intenta nuevamente."
+        );
+        if (rawMsg.toLowerCase().includes("row-level security") || rawMsg.toLowerCase().includes("rls")) {
+          userMsg = t(
+            "mastering.storagePermissionError",
+            "Permiso de almacenamiento restringido en Supabase. Se recomienda revisar las políticas RLS del bucket."
+          );
+        }
+        setError(userMsg);
+        throw new Error(userMsg);
       } finally {
         setIsConsolidating(false);
       }
     },
-    [session, user, currentTrack, activePresetId, params],
+    [session, user, currentTrack, activePresetId, params, t],
   );
 
   /* ── Load Track from Library / History ─────────────── */

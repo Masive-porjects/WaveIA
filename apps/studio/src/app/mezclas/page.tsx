@@ -18,7 +18,7 @@ import { useIsMobile } from "@/shared/useIsMobile";
 import { isPresetCompleted } from "@/lib/audioUtils";
 import { getAudioUrl } from "@/lib/api";
 import { useTranslation } from "@/i18n";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, AlertCircle, X } from "lucide-react";
 import {
   useMastering,
   MasteringHeader,
@@ -398,14 +398,25 @@ function MezclasContent() {
                         {workflow.error && (
                           <motion.div className="mb-4" {...fadeUp(0)}>
                             <div
-                              className="p-4 rounded-2xl text-sm"
+                              className="p-4 rounded-2xl text-xs sm:text-sm flex items-center justify-between gap-3 shadow-lg"
                               style={{
-                                background: "rgba(220, 38, 38, 0.08)",
-                                border: "1px solid rgba(220, 38, 38, 0.2)",
+                                background: "rgba(220, 38, 38, 0.12)",
+                                border: "1px solid rgba(220, 38, 38, 0.28)",
                                 color: "var(--accent-error)",
                               }}
                             >
-                              {workflow.error}
+                              <div className="flex items-center gap-2.5">
+                                <AlertCircle size={17} className="shrink-0 text-red-400" />
+                                <span>{workflow.error}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => workflow.setError(null)}
+                                className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+                                aria-label={t("common.close", "Cerrar")}
+                              >
+                                <X size={15} />
+                              </button>
                             </div>
                           </motion.div>
                         )}
