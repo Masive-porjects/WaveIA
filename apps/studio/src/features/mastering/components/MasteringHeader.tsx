@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Menu,
@@ -11,6 +12,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Disc3,
+  Pencil,
+  Check,
 } from "lucide-react";
 import TrackChip from "@/presentation/components/TrackChip";
 import LanguageSwitcher from "@/presentation/components/LanguageSwitcher";
@@ -33,6 +37,10 @@ interface MasteringHeaderProps {
   onClearSheet?: () => void;
   autosaveStatus?: AutosaveStatus;
   onOpenLibrary?: () => void;
+  onConsolidate?: () => void;
+  draftName?: string | null;
+  onRenameDraft?: (newName: string) => void;
+  hasSavedTracks?: boolean;
 }
 
 export default function MasteringHeader({
@@ -48,8 +56,21 @@ export default function MasteringHeader({
   onClearSheet,
   autosaveStatus,
   onOpenLibrary,
+  onConsolidate,
+  draftName,
+  onRenameDraft,
+  hasSavedTracks = false,
 }: MasteringHeaderProps) {
   const { t } = useTranslation();
+  const [isEditingDraftName, setIsEditingDraftName] = useState(false);
+  const [tempDraftName, setTempDraftName] = useState("");
+
+  const handleSaveDraftName = () => {
+    if (tempDraftName.trim() && tempDraftName.trim() !== draftName) {
+      onRenameDraft?.(tempDraftName.trim());
+    }
+    setIsEditingDraftName(false);
+  };
 
   return (
     <nav className="relative z-50 flex items-center justify-between px-4 lg:px-6 pt-safe py-3 shrink-0">
@@ -67,6 +88,50 @@ export default function MasteringHeader({
             disabled={processing || loading}
             onChangeTrack={onBackToUpload}
           />
+        )}
+
+        {/* Editable Draft Version Chip */}
+        {currentView === "mastering" && session && (
+          <div className="hidden sm:flex items-center gap-1 px-3 py-1 rounded-full text-xs border border-[var(--border-subtle)] bg-[var(--surface-elevated)] backdrop-blur-md">
+            <span className="text-[var(--text-muted)] text-[10px] uppercase font-bold tracking-wider mr-1">
+              Borrador:
+            </span>
+            {isEditingDraftName ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={tempDraftName}
+                  onChange={(e) => setTempDraftName(e.target.value)}
+                  onBlur={handleSaveDraftName}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveDraftName()}
+                  autoFocus
+                  className="bg-transparent border-b border-[var(--accent-primary)] text-xs text-[var(--text-primary)] focus:outline-none px-1 w-28"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveDraftName}
+                  className="p-0.5 text-emerald-400 hover:text-white"
+                >
+                  <Check size={11} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setTempDraftName(draftName || "Mezcla Principal");
+                  setIsEditingDraftName(true);
+                }}
+                title="Clic para renombrar este borrador"
+                className="flex items-center gap-1.5 text-[var(--text-primary)] font-semibold hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+              >
+                <span className="truncate max-w-[130px]">
+                  {draftName || "Mezcla Principal"}
+                </span>
+                <Pencil size={11} className="text-[var(--text-muted)]" />
+              </button>
+            )}
+          </div>
         )}
 
         {/* Real-time Draft Autosave Indicator */}
@@ -211,7 +276,21 @@ export default function MasteringHeader({
       )}
 
       <div className="flex items-center gap-2">
-        {onOpenLibrary && (
+        {currentView === "mastering" && onConsolidate && (
+          <button
+            type="button"
+            onClick={onConsolidate}
+            disabled={processing || loading}
+            title={t("mastering.defineFinalMix", "Definir Mezcla Final")}
+            aria-label={t("mastering.defineFinalMix", "Definir Mezcla Final")}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white transition-all shadow-sm shadow-emerald-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Disc3 size={14} className="text-emerald-400" />
+            <span className="hidden sm:inline">{t("mastering.defineFinalMix", "Definir Mezcla Final")}</span>
+          </button>
+        )}
+
+        {onOpenLibrary && hasSavedTracks && (
           <button
             type="button"
             onClick={onOpenLibrary}
@@ -226,7 +305,7 @@ export default function MasteringHeader({
 
         <ThemeToggle />
         <LanguageSwitcher />
-        <UserMenu onOpenLibrary={onOpenLibrary} />
+        <UserMenu onOpenLibrary={hasSavedTracks ? onOpenLibrary : undefined} />
 
         {currentView === "mastering" && (
           <button

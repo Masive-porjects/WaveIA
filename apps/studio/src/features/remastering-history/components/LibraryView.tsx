@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Music2,
@@ -29,6 +29,8 @@ interface LibraryViewProps {
   onClose: () => void;
   onSelectTrack: (track: Track) => void;
   onNewUpload: () => void;
+  currentTrackId?: string | null;
+  onTracksCountChange?: (count: number) => void;
 }
 
 function formatDuration(seconds: number | null): string {
@@ -62,6 +64,8 @@ export default function LibraryView({
   onClose,
   onSelectTrack,
   onNewUpload,
+  currentTrackId,
+  onTracksCountChange,
 }: LibraryViewProps) {
   const { t } = useTranslation();
   const {
@@ -85,6 +89,10 @@ export default function LibraryView({
   const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    onTracksCountChange?.(totalCount);
+  }, [totalCount, onTracksCountChange]);
 
   if (!isOpen) return null;
 
@@ -292,19 +300,29 @@ export default function LibraryView({
                 const hasMasters = track.masters && track.masters.length > 0;
                 const isMastered = track.status === "completed" || hasMasters;
 
+                const isCurrentActive = Boolean(currentTrackId && track.id === currentTrackId);
+
                 return (
                   <div
                     key={track.id}
-                    className="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border transition-all duration-200"
-                    style={{
-                      backgroundColor: "var(--surface-elevated)",
-                      borderColor: "var(--border-subtle)",
-                    }}
+                    className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border transition-all duration-200 ${
+                      isCurrentActive
+                        ? "border-emerald-500/40 bg-emerald-500/[0.04] shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                        : "border-[var(--border-subtle)] bg-[var(--surface-elevated)] hover:border-[var(--border-strong)]"
+                    }`}
                   >
                     {/* Track Info */}
                     <div className="flex items-start gap-3 min-w-0">
-                      <div className="size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-[var(--surface-hover)] border border-[var(--border-subtle)] text-[var(--accent-primary)] group-hover:border-[var(--accent-primary)]/40 transition-colors">
-                        {isMastered ? (
+                      <div
+                        className={`size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border transition-colors ${
+                          isCurrentActive
+                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                            : "bg-[var(--surface-hover)] border-[var(--border-subtle)] text-[var(--accent-primary)] group-hover:border-[var(--accent-primary)]/40"
+                        }`}
+                      >
+                        {isCurrentActive ? (
+                          <Sparkles size={18} className="text-emerald-400 animate-pulse" />
+                        ) : isMastered ? (
                           <CheckCircle2 size={18} className="text-emerald-400" />
                         ) : hasDraft ? (
                           <Sparkles size={18} className="text-amber-400" />
@@ -318,6 +336,14 @@ export default function LibraryView({
                           <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-xs sm:max-w-sm md:max-w-md">
                             {track.title}
                           </h4>
+
+                          {/* Active Session Badge */}
+                          {isCurrentActive && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/10">
+                              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>{t("library.activeSessionBadge", "Sesión Activa")}</span>
+                            </span>
+                          )}
 
                           {/* Status badges */}
                           {hasDraft && (
@@ -382,17 +408,29 @@ export default function LibraryView({
                         </button>
                       )}
 
-                      {/* Continue Mastering Button */}
-                      <button
-                        type="button"
-                        onClick={() => onSelectTrack(track)}
-                        title={t("library.resumeMastering", "Continuar masterizando")}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent-primary)]/15 hover:bg-[var(--accent-primary)]/25 border border-[var(--accent-primary)]/30 text-xs font-semibold text-[var(--accent-primary)] hover:text-white transition-all cursor-pointer"
-                      >
-                        <Sliders size={13} />
-                        <span>{t("library.openInStudio", "Abrir")}</span>
-                        <ArrowRight size={12} />
-                      </button>
+                      {/* Continue Mastering Button / Active Return Button */}
+                      {isCurrentActive ? (
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          title={t("library.alreadyInSession", "Ya estás en esta sesión. Haz clic para volver al estudio.")}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-xs font-bold text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm shadow-emerald-500/15"
+                        >
+                          <Sparkles size={13} className="text-emerald-400" />
+                          <span>{t("library.inStudio", "En Estudio")}</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onSelectTrack(track)}
+                          title={t("library.resumeMastering", "Continuar masterizando")}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent-primary)]/15 hover:bg-[var(--accent-primary)]/25 border border-[var(--accent-primary)]/30 text-xs font-semibold text-[var(--accent-primary)] hover:text-white transition-all cursor-pointer"
+                        >
+                          <Sliders size={13} />
+                          <span>{t("library.openInStudio", "Abrir")}</span>
+                          <ArrowRight size={12} />
+                        </button>
+                      )}
 
                       {/* Delete Button */}
                       <button

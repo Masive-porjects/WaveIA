@@ -575,8 +575,10 @@ export function useMasteringWorkflow(
   const [isConsolidating, setIsConsolidating] = useState(false);
 
   const handleConsolidateMaster = useCallback(
-    async (format: "wav" | "mp3" = "wav"): Promise<MasterRecord | null> => {
+    async (options?: { name?: string; format?: "wav" | "mp3" }): Promise<MasterRecord | null> => {
       if (!session || !user || !currentTrack) return null;
+      const format = options?.format ?? "wav";
+      const masterName = options?.name?.trim() || `${currentTrack.title} - Master`;
       setIsConsolidating(true);
       setError(null);
       try {
@@ -595,6 +597,7 @@ export function useMasteringWorkflow(
 
         const masterRecord = await createMasterRecord(user.id, {
           track_id: currentTrack.id,
+          name: masterName,
           storage_path: storagePath,
           format,
           file_size_bytes: blob.size,
@@ -603,14 +606,25 @@ export function useMasteringWorkflow(
         });
 
         await updateTrackStatus(currentTrack.id, "completed");
-        await clearTrackDraft(currentTrack.id);
 
         logTrackEvent(user.id, currentTrack.id, "master_consolidated", {
+          name: masterName,
           format,
           preset_name: activePresetId ?? null,
           storage_path: storagePath,
           size_bytes: blob.size,
         });
+
+        // Trigger local browser download as well
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const stem = masterName.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
+        a.download = `${stem}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
         return masterRecord;
       } catch (err) {
@@ -640,7 +654,10 @@ export function useMasteringWorkflow(
         setCurrentTrack(track);
 
         // 1. Restore draft parameters or active preset
-        const restoredParams: MasteringParameters = track.draft_parameters
+        const hasCustomDraft = Boolean(
+          track.draft_parameters && Object.keys(track.draft_parameters).length > 0
+        );
+        const restoredParams: MasteringParameters = hasCustomDraft
           ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
           : DEFAULT_PARAMS;
         setParams(restoredParams);
@@ -669,10 +686,10 @@ export function useMasteringWorkflow(
         }
         setSession(analyzed);
 
-        // 4. If draft parameters exist, process immediately with them
-        const targetParams: MasteringParameters = track.draft_parameters
-          ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
-          : genreToParams(analyzed.analysis.detected_genre ?? null);
+        // 4. If draft parameters exist, process immediately with them; otherwise use genre defaults
+        const targetParams: MasteringParameters = hasCustomDraft
+          ? restoredParams
+          : (analyzed.analysis.detected_genre ? genreToParams(analyzed.analysis.detected_genre) : DEFAULT_PARAMS);
         setParams(targetParams);
 
         const controller = new AbortController();

@@ -26,9 +26,10 @@ import {
   MasteringCanvas,
   AnalysisSidebar,
   MobileMasteringView,
+  ConsolidateMasterModal,
 } from "@/features/mastering";
 import { LibraryView } from "@/features/remastering-history";
-import { fetchUserTracks, type Track } from "@/features/tracks";
+import { fetchUserTracks, renameTrackDraft, getUserTracksCount, type Track } from "@/features/tracks";
 import { useAuth } from "@/features/auth";
 
 const TABS: { key: MasteringTab; label: string }[] = [
@@ -60,6 +61,16 @@ function MezclasContent() {
   const [sheetTab, setSheetTab] = useState<MasteringTab | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [consolidateModalOpen, setConsolidateModalOpen] = useState(false);
+  const [hasSavedTracks, setHasSavedTracks] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      getUserTracksCount(user.id).then((count) => {
+        setHasSavedTracks(count > 0 || Boolean(workflow.currentTrack));
+      });
+    }
+  }, [user?.id, workflow.currentTrack]);
 
   // If a track parameter is in the URL and not loaded, load it from Supabase
   const loadedTrackRef = useRef<string | null>(null);
@@ -163,6 +174,19 @@ function MezclasContent() {
           onClearSheet={() => setSheetTab(null)}
           autosaveStatus={workflow.autosaveStatus}
           onOpenLibrary={() => setLibraryOpen(true)}
+          onConsolidate={() => setConsolidateModalOpen(true)}
+          draftName={workflow.currentTrack?.draft_name || workflow.currentTrack?.active_preset || "Mezcla Principal"}
+          hasSavedTracks={Boolean(workflow.currentTrack || hasSavedTracks)}
+          onRenameDraft={async (newName) => {
+            if (workflow.currentTrack) {
+              try {
+                await renameTrackDraft(workflow.currentTrack.id, newName);
+                workflow.setCurrentTrack({ ...workflow.currentTrack, draft_name: newName });
+              } catch (err) {
+                console.error("Failed to rename draft:", err);
+              }
+            }
+          }}
         />
 
         {/* Mobile Navigation Drawer */}
@@ -487,12 +511,25 @@ function MezclasContent() {
         <LibraryView
           isOpen={libraryOpen}
           onClose={() => setLibraryOpen(false)}
+          currentTrackId={workflow.currentTrack?.id}
           onSelectTrack={async (track) => {
             setLibraryOpen(false);
             await workflow.handleLoadTrackProject(track);
             router.push(`/mezclas?track=${track.id}`);
           }}
+          onTracksCountChange={(count) => setHasSavedTracks(count > 0 || Boolean(workflow.currentTrack))}
           onNewUpload={handleHomeClick}
+        />
+
+        {/* Consolidate Final Master Modal */}
+        <ConsolidateMasterModal
+          isOpen={consolidateModalOpen}
+          onClose={() => setConsolidateModalOpen(false)}
+          track={workflow.currentTrack}
+          params={workflow.params}
+          activePresetId={workflow.activePresetId}
+          isConsolidating={workflow.isConsolidating}
+          onConfirm={workflow.handleConsolidateMaster}
         />
       </main>
     </LicenseGuard>

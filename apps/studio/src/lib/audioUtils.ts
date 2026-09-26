@@ -79,7 +79,7 @@ export function isPresetCompleted(
   if (!presetId) {
     return Boolean(session.mastered_path);
   }
-  return session.preset_masters?.[presetId]?.status === "completed";
+  return session.preset_masters?.[presetId]?.status === "completed" || Boolean(session.mastered_path);
 }
 
 /* ── Client detection helper ──────────────────────────── */
