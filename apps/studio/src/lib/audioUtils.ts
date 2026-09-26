@@ -5,7 +5,7 @@
  * Estas funciones son testeables en aislamiento y reutilizables.
  */
 
-import type { SessionData, MasteringParameters } from "@/lib/api";
+import type { MixStatus, SessionData, MasteringParameters } from "@/lib/api";
 import { DEFAULT_PARAMS } from "@/lib/api";
 import { useSyncExternalStore } from "react";
 
@@ -97,6 +97,53 @@ export function hasCompletedMix(
   session: SessionData | null | undefined,
 ): boolean {
   return session?.mix_status === "completed";
+}
+
+/* ── Mix gate (T4) ─────────────────────────────────────── */
+
+/**
+ * ``mix_status`` normalizado. Un campo ausente (sesión guardada antes del
+ * contrato T2) equivale a ``"none"``: nunca mezcló → el master está libre.
+ */
+export function resolveMixStatus(
+  raw: MixStatus | null | undefined,
+): MixStatus {
+  return raw ?? "none";
+}
+
+/** Resultado del gate de mezcla que gobierna el avance al master (T4). */
+export interface MixGate {
+  /** Estado de mezcla tal como lo publica el backend (nunca ``undefined``). */
+  mixStatus: MixStatus;
+  /**
+   * ``true`` cuando el usuario INICIÓ una mezcla y todavía no entregó el
+   * audio mezclado (``processing`` o ``failed``). El master queda bloqueado:
+   * no hay archivo mezclado que masterizar, así que el camino correcto es
+   * terminar la mezcla. ``none`` y ``completed`` dejan el master libre.
+   */
+  blocked: boolean;
+}
+
+/**
+ * ``getMixGate``: la única fuente de verdad del gate NO-bloqueante hacia el
+ * master (T4).
+ *
+ * - ``none``      → master libre (camino solo-master).
+ * - ``completed`` → master libre, y el master consume el MIX (``source=mix``).
+ * - ``processing``→ BLOQUEADO: la mezcla está en curso.
+ * - ``failed``    → BLOQUEADO: la mezcla se intentó y no se entregó.
+ *
+ * Función pura y testeable en aislamiento: recibe la sesión y devuelve el
+ * veredicto, sin side effects ni dependencias del DOM.
+ */
+export function getMixGate(
+  session: SessionData | null | undefined,
+): MixGate {
+  const mixStatus = resolveMixStatus(session?.mix_status);
+  return {
+    mixStatus,
+    blocked: mixStatus === "processing" || mixStatus === "failed",
+  };
 }
 
 /* ── Client detection helper ──────────────────────────── */

@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { fadeUp } from "@/shared/motion";
 import Player from "@/presentation/components/Player";
 import MobilePresetStrip from "@/presentation/components/MobilePresetStrip";
+import MixGateNotice, {
+  type MixGateState,
+} from "@/presentation/components/MixGateNotice";
 import type { MasteringParameters, SessionData } from "@/lib/api";
 import { getAudioUrl } from "@/lib/api";
 import { isPresetCompleted } from "@/lib/audioUtils";
@@ -23,6 +26,10 @@ interface MobileMasteringViewProps {
   onProcess: () => Promise<void>;
   onDownload: (format: "wav" | "mp3") => void;
   renderTabContent: (tab: MasteringTab) => React.ReactNode;
+  /** Gate de mezcla (T4): aviso accionable sobre el botón de masterizar.
+   *  En mobile el CTA abre el tab de mezcla, que en esta vista se llama igual
+   *  que en desktop ("mezcla"). */
+  mixGate?: MixGateState;
 }
 
 export default function MobileMasteringView({
@@ -38,6 +45,7 @@ export default function MobileMasteringView({
   onProcess,
   onDownload,
   renderTabContent,
+  mixGate,
 }: MobileMasteringViewProps) {
   const { t } = useTranslation();
 
@@ -98,6 +106,10 @@ export default function MobileMasteringView({
               disabled={processing}
             />
           </div>
+
+          {/* Gate de mezcla (T4): mismo banner que en desktop, sobre el botón
+              de masterizar (ver `MixGateNotice`). */}
+          <MixGateNotice gate={mixGate} className="mb-3" />
 
           {/* Botón prominente de procesamiento */}
           <button

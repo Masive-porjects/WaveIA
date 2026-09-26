@@ -407,7 +407,11 @@
     "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio.",
     "mixedSideLabel": "Audio mezclado (Final)",
     "originalSideLabel": "Original (Raw)",
-    "mixedAudioBadge": "Audio mezclado"
+    "mixedAudioBadge": "Audio mezclado",
+    "gateProcessingNotice": "Termina tu mezcla antes de masterizar.",
+    "gateFailedNotice": "Tu mezcla falló. Reintenta la mezcla para continuar al master.",
+    "gateProcessingCta": "Ir a la mezcla",
+    "gateFailedCta": "Reintentar la mezcla"
   },
   "vocal": {
     "title": "VoiceChain",
