@@ -686,23 +686,51 @@ export function useMasteringWorkflow(
         }
         setSession(analyzed);
 
-        // 4. If draft parameters exist, process immediately with them; otherwise use genre defaults
-        const targetParams: MasteringParameters = hasCustomDraft
-          ? restoredParams
-          : (analyzed.analysis.detected_genre ? genreToParams(analyzed.analysis.detected_genre) : DEFAULT_PARAMS);
-        setParams(targetParams);
+// 4. Decide: auto-resume ONLY a master interrupted mid-flight; never
+        //    auto-master on open. Opening a track restores its draft params
+        //    (or neutral defaults) and keeps the original as the preview
+        //    source until the user explicitly masters.
+        if (track.status === "mastering") {
+          const targetParams: MasteringParameters = hasCustomDraft
+            ? restoredParams
+            : genreToParams(analyzed.analysis.detected_genre ?? null);
+          setParams(targetParams);
 
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const processed = await processAudio(
-          analyzed.session_id,
-          targetParams,
-          controller.signal,
-          track.active_preset ?? undefined,
-        );
-        completeProgress();
-        setSession(processed);
-        onSessionLoaded?.(processed);
+          const controller = new AbortController();
+          abortRef.current = controller;
+          const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
+          try {
+            const processed = await processAudio(
+              analyzed.session_id,
+              targetParams,
+              controller.signal,
+              track.active_preset ?? undefined,
+            );
+            completeProgress();
+            setSession(processed);
+            onSessionLoaded?.(processed);
+            await updateTrackStatus(track.id, "completed");
+            if (user) {
+              logTrackEvent(user.id, track.id, "reprocessed", {
+                params: targetParams,
+                preset_id: track.active_preset ?? null,
+                resumed: true,
+              });
+            }
+          } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") {
+              throw new Error(
+                t(
+                  "errors.processTimeout",
+                  "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
+                ),
+              );
+            }
+            throw err;
+          } finally {
+            clearTimeout(watchdog);
+          }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error al cargar proyecto";
         setError(msg);
@@ -716,7 +744,7 @@ export function useMasteringWorkflow(
         setIsLoadingTrackProject(false);
       }
     },
-    [completeProgress, onSessionLoaded, t],
+    [completeProgress, onSessionLoaded, t, user],
   );
 
   /* ── Over-master confirmations ─────────────────────── */
