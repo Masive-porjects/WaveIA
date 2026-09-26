@@ -27,6 +27,7 @@ import {
   AnalysisSidebar,
   MobileMasteringView,
   ConsolidateMasterModal,
+  SelectWorkflowModal,
 } from "@/features/mastering";
 import { LibraryView } from "@/features/remastering-history";
 import { fetchUserTracks, renameTrackDraft, getUserTracksCount, type Track } from "@/features/tracks";
@@ -50,6 +51,7 @@ function MezclasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const trackIdParam = searchParams.get("track");
+  const modeParam = searchParams.get("mode");
   const isMobile = useIsMobile();
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -62,7 +64,14 @@ function MezclasContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [consolidateModalOpen, setConsolidateModalOpen] = useState(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const [hasSavedTracks, setHasSavedTracks] = useState(true);
+
+  useEffect(() => {
+    if (modeParam === "manual" || modeParam === "ai") {
+      setMasteringMode(modeParam);
+    }
+  }, [modeParam]);
 
   useEffect(() => {
     if (user?.id) {
@@ -177,6 +186,7 @@ function MezclasContent() {
           onConsolidate={() => setConsolidateModalOpen(true)}
           draftName={workflow.currentTrack?.draft_name || workflow.currentTrack?.active_preset || "Mezcla Principal"}
           hasSavedTracks={Boolean(workflow.currentTrack || hasSavedTracks)}
+          onOpenWorkflowModal={() => setWorkflowModalOpen(true)}
           onRenameDraft={async (newName) => {
             if (workflow.currentTrack) {
               try {
@@ -530,6 +540,18 @@ function MezclasContent() {
           activePresetId={workflow.activePresetId}
           isConsolidating={workflow.isConsolidating}
           onConfirm={workflow.handleConsolidateMaster}
+        />
+
+        {/* Workflow Mode Explanation & Selector Modal */}
+        <SelectWorkflowModal
+          isOpen={workflowModalOpen}
+          trackTitle={workflow.currentTrack?.title}
+          onConfirm={(mode) => {
+            setMasteringMode(mode);
+            setWorkflowModalOpen(false);
+          }}
+          onClose={() => setWorkflowModalOpen(false)}
+          canDismiss={true}
         />
       </main>
     </LicenseGuard>
