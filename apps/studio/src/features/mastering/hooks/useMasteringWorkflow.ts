@@ -872,14 +872,7 @@ export function useMasteringWorkflow(
         }
         setSession(analyzed);
 
-<<<<<<< HEAD
-        // 4. If draft parameters exist, process immediately with them; otherwise use genre defaults
-        const targetParams: MasteringParameters = hasCustomDraft
-          ? restoredParams
-          : (analyzed.analysis.detected_genre ? genreToParams(analyzed.analysis.detected_genre) : DEFAULT_PARAMS);
-        setParams(targetParams);
-=======
-        // 4. Decide: auto-resume ONLY a master interrupted mid-flight; never
+// 4. Decide: auto-resume ONLY a master interrupted mid-flight; never
         //    auto-master on open. Opening a track restores its draft params
         //    (or neutral defaults) and keeps the original as the preview
         //    source until the user explicitly masters.
@@ -888,7 +881,6 @@ export function useMasteringWorkflow(
             ? ({ ...DEFAULT_PARAMS, ...track.draft_parameters } as MasteringParameters)
             : genreToParams(analyzed.analysis.detected_genre ?? null);
           setParams(targetParams);
->>>>>>> d6e90ff (feat(studio): stop auto-master on track open, resume interrupted with watchdog)
 
           const controller = new AbortController();
           abortRef.current = controller;
