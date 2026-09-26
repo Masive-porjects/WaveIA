@@ -5,9 +5,16 @@
  *  - genreDisplayLabel: etiqueta legible; "hip_hop" tiene nombre propio
  *    ("Rap / Hip-Hop"), el resto reemplaza "_" por espacio, null/other
  *    se normalizan a "Otro".
+ *  - hasCompletedMix: T3 — el estado de mezcla viene del backend
+ *    (session.mix_status) y solo "completed" habilita source=mix.
  */
 import { describe, it, expect } from "vitest";
-import { genreDisplayLabel, genreToParams } from "@/lib/audioUtils";
+import {
+  genreDisplayLabel,
+  genreToParams,
+  hasCompletedMix,
+} from "@/lib/audioUtils";
+import type { SessionData } from "@/lib/api";
 
 describe("genreToParams — perfil urbano", () => {
   const urbanProfile = {
@@ -53,5 +60,30 @@ describe("genreDisplayLabel", () => {
   it("null y other → Otro", () => {
     expect(genreDisplayLabel(null)).toBe("Otro");
     expect(genreDisplayLabel("other")).toBe("Otro");
+  });
+});
+
+describe("hasCompletedMix", () => {
+  /** Sesión mínima: solo el campo que decide el estado de mezcla. */
+  const session = (mixStatus?: SessionData["mix_status"]) =>
+    ({ session_id: "s1", mix_status: mixStatus }) as SessionData;
+
+  it("true solo con mix_status completed (mezcla entregada)", () => {
+    expect(hasCompletedMix(session("completed"))).toBe(true);
+  });
+
+  it("false con processing / failed / none", () => {
+    expect(hasCompletedMix(session("processing"))).toBe(false);
+    expect(hasCompletedMix(session("failed"))).toBe(false);
+    expect(hasCompletedMix(session("none"))).toBe(false);
+  });
+
+  it("false cuando el campo no viene (sesión anterior al contrato T2)", () => {
+    expect(hasCompletedMix(session(undefined))).toBe(false);
+  });
+
+  it("false sin sesión", () => {
+    expect(hasCompletedMix(null)).toBe(false);
+    expect(hasCompletedMix(undefined)).toBe(false);
   });
 });

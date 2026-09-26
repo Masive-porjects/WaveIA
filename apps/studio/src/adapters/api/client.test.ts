@@ -2,6 +2,8 @@
  * client — URL builders de audio/download (demo multi-preset):
  *  - getAudioUrl: mastered + preset => ?preset_id; original nunca lo lleva
  *  - getDownloadUrl: appendea ?preset_id para wav y mp3 cuando hay preset
+ *  - processAudio: ?source=original|mix elige qué archivo consume el master
+ *    (T2); sin source no manda la query (default smart del backend)
  *  - Sin presetId la URL queda intacta (ruta legacy)
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -10,6 +12,8 @@ import {
   getDownloadUrl,
   getMixAudioUrl,
   mixTracks,
+  processAudio,
+  DEFAULT_PARAMS,
 } from '@/adapters/api/client';
 
 // Mismo fallback que config.ts en tests (sin NEXT_PUBLIC_API_URL).
@@ -64,6 +68,62 @@ describe('getDownloadUrl', () => {
 describe('getMixAudioUrl', () => {
   it('apunta al WAV mezclado persistido de la sesión', () => {
     expect(getMixAudioUrl(SID)).toBe(`${API}/session/${SID}/audio/mix`);
+  });
+});
+
+describe('processAudio — ?source (T2)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function okFetch() {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ session_id: SID, mix_status: 'completed' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('envía source=mix cuando el master parte de la mezcla entregada', async () => {
+    const fetchMock = okFetch();
+
+    await processAudio(SID, DEFAULT_PARAMS, undefined, undefined, 'mix');
+
+    expect(fetchMock.mock.calls[0][0].toString()).toBe(
+      `${API}/session/${SID}/process?source=mix`,
+    );
+  });
+
+  it('envía source=original cuando no hay mezcla entregada', async () => {
+    const fetchMock = okFetch();
+
+    await processAudio(SID, DEFAULT_PARAMS, undefined, undefined, 'original');
+
+    expect(fetchMock.mock.calls[0][0].toString()).toBe(
+      `${API}/session/${SID}/process?source=original`,
+    );
+  });
+
+  it('omite la query cuando no se pasa source (default smart del backend)', async () => {
+    const fetchMock = okFetch();
+
+    await processAudio(SID, DEFAULT_PARAMS);
+
+    expect(fetchMock.mock.calls[0][0].toString()).toBe(
+      `${API}/session/${SID}/process`,
+    );
+  });
+
+  it('combina source con preset_id', async () => {
+    const fetchMock = okFetch();
+
+    await processAudio(SID, DEFAULT_PARAMS, undefined, 'urbano', 'mix');
+
+    const url = new URL(fetchMock.mock.calls[0][0].toString());
+    expect(url.searchParams.get('source')).toBe('mix');
+    expect(url.searchParams.get('preset_id')).toBe('urbano');
   });
 });
 

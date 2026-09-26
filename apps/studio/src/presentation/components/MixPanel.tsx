@@ -53,6 +53,13 @@ interface MixPanelProps {
   disabled?: boolean;
   /** ``session.analysis.detected_genre`` — alimenta el mini-panel IA. */
   genreHint?: string | null;
+  /** ``hasMix`` del backend (``session.mix_status === "completed"``, T2):
+   *  hay una mezcla ENTREGADA y masterizable. Etiqueta la tarjeta del
+   *  resultado; el master usa el mismo booleano como ``source=mix``. */
+  hasMix: boolean;
+  /** Notifica que el POST /mix terminó (éxito o fallo) para que el padre
+   *  relea la sesión y sincronice ``mix_status``. */
+  onMixSettled?: () => void;
   /** Modo global Manual/Asistente IA (switch del navbar). Gobierna el
    *  mini-panel de recomendaciones IA del módulo. */
   mode: "manual" | "ai";
@@ -290,6 +297,8 @@ export default function MixPanel({
   audioDurationSeconds,
   disabled,
   genreHint,
+  hasMix,
+  onMixSettled,
   mode,
   onMasterize,
 }: MixPanelProps) {
@@ -413,8 +422,15 @@ export default function MixPanel({
       setMixUrl(audioUrl);
       setMixResult(result);
       setShowResult(true);
+      // El POST /mix ya publicó mix_status en el backend (T2): el padre
+      // relee la sesión para que `hasMix` (y con él la etiqueta y el
+      // source=mix del master) reflejen la entrega.
+      onMixSettled?.();
     } catch (e) {
       clearProgressTimer();
+      // El estado de mezcla cambió igual (failed / processing tras abort):
+      // sincronizamos para no arrastrar un `hasMix` viejo.
+      onMixSettled?.();
       // Cancelación explícita del usuario: estado informativo, NO un fallo.
       // (El backend puede seguir procesando server-side; el cliente deja de
       // esperar y no marca done.)
@@ -427,7 +443,7 @@ export default function MixPanel({
       if (abortRef.current === controller) abortRef.current = null;
       setMixing(false);
     }
-  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled, autoBalance, faderValues]);
+  }, [sessionId, mixing, audioDurationSeconds, clearProgressTimer, dimensionEnabled, autoBalance, faderValues, onMixSettled]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -892,6 +908,10 @@ export default function MixPanel({
             originalUrl={getAudioUrl(sessionId, "original")}
             mixedUrl={audioSrc}
             mixedDuration={analysis?.duration_seconds ?? null}
+            /* La insignia "Audio mezclado" se muestra SOLO con una mezcla
+               entregada por el backend (mix_status completed), no con un
+               WAV local en vuelo o fallido. */
+            hasMix={hasMix}
           />
 
           {analysis && <MixAnalysisGrid result={analysis} />}

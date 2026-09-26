@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
+import { motion } from "framer-motion";
 import {
   CheckCircle2,
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   Play,
   SkipBack,
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface MixWaveformABProps {
   /** URL del audio original (persistido en el backend). */
@@ -19,6 +21,10 @@ interface MixWaveformABProps {
    *  ``sessionMixAnalysis``). Si no hay dato, no se muestra.
    */
   mixedDuration?: number | null;
+  /** ``hasMix`` del backend (``mix_status === "completed"``, T2): la
+   *  insignia "Audio mezclado" se muestra solo con una mezcla ENTREGADA,
+   *  nunca con un WAV local en vuelo o fallido. */
+  hasMix?: boolean;
 }
 
 /* ── Tokens de onda (v5 — dark mode) ────────────────────
@@ -165,12 +171,15 @@ interface WaveSideProps {
   kind: "original" | "mixed";
   /** Duración total del mix (solo lado mezclado; se omite sin dato). */
   mixedDuration?: number | null;
+  /** Solo lado mezclado: hay mezcla entregada por el backend → insignia. */
+  hasMix?: boolean;
 }
 
-function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
+function WaveSide({ url, kind, mixedDuration, hasMix }: WaveSideProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
   const isCleaningRef = useRef(false);
+  const { t } = useTranslation();
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -265,20 +274,26 @@ function WaveSide({ url, kind, mixedDuration }: WaveSideProps) {
           className="text-[10px] font-bold uppercase tracking-[0.14em]"
           style={{ color: isMixed ? "#10b981" : "var(--text-secondary)" }}
         >
-          {isMixed ? "Audio mezclado (Final)" : "Original (Raw)"}
+          {isMixed
+            ? t("mezcla.mixedSideLabel", "Audio mezclado (Final)")
+            : t("mezcla.originalSideLabel", "Original (Raw)")}
         </p>
-        {isMixed && (
-          <span
+        {isMixed && hasMix && (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
             style={{
-              background: "rgba(48, 209, 88, 0.12)",
-              border: "1px solid rgba(48, 209, 88, 0.2)",
-              color: "#30d158",
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border-subtle)",
+              color: "var(--accent-primary)",
             }}
+            data-testid="mix-delivered-badge"
           >
             <CheckCircle2 size={11} />
-            Audio mezclado
-          </span>
+            {t("mezcla.mixedAudioBadge", "Audio mezclado")}
+          </motion.span>
         )}
       </div>
 
@@ -374,11 +389,17 @@ export default function MixWaveformAB({
   originalUrl,
   mixedUrl,
   mixedDuration,
+  hasMix,
 }: MixWaveformABProps) {
   return (
     <div className="w-full min-w-0 grid grid-cols-1 gap-3 md:grid-cols-2">
       <WaveSide url={originalUrl} kind="original" />
-      <WaveSide url={mixedUrl} kind="mixed" mixedDuration={mixedDuration} />
+      <WaveSide
+        url={mixedUrl}
+        kind="mixed"
+        mixedDuration={mixedDuration}
+        hasMix={hasMix}
+      />
     </div>
   );
 }

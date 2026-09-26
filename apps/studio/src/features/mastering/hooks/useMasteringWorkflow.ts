@@ -17,7 +17,7 @@ import {
 } from "@/lib/api";
 import { PLATFORM_DEFAULTS } from "@/components/DeliveryPanel";
 import { type StemSplitterState, createDefaultStemState } from "@/components/StemSplitter";
-import { genreToParams } from "@/lib/audioUtils";
+import { genreToParams, hasCompletedMix } from "@/lib/audioUtils";
 import { useProcessingProgress } from "./useProcessingProgress";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -114,6 +114,28 @@ export function useMasteringWorkflow(
   // Abort controller for in-flight processing requests
   const abortRef = useRef<AbortController | null>(null);
   const presetCacheRef = useRef<Map<string, SessionData>>(new Map());
+
+  /* ── Mix state (T2/T3) ───────────────────────────────
+     ``hasMix`` is DERIVED from the backend-owned ``session.mix_status``,
+     never from a local mix blob: the master tab and the mix tab read the
+     same boolean, and the next tasks (mix/original toggle, gating the
+     download) can branch on it. */
+  const hasMix = hasCompletedMix(session);
+
+  /** Re-read the session so the client sees the backend mix lifecycle
+   *  (``mix_status``) that POST /mix just published. Called by the mix tab
+   *  when a run settles — the mix response itself is a WAV blob + header,
+   *  never the session state. */
+  const handleMixSettled = useCallback(async () => {
+    const current = session;
+    if (!current) return;
+    try {
+      setSession(await getSession(current.session_id));
+    } catch {
+      // Backend best-effort: a lost refresh only means the tab keeps
+      // rendering the mix it already has; the next poll corrects it.
+    }
+  }, [session]);
 
   // Real progress polled from the backend for the ProcessingOverlay
   const { progress, completeProgress } = useProcessingProgress({
@@ -339,11 +361,18 @@ export function useMasteringWorkflow(
     const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
 
     try {
+      // Explicit source (T2/T3): a delivered mix IS the input to master.
+      // Sending it instead of relying on the backend's smart default makes
+      // the client's intent auditable in the request and keeps the neutral
+      // parameters bit-exact against the SELECTED file (bypass unchanged).
+      // The preset path (handlePresetSelect) keeps the smart default, which
+      // resolves to the same file.
       const result = await processAudio(
         session.session_id,
         params,
         controller.signal,
         activePresetId ?? undefined,
+        hasMix ? "mix" : "original",
       );
       completeProgress();
       await new Promise((r) => setTimeout(r, 600));
@@ -376,7 +405,7 @@ export function useMasteringWorkflow(
       setProcessing(false);
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [session, params, activePresetId, completeProgress, t]);
+  }, [session, params, activePresetId, completeProgress, t, hasMix]);
 
 
   /* ── Preset Select ─────────────────────────────────── */
@@ -467,7 +496,15 @@ export function useMasteringWorkflow(
   const handleReset = useCallback(async () => {
     if (!session) return;
     try {
-      await resetSession(session.session_id);
+      const reset = await resetSession(session.session_id);
+      // The reset response is the backend truth for the mix lifecycle
+      // (mix_status goes back to "none"), so `hasMix` must follow it —
+      // otherwise a later run would ask for source=mix and get a 400.
+      // Only the mix field is adopted: the local session keeps its master
+      // pointers until the next process replaces them (unchanged behavior).
+      setSession((prev) =>
+        prev ? { ...prev, mix_status: reset.mix_status ?? "none" } : prev,
+      );
     } catch {
       // Backend best-effort
     }
@@ -686,23 +723,51 @@ export function useMasteringWorkflow(
         }
         setSession(analyzed);
 
-        // 4. If draft parameters exist, process immediately with them; otherwise use genre defaults
-        const targetParams: MasteringParameters = hasCustomDraft
-          ? restoredParams
-          : (analyzed.analysis.detected_genre ? genreToParams(analyzed.analysis.detected_genre) : DEFAULT_PARAMS);
-        setParams(targetParams);
+// 4. Decide: auto-resume ONLY a master interrupted mid-flight; never
+        //    auto-master on open. Opening a track restores its draft params
+        //    (or neutral defaults) and keeps the original as the preview
+        //    source until the user explicitly masters.
+        if (track.status === "mastering") {
+          const targetParams: MasteringParameters = hasCustomDraft
+            ? restoredParams
+            : genreToParams(analyzed.analysis.detected_genre ?? null);
+          setParams(targetParams);
 
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const processed = await processAudio(
-          analyzed.session_id,
-          targetParams,
-          controller.signal,
-          track.active_preset ?? undefined,
-        );
-        completeProgress();
-        setSession(processed);
-        onSessionLoaded?.(processed);
+          const controller = new AbortController();
+          abortRef.current = controller;
+          const watchdog = setTimeout(() => controller.abort(), PROCESS_TIMEOUT_MS);
+          try {
+            const processed = await processAudio(
+              analyzed.session_id,
+              targetParams,
+              controller.signal,
+              track.active_preset ?? undefined,
+            );
+            completeProgress();
+            setSession(processed);
+            onSessionLoaded?.(processed);
+            await updateTrackStatus(track.id, "completed");
+            if (user) {
+              logTrackEvent(user.id, track.id, "reprocessed", {
+                params: targetParams,
+                preset_id: track.active_preset ?? null,
+                resumed: true,
+              });
+            }
+          } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") {
+              throw new Error(
+                t(
+                  "errors.processTimeout",
+                  "El procesamiento tardó demasiado y se canceló. Prueba de nuevo.",
+                ),
+              );
+            }
+            throw err;
+          } finally {
+            clearTimeout(watchdog);
+          }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error al cargar proyecto";
         setError(msg);
@@ -716,7 +781,7 @@ export function useMasteringWorkflow(
         setIsLoadingTrackProject(false);
       }
     },
-    [completeProgress, onSessionLoaded, t],
+    [completeProgress, onSessionLoaded, t, user],
   );
 
   /* ── Over-master confirmations ─────────────────────── */
@@ -765,6 +830,8 @@ export function useMasteringWorkflow(
   return {
     session,
     setSession,
+    hasMix,
+    handleMixSettled,
     currentTrack,
     setCurrentTrack,
     isUploadingToCloud,

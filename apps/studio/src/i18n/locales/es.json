@@ -404,7 +404,10 @@
     "manualTweakNote": "Ajuste manual — aplica cuando la plataforma es Automático o Personalizado."
   },
   "mezcla": {
-    "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio."
+    "loadAudioPrompt": "Carga un audio para usar la Mezcla de Audio.",
+    "mixedSideLabel": "Audio mezclado (Final)",
+    "originalSideLabel": "Original (Raw)",
+    "mixedAudioBadge": "Audio mezclado"
   },
   "vocal": {
     "title": "VoiceChain",
