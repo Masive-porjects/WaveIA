@@ -105,12 +105,28 @@ export function useTrackHistory({
     async (storagePath: string, filename: string) => {
       try {
         const signedUrl = await getMasterSignedUrl(storagePath);
-        const a = document.createElement("a");
-        a.href = signedUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Explicitly open the master in a new tab so current studio view is never replaced
+        if (typeof window !== "undefined") {
+          window.open(signedUrl, "_blank", "noopener,noreferrer");
+        }
+
+        // Also trigger background blob download so the file is saved locally to disk
+        try {
+          const res = await fetch(signedUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }
+        } catch (fetchErr) {
+          console.warn("Direct blob download failed, opened in new tab fallback:", fetchErr);
+        }
       } catch (err) {
         console.error("Error downloading master:", err);
       }

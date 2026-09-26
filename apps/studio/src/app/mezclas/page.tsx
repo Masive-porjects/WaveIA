@@ -533,10 +533,9 @@ function MezclasContent() {
           isOpen={libraryOpen}
           onClose={() => setLibraryOpen(false)}
           currentTrackId={workflow.currentTrack?.id}
-          onSelectTrack={async (track) => {
+          onSelectTrack={(track) => {
             setLibraryOpen(false);
-            await workflow.handleLoadTrackProject(track);
-            router.push(`/mezclas?track=${track.id}`);
+            window.open(`/mezclas?track=${track.id}`, "_blank");
           }}
           onTracksCountChange={(count) => setHasSavedTracks(count > 0 || Boolean(workflow.currentTrack))}
           onNewUpload={handleHomeClick}

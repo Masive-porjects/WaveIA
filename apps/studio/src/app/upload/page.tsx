@@ -71,14 +71,12 @@ export default function UploadPage() {
 
   const handleResumeProject = async (track: Track) => {
     setResumeModalOpen(false);
-    await workflow.handleLoadTrackProject(track);
-    router.push(`/mezclas?track=${track.id}`);
+    window.open(`/mezclas?track=${track.id}`, "_blank");
   };
 
   const handleSelectTrackFromLibrary = async (track: Track) => {
     setLibraryOpen(false);
-    await workflow.handleLoadTrackProject(track);
-    router.push(`/mezclas?track=${track.id}`);
+    window.open(`/mezclas?track=${track.id}`, "_blank");
   };
 
   return (

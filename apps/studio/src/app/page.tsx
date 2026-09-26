@@ -90,13 +90,15 @@ export default function HomePage() {
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/upload"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-semibold text-sm bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white shadow-[0_4px_24px_rgba(98,126,132,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <span>{t("landing.ctaUpload", "Iniciar Estudio / Subir Audio")}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            {isMounted && session && (
+            {isMounted && (
               <Link
                 href="/mezclas"
                 target="_blank"
@@ -104,7 +106,7 @@ export default function HomePage() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm border border-[var(--border-strong)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-all cursor-pointer"
               >
                 <Music2 className="w-4 h-4 text-[var(--accent-secondary)]" />
-                <span>{t("landing.ctaMezclas", "Ir al Panel de Mezclas")}</span>
+                <span>{t("landing.ctaMezclas", "Ir al Panel de Mezclas / Master")}</span>
               </Link>
             )}
           </div>
