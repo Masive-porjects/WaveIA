@@ -23,6 +23,7 @@ export default function UploadPage() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [latestTrack, setLatestTrack] = useState<Track | null>(null);
+  const [hasSavedTracks, setHasSavedTracks] = useState(false);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
   const hasCheckedLatestRef = useRef(false);
 
@@ -30,6 +31,7 @@ export default function UploadPage() {
   useEffect(() => {
     if (!user) {
       setLatestTrack(null);
+      setHasSavedTracks(false);
       setResumeModalOpen(false);
       return;
     }
@@ -39,11 +41,13 @@ export default function UploadPage() {
     fetchLatestUserTrack(user.id).then((track) => {
       if (track) {
         setLatestTrack(track);
+        setHasSavedTracks(true);
         if (!workflow.session) {
           setResumeModalOpen(true);
         }
       } else {
         setLatestTrack(null);
+        setHasSavedTracks(false);
         setResumeModalOpen(false);
       }
     });
@@ -99,6 +103,7 @@ export default function UploadPage() {
           setMobileMenuOpen={setMobileMenuOpen}
           autosaveStatus={workflow.autosaveStatus}
           onOpenLibrary={() => setLibraryOpen(true)}
+          hasSavedTracks={hasSavedTracks}
         />
 
         {/* Upload Workspace */}
@@ -115,11 +120,13 @@ export default function UploadPage() {
         <LibraryView
           isOpen={libraryOpen}
           onClose={() => setLibraryOpen(false)}
+          currentTrackId={workflow.currentTrack?.id}
           onSelectTrack={handleSelectTrackFromLibrary}
           onNewUpload={() => {
             setLibraryOpen(false);
             setResumeModalOpen(false);
           }}
+          onTracksCountChange={(count) => setHasSavedTracks(count > 0)}
         />
 
         {/* Prompt to Resume Latest Project for Returning Users */}

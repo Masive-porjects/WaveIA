@@ -1,31 +1,46 @@
 # Reporte de Implementación - Fase 5: Historial de Proyectos, Auto-guardado de Borradores y Consolidación de Masters Definitivos
 
 ## 1. Resumen Ejecutivo
-En esta Fase 5 se ha implementado la arquitectura completa de persistencia para proyectos de producción musical en **WaveIA**, resolviendo de manera no destructiva y de alto rendimiento la retención de borradores, la biblioteca de canciones y la consolidación de másters finales en **Supabase**:
+En esta Fase 5 se ha implementado y robustecido la arquitectura completa de persistencia para proyectos de producción musical en **WaveIA**, resolviendo de manera no destructiva, escalable y de alto rendimiento la retención de borradores, la relación 1:N entre pistas y mezclas, la biblioteca de canciones y la consolidación de másters finales en **Supabase**:
 
-1. **Borradores no destructivos sin consumo de RAM ni Storage excesivo**: Los borradores no renderizan nuevos archivos WAV/MP3 ni ocupan almacenamiento de audio repetido. Se almacenan como recetas de parámetros (`JSONB < 1 KB`) en la columna `draft_parameters` y `active_preset` de `public.tracks`.
-2. **Auto-guardado en tiempo real con debounce**: El hook [useAutosaveDraft.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useAutosaveDraft.ts) sincroniza automáticamente cada perilla y preset modificado con un debounce de 800ms, proporcionando retroalimentación visual inmediata en la barra superior.
-3. **Consolidación de Masters en Cloud Storage**: Creación de la tabla `public.masters` y almacenamiento en el bucket `audio-masters` con RLS, registrando el archivo exportado, formato, tamaño en bytes, preset usado y parámetros exactos aplicados.
-4. **Módulo de Biblioteca e Historial (`remastering-history`)**: Interfaz modal flotante [LibraryView.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/components/LibraryView.tsx) con estética glassmorphic, pestañas de filtrado (*Todos*, *Borradores*, *Masterizados*), búsqueda en tiempo real con debounce, componente reutilizable `<Pagination />`, apertura de proyectos y descarga directa vía URLs firmadas.
-5. **Acceso Global**: Botón de acceso directo "Mis Canciones" en [MasteringHeader.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/MasteringHeader.tsx) y en el menú de usuario [UserMenu.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/auth/components/UserMenu.tsx).
-6. **Internacionalización Integral**: Cobertura al 100% de todas las nuevas etiquetas, micro-indicadores y modales en español ([es.json](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/es.json)) e inglés ([en.json](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/en.json)).
+1. **Arquitectura 1:N y Borradores No Destructivos**:
+   - Cada canción original (`public.tracks`) soporta múltiples borradores y múltiples versiones de mezcla final (`public.masters`).
+   - Los borradores son recetas ligeras (`JSONB < 1 KB`) que nunca sobreescriben ni borran el trabajo previo al consolidar una mezcla final. El flujo anterior que eliminaba borradores al exportar un master (`clearTrackDraft`) ha sido erradicado en favor de un histórico no destructivo.
+2. **Rehidratación Automática Fiel al Volver a Iniciar Sesión**:
+   - Corrección integral del bug de pérdida de perillas: el hook [useAutosaveDraft.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useAutosaveDraft.ts) ahora actualiza su línea base dinámicamente al cambiar de pista, evitando que los valores por defecto sobreescriban los parámetros guardados en la nube.
+   - En [useMasteringWorkflow.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useMasteringWorkflow.ts), `handleLoadTrackProject` reconstruye fielmente las perillas (`params`), el preset activo (`activePresetId`) y la sesión del motor AudioMind.
+   - Corrección en [audioUtils.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/lib/audioUtils.ts) (`isPresetCompleted`): permite que el reproductor reproduzca el audio masterizado rehidratado directamente si `session.mastered_path` existe.
+3. **Modal de Consolidación Definitiva ("Definir Mezcla Final")**:
+   - Componente modal interactivo y glassmorphic [ConsolidateMasterModal.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/ConsolidateMasterModal.tsx).
+   - Permite al usuario personalizar el nombre de la mezcla (con autocompletado inteligente basado en título y fecha/versión), seleccionar el formato de entrega (`WAV 24-bit PCM` o `MP3 320kbps`), y revisar el desglose exacto de la receta acústica (LUFS objetivo, ceiling, ancho estéreo, compresión, saturación y calidez).
+   - Sube automáticamente el archivo procesado al bucket `audio-masters` de Supabase Cloud Storage, crea el registro detallado en `public.masters`, emite el evento de auditoría y descarga el archivo al equipo local sin fricción.
+4. **Renombrado y Personalización de Borradores**:
+   - Soporte para nombres personalizados de borrador (`draft_name`) en base de datos y UI.
+   - Píldora interactiva con edición inline en la barra superior [MasteringHeader.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/MasteringHeader.tsx): clic directo para renombrar y sincronización inmediata con la nube.
+5. **Indicador Visual de Sesión Activa y Cero Latencia en "Mis Canciones"**:
+   - En el modal de biblioteca [LibraryView.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/components/LibraryView.tsx), la pista actualmente abierta en el estudio se resalta con borde de acento y un badge animado pulsante `"Sesión Activa"`.
+   - Se reemplaza el botón `"Abrir ->"` por un botón rápido `"En Estudio"` que simplemente cierra el modal y enfoca la sesión actual, evitando descargas y recargas innecesarias que hacían perder tiempo al usuario.
+6. **Internacionalización Bilingüe Completa**:
+   - Nuevos textos y mensajes traducidos al 100% en español ([es.json](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/es.json)) e inglés ([en.json](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/i18n/locales/en.json)).
 
 ---
 
 ## 2. Base de Datos y Seguridad (Supabase)
 
-### Migración Aplicada
+### Migración SQL de Persistencia Avanzada (1:N)
 ```sql
--- 1. Agregar columnas para borrador en tiempo real
+-- 1. Agregar columnas para borrador en tiempo real y renombrado
 ALTER TABLE public.tracks 
 ADD COLUMN IF NOT EXISTS draft_parameters JSONB DEFAULT NULL,
-ADD COLUMN IF NOT EXISTS active_preset TEXT DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS active_preset TEXT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS draft_name TEXT DEFAULT NULL;
 
--- 2. Crear tabla para masters consolidados
+-- 2. Tabla para masters consolidados definitivos
 CREATE TABLE IF NOT EXISTS public.masters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT DEFAULT NULL,
   storage_path TEXT NOT NULL,
   format TEXT NOT NULL DEFAULT 'wav',
   file_size_bytes BIGINT NOT NULL,
@@ -36,16 +51,40 @@ CREATE TABLE IF NOT EXISTS public.masters (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 3. Índices para consultas de alto rendimiento
+-- 3. Tabla para soporte 1:N de versiones de borradores
+CREATE TABLE IF NOT EXISTS public.track_drafts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL DEFAULT 'Borrador 1',
+  version_number INT NOT NULL DEFAULT 1,
+  parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+  active_preset TEXT DEFAULT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. Índices para consultas de alto rendimiento
 CREATE INDEX IF NOT EXISTS idx_masters_track_id ON public.masters(track_id);
 CREATE INDEX IF NOT EXISTS idx_masters_user_id ON public.masters(user_id);
+CREATE INDEX IF NOT EXISTS idx_track_drafts_track_id ON public.track_drafts(track_id);
+CREATE INDEX IF NOT EXISTS idx_track_drafts_user_id ON public.track_drafts(user_id);
 CREATE INDEX IF NOT EXISTS idx_tracks_draft_parameters ON public.tracks(draft_parameters) WHERE draft_parameters IS NOT NULL;
 
--- 4. Row Level Security
+-- 5. Row Level Security
 ALTER TABLE public.masters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.track_drafts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own masters" 
 ON public.masters 
+FOR ALL 
+TO authenticated 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own drafts" 
+ON public.track_drafts 
 FOR ALL 
 TO authenticated 
 USING (auth.uid() = user_id) 
@@ -54,60 +93,46 @@ WITH CHECK (auth.uid() = user_id);
 
 ---
 
-## 3. Componentes y Módulos Creados
+## 3. Componentes y Módulos Desarrollados
 
 ### `apps/studio/src/features/remastering-history`
 - [useTrackHistory.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/hooks/useTrackHistory.ts): Gestión reactiva de canciones con paginación en servidor, orden cronológico, filtro por estado (`all`, `draft`, `completed`), búsqueda con debounce de 350ms, eliminación segura en cascada (base de datos + archivos en storage) y descarga de masters.
 - [LibraryView.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/components/LibraryView.tsx):
-  - Modal flotante con desenfoque de fondo y tokens de diseño WaveIA (`var(--bg-glass-elevated)`, `var(--border-strong)`).
-  - Píldoras indicadoras:
-    - *Borrador activo*: Destello ámbar con nombre de preset.
-    - *Masterizado*: Indicador esmeralda con acceso directo a descarga.
-  - Botón "Abrir": Reanuda la sesión en el studio rehidratando el audio y aplicando los parámetros exactos del borrador.
-  - Integración nativa con el componente `<Pagination />`.
+  - Detección de sesión activa vía prop `currentTrackId`.
+  - Píldora pulsante `"Sesión Activa"` en color azul/cyan para la canción abierta en el estudio.
+  - Botón `"En Estudio"` que previene recargas redundantes.
   - Diálogo de confirmación accesible para borrado permanente.
 - [ResumeSessionModal.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/components/ResumeSessionModal.tsx):
   - Modal inteligente de bienvenida y reanudación de proyectos para usuarios con producciones existentes.
   - Muestra la tarjeta del track más reciente con sus especificaciones, badge de estado y hora de modificación.
   - Ofrece 3 opciones claras: *"Continuar con este proyecto"*, *"Subir un nuevo audio"* (mantiene historial intacto) y *"Ver todas mis canciones"*.
-  - **Zero-State Session Guard**: Si el usuario no tiene canciones registradas en Supabase, el sistema limpia cualquier sesión residual huérfana y presenta la vista limpia de carga de audio (`UploadView`).
-- [index.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/remastering-history/index.ts): Exportación limpia del módulo.
-
-### `apps/studio/src/features/tracks` (Trazabilidad y Auditoría de Eventos)
-- **Tabla `public.track_events`**: Almacena cada hito del ciclo de vida del audio con RLS (`uploaded`, `analyzed`, `draft_saved`, `reprocessed`, `preset_applied`, `master_consolidated`, `master_downloaded`).
-- **`logTrackEvent`**: Ejecuta registros de fondo sin impactar los tiempos de respuesta de la interfaz ni bloquear el reproductor.
-- **`fetchLatestUserTrack`**: Consulta el último proyecto activo del usuario para el modal de bienvenida inteligente.
 
 ### `apps/studio/src/features/mastering`
-- [useAutosaveDraft.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useAutosaveDraft.ts): Hook de auto-guardado con debounce de 800ms, seguimiento de estados (`idle`, `saving`, `saved`, `error`) y método `forceSave`.
+- [useAutosaveDraft.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useAutosaveDraft.ts): Auto-guardado con debounce de 800ms, seguimiento de estados (`idle`, `saving`, `saved`, `error`) y sincronización dinámica de la línea base para evitar sobreescritura accidental al alternar canciones.
 - [useMasteringWorkflow.ts](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/hooks/useMasteringWorkflow.ts):
-  - Eliminación de la restauración ciega en `localStorage` que abría sesiones residuales; Supabase es ahora la fuente única de verdad.
-  - Integración de `logTrackEvent` en cada punto crítico de la cadena de masterización.
-  - Método `handleLoadTrackProject(track)`: Carga el audio original mediante URL firmada de Supabase, lo transfiere al motor AudioMind y rehidrata los parámetros del borrador.
-  - Método `handleConsolidateMaster(format)`: Guarda de forma explícita o al descargar el master en `audio-masters` y registra la entrada en `public.masters`.
+  - Eliminación de `clearTrackDraft` en la consolidación para preservar borradores de forma no destructiva.
+  - Rehidratación exacta de presets y perillas en `handleLoadTrackProject`.
+  - Consolidación a Supabase Cloud Storage en `handleConsolidateMaster` aceptando `{ name, format }`.
+- [ConsolidateMasterModal.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/ConsolidateMasterModal.tsx): Modal de exportación definitiva con edición de metadatos, selector de formato y resumen técnico.
 - [MasteringHeader.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/mastering/components/MasteringHeader.tsx):
+  - Botón de acción destacada `"Definir Mezcla Final"`.
+  - Chip interactivo de renombrado de borrador con edición directa.
   - Micro-indicador animado de estado del borrador (`Guardando borrador...`, `Borrador en nube`, `Error al guardar`).
-  - Botón directo "Mis Canciones" con icono `Music2`.
-
-### `apps/studio/src/features/auth`
-- [UserMenu.tsx](file:///c:/Users/Maria%20Angelica%20Diaz/Desktop/trabajo/brikmanproject/WaveIA/apps/studio/src/features/auth/components/UserMenu.tsx): Opción "Mis Canciones" integrada en el menú desplegable de usuario.
+  - Botón directo "Mis Canciones" con acceso a la biblioteca.
 
 ---
 
 ## 4. Verificación y Calidad
-- **Compilación de Producción**: `bun run build` ejecutado exitosamente con **código 0**.
+- **Compilación de Producción**: `next build` ejecutado exitosamente sin advertencias críticas.
 - **Comprobación de Tipos**: TypeScript pasó con **0 errores** en todas las rutas y componentes.
-- **Rutas y Arquitectura de Navegación Desacoplada**:
-  - `/` (Portal de bienvenida limpio y desacoplado, preparado para la futura Fase de Landing Page comercial con `// TODO: FASE LANDING PAGE`).
-  - `/upload` (Vista dedicada de subida de audio y modal inteligente de reanudación `ResumeSessionModal`).
-  - `/mezclas` (Espacio de trabajo del estudio: reproductor, canvas de masterización, dock analógico, analizador y gestión de drafts/masters).
-  - `/admin` (Panel administrativo).
-  - `/login`, `/register`, `/auth/callback` (Flujo de autenticación).
-  - `/voz`, `/voz/chat`, `/voz/escuchar`, `/voz/speak` (Módulo de voz).
+- **Rutas Validadas**:
+  - `/upload` (Carga de audio y modal inteligente de reanudación `ResumeSessionModal`).
+  - `/mezclas` (Estudio de masterización, consola de perillas, modal de consolidación definitiva e historial de borradores).
+  - `/admin`, `/login`, `/register`, `/auth/callback`, `/voz`.
 
 ---
 
-## 5. Próximos Pasos (Fase 6 y Fase Futura)
+## 5. Próximos Pasos (Fase 6)
 - **Fase 6**: Despliegue, optimización de caché, telemetría y pruebas end-to-end finales.
 - **Fase Futura (Landing Page)**: Desarrollo del portal comercial completo en la ruta raíz `/` de WaveIA.
 

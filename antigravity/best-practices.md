@@ -172,3 +172,13 @@ Para permitir que herramientas experimentales o secundarias (Stem Splitter, Voca
    - Cada cambio en el flujo de datos debe validar que el procesamiento neutral devuelve audio idéntico (passthrough de integridad sonora).
 2. **Manejo Gradual de Fallos**:
    - Si el backend de Python o el job de mastering falla, la UI debe mostrar mensajes claros en el idioma del usuario con la razón exacta (ej. audio saturado, clipping por encima de -0.3 dBTP, formato no soportado) y permitir reintentar sin reiniciar la sesión.
+
+---
+
+## 📦 8. Control de Versiones y Commits Continuos (Git Workflow)
+
+1. **Commits Obligatorios por Tarea**:
+   - Tras completar cualquier requerimiento, ajuste de UI, corrección de bug o hito funcional, se debe ejecutar inmediatamente el commit en git.
+   - Mensajes convencionales claros: `feat(...)`, `fix(...)`, `refactor(...)`, `style(...)`, `docs(...)`.
+2. **Cero Tareas Huérfanas**:
+   - Nunca concluir una respuesta o turno con cambios locales pendientes de commit si la funcionalidad ya está verificada y compilada.

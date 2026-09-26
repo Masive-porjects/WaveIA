@@ -234,24 +234,6 @@ export default function DropZone({ onFileSelected, onError, disabled, compact }:
             <span className="text-[var(--text-muted)]">{t("upload.supportedFormats")}</span>
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--border-subtle)]" />
-          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest">{t("upload.or")}</span>
-          <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--border-subtle)]" />
-        </div>
-
-        <div
-          className="px-5 py-2 rounded-xl text-xs text-[var(--text-secondary)] transition-all duration-200 hover:text-[var(--text-primary)] hover:shadow-lg"
-          style={{
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border-subtle)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-          }}
-        >
-          {t("upload.selectFile")}
-        </div>
       </div>
     </motion.div>
   );

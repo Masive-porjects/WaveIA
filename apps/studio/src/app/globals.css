@@ -301,6 +301,28 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* ── Global Interactive Cursors ────────────────────── */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+select:not(:disabled),
+summary,
+a[href],
+.cursor-pointer,
+[data-interactive="true"] {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed !important;
+}
+
 /* ── Range inputs (legacy) ──────────────────────────── */
 
 input[type="range"] {

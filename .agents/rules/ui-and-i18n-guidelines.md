@@ -46,3 +46,17 @@ Este documento define las reglas de estricto cumplimiento para cualquier nueva p
 5. **Micro-interacciones y Animaciones Fluidas**:
    - Uso de `framer-motion` para transiciones de entrada (`initial`, `animate`, `exit`) y alternancia de vistas con `AnimatePresence`.
    - Micro-indicadores visuales interactivos en tiempo real (como los estados de validación de contraseñas, hover en tarjetas, loaders en botones).
+
+---
+
+## 3. Cursor Interactivo y Accesibilidad
+1. **Cursor Pointer Obligatorio**:
+   - Todo elemento accionable (botones, tarjetas clickeables, pestañas, modales, selectores y controles) debe mostrar obligatoriamente `cursor: pointer`.
+   - Elementos deshabilitados deben mostrar `cursor: not-allowed`.
+
+---
+
+## 4. Flujo Git Obligatorio por Sesión y Tarea
+1. **Commits Continuos y Trazables**:
+   - Al finalizar cualquier conjunto de cambios, resolución de bug, refactorización o ajuste solicitado por el usuario, el asistente DEBE realizar inmediatamente el commit respectivo en git con un mensaje convencional descriptivo (`feat(...)`, `fix(...)`, `refactor(...)`, etc.).
+   - Nunca dejar tareas terminadas sin registrar en git en la sesión activa.

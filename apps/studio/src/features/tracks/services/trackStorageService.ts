@@ -271,21 +271,48 @@ export async function updateTrackStatus(
 export async function saveTrackDraft(
   trackId: string,
   draftParameters: Record<string, any>,
-  activePreset: string | null = null
+  activePreset: string | null = null,
+  draftName?: string | null
 ): Promise<void> {
   const supabase = createClient();
+  const updatePayload: Record<string, any> = {
+    draft_parameters: draftParameters,
+    active_preset: activePreset,
+    updated_at: new Date().toISOString(),
+  };
+  if (draftName !== undefined) {
+    updatePayload.draft_name = draftName;
+  }
   const { error } = await supabase
     .from("tracks")
-    .update({
-      draft_parameters: draftParameters,
-      active_preset: activePreset,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", trackId);
 
   if (error) {
     console.error("Error saving draft parameters:", error);
     throw new Error(`Error saving draft: ${error.message}`);
+  }
+}
+
+/**
+ * Renames an existing track draft.
+ */
+export async function renameTrackDraft(
+  trackId: string,
+  draftName: string
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("tracks")
+    .update({
+      draft_name: draftName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", trackId);
+
+  if (error) {
+    console.error("Error renaming draft:", error);
+    throw new Error(`Error renaming draft: ${error.message}`);
   }
 }
 
@@ -351,20 +378,25 @@ export async function createMasterRecord(
   input: CreateMasterInput
 ): Promise<MasterRecord> {
   const supabase = createClient();
+  const insertPayload: Record<string, any> = {
+    id: input.id,
+    track_id: input.track_id,
+    user_id: userId,
+    storage_path: input.storage_path,
+    format: input.format,
+    file_size_bytes: input.file_size_bytes,
+    integrated_lufs: input.integrated_lufs ?? null,
+    true_peak_db: input.true_peak_db ?? null,
+    parameters_applied: input.parameters_applied ?? {},
+    preset_name: input.preset_name ?? null,
+  };
+  if (input.name) {
+    insertPayload.name = input.name;
+  }
+
   const { data, error } = await supabase
     .from("masters")
-    .insert({
-      id: input.id,
-      track_id: input.track_id,
-      user_id: userId,
-      storage_path: input.storage_path,
-      format: input.format,
-      file_size_bytes: input.file_size_bytes,
-      integrated_lufs: input.integrated_lufs ?? null,
-      true_peak_db: input.true_peak_db ?? null,
-      parameters_applied: input.parameters_applied ?? {},
-      preset_name: input.preset_name ?? null,
-    })
+    .insert(insertPayload)
     .select()
     .single();
 
@@ -431,6 +463,24 @@ export async function fetchLatestUserTrack(userId: string): Promise<Track | null
   }
 
   return data as Track | null;
+}
+
+/**
+ * Returns the total count of tracks owned by a user.
+ */
+export async function getUserTracksCount(userId: string): Promise<number> {
+  try {
+    const supabase = createClient();
+    const { count, error } = await supabase
+      .from("tracks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+
+    if (error || count === null) return 0;
+    return count;
+  } catch {
+    return 0;
+  }
 }
 
 /**

@@ -20,9 +20,24 @@ export interface Track {
   status: TrackStatus;
   draft_parameters?: Record<string, any> | null;
   active_preset?: string | null;
+  draft_name?: string | null;
   created_at: string;
   updated_at: string;
   masters?: MasterRecord[];
+  drafts?: TrackDraft[];
+}
+
+export interface TrackDraft {
+  id: string;
+  track_id: string;
+  user_id: string;
+  name: string;
+  version_number: number;
+  parameters: Record<string, any>;
+  active_preset: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateTrackInput {
@@ -38,6 +53,7 @@ export interface CreateTrackInput {
   status?: TrackStatus;
   draft_parameters?: Record<string, any> | null;
   active_preset?: string | null;
+  draft_name?: string | null;
 }
 
 export interface AudioMetadata {
@@ -52,6 +68,7 @@ export interface MasterRecord {
   id: string;
   track_id: string;
   user_id: string;
+  name?: string | null;
   storage_path: string;
   format: string;
   file_size_bytes: number;
@@ -65,6 +82,7 @@ export interface MasterRecord {
 export interface CreateMasterInput {
   id?: string;
   track_id: string;
+  name?: string | null;
   storage_path: string;
   format: string;
   file_size_bytes: number;

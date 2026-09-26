@@ -46,13 +46,26 @@ export function useAutosaveDraft({
     }
   }, [trackId, enabled, params, activePresetId]);
 
+  const currentTrackIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!trackId || !enabled) {
+      currentTrackIdRef.current = null;
+      lastSerializedRef.current = "";
       setAutosaveStatus("idle");
       return;
     }
 
     const currentSerialized = JSON.stringify({ params, activePresetId });
+
+    // When track changes, update baseline so we don't overwrite restored draft with defaults
+    if (currentTrackIdRef.current !== trackId) {
+      currentTrackIdRef.current = trackId;
+      lastSerializedRef.current = currentSerialized;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setAutosaveStatus("idle");
+      return;
+    }
 
     // Initial baseline on track load
     if (!lastSerializedRef.current) {
